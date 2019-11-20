@@ -1,0 +1,4 @@
+vendor/* linguist-vendored
+*.h linguist-language=C++
+*.ipynb filter=nbstripout
+*.ipynb diff=ipynb
