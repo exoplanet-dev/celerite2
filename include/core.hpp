@@ -1,10 +1,11 @@
-#ifndef _CELERITE_H_
-#define _CELERITE_H_
+#ifndef _CELERITE_CORE_HPP_DEFINED_
+#define _CELERITE_CORE_HPP_DEFINED_
 
 #include <Eigen/Core>
 #include <cassert>
 
 namespace celerite {
+namespace core {
 
 #define ASSERT_SAME_OR_DYNAMIC(VAL, J) assert((VAL == Eigen::Dynamic) || (VAL == J))
 
@@ -354,6 +355,7 @@ void conditional_mean(
   }
 }
 
+}  // namespace core
 }  // namespace celerite
 
-#endif  // _CELERITE_H_
+#endif  // _CELERITE_CORE_HPP_DEFINED_
