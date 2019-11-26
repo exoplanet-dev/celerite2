@@ -116,17 +116,62 @@ TermSum<Term1, Term2> operator+(const Term1 &term1, const Term2 &term2) {
 };
 
 template <typename T>
+class RealTerm : public Term<T, 1> {
+  public:
+  static constexpr int Width = 1;
+  using typename Term<T, Width>::Scalar;
+  using typename Term<T, Width>::Vector;
+  using typename Term<T, Width>::Coeffs;
+  using Term<T, Width>::Order;
+
+  RealTerm(T a, T c) : Term<T, Width>(), a_(a), c_(c){};
+  int get_J() const { return Width; }
+  Coeffs get_coefficients() const {
+    Vector ar(1), cr(1), ac, bc, cc, dc;
+    ar(0) = a_;
+    cr(0) = c_;
+    return std::make_tuple(ar, cr, ac, bc, cc, dc);
+  };
+
+  private:
+  T a_, c_;
+};
+
+template <typename T>
+class ComplexTerm : public Term<T, 2> {
+  public:
+  static constexpr int Width = 1;
+  using typename Term<T, Width>::Scalar;
+  using typename Term<T, Width>::Vector;
+  using typename Term<T, Width>::Coeffs;
+  using Term<T, Width>::Order;
+
+  ComplexTerm(T a, T b, T c, T d) : Term<T, 2>(), a_(a), b_(b), c_(c), d_(d){};
+  int get_J() const { return Width; }
+  Coeffs get_coefficients() const {
+    Vector ar, cr, ac(1), bc(1), cc(1), dc(1);
+    ac(0) = a_;
+    bc(0) = b_;
+    cc(0) = c_;
+    dc(0) = d_;
+    return std::make_tuple(ar, cr, ac, bc, cc, dc);
+  };
+
+  private:
+  T a_, b_, c_, d_;
+};
+
+template <typename T>
 class SHOTerm : public Term<T, 2> {
   public:
-  using typename Term<T, 2>::Scalar;
-  using typename Term<T, 2>::Vector;
-  using typename Term<T, 2>::Coeffs;
-  using Term<T, 2>::Width;
+  static constexpr int Width = 2;
+  using typename Term<T, Width>::Scalar;
+  using typename Term<T, Width>::Vector;
+  using typename Term<T, Width>::Coeffs;
   using Term<T, 2>::Order;
 
-  SHOTerm(T S0, T w0, T Q) : Term<T, 2>(), S0_(S0), w0_(w0), Q_(Q){};
-
-  int get_J() const { return 2; }
+  SHOTerm(T S0, T w0, T Q, T eps = T(1e-5)) : Term<T, Width>(), S0_(S0), w0_(w0), Q_(Q), eps_(eps){};
+  int get_J() const { return Width; }
   Coeffs get_coefficients() const {
     Vector ar, cr, ac, bc, cc, dc;
 
@@ -134,7 +179,7 @@ class SHOTerm : public Term<T, 2> {
       ar.resize(2);
       cr.resize(2);
 
-      auto f = std::sqrt(std::max(1.0 - 4.0 * Q_ * Q_, 1e-5));
+      auto f = std::sqrt(std::max(1.0 - 4.0 * Q_ * Q_, eps_));
       auto a = 0.5 * S0_ * w0_ * Q_;
       auto c = 0.5 * w0_ / Q_;
       ar(0)  = a * (1 + 1 / f);
@@ -147,7 +192,7 @@ class SHOTerm : public Term<T, 2> {
       cc.resize(1);
       dc.resize(1);
 
-      auto f = std::sqrt(std::max(4.0 * Q_ * Q_ - 1, 1e-5));
+      auto f = std::sqrt(std::max(4.0 * Q_ * Q_ - 1, eps_));
       auto a = S0_ * w0_ * Q_;
       auto c = 0.5 * w0_ / Q_;
       ac(0)  = a;
@@ -160,7 +205,7 @@ class SHOTerm : public Term<T, 2> {
   };
 
   private:
-  T S0_, w0_, Q_;
+  T S0_, w0_, Q_, eps_;
 };
 
 } // namespace celerite
