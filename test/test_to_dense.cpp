@@ -2,7 +2,6 @@
 #include "catch.hpp"
 #include "helpers.hpp"
 
-#include <celerite2/terms.hpp>
 #include <celerite2/core.hpp>
 
 TEMPLATE_LIST_TEST_CASE("check the results of to_dense", "[to_dense]", TestKernels) {

@@ -14,5 +14,5 @@ steps:
 
 - script: |
     cd build
-    make test
+    CTEST_OUTPUT_ON_FAILURE=1 make test
   displayName: 'Test'

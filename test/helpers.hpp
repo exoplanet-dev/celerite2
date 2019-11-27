@@ -10,7 +10,7 @@ std::tuple<Eigen::VectorXd, Eigen::VectorXd, Eigen::MatrixXd> get_data(const int
   for (int i = 0; i < N; ++i) {
     auto delta = double(i) / (N - 1);
     x(i)       = 10 * delta + delta * delta;
-    diag(i)    = 0.01;
+    diag(i)    = 0.5;
     for (int j = 0; j < Nrhs; ++j) { Y(i, j) = sin(x(i) + double(j) / Nrhs); }
   }
   return std::make_tuple(x, diag, Y);
@@ -22,7 +22,7 @@ struct TestKernelReal {
 };
 
 struct TestKernelComplex {
-  static auto get_kernel() { return celerite::ComplexTerm<double>(1.1, 0.3, 0.5, 0.1); }
+  static auto get_kernel() { return celerite::ComplexTerm<double>(0.8, 0.03, 1.0, 0.1); }
 };
 
 struct TestKernelSHO1 {

@@ -3,7 +3,6 @@
 #include "helpers.hpp"
 
 #include <Eigen/Dense>
-#include <celerite2/terms.hpp>
 #include <celerite2/core.hpp>
 
 TEMPLATE_LIST_TEST_CASE("check the results of factor", "[factor]", TestKernels) {

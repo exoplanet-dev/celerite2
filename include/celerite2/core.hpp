@@ -117,37 +117,46 @@ int factor(const Eigen::MatrixBase<U_t> &U,  // (N, J)
   return 0;
 }
 
-template <typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7>
-void factor_grad(const Eigen::MatrixBase<T1> &U, // (N, J)
-                 const Eigen::MatrixBase<T2> &P, // (N-1, J)
-                 const Eigen::MatrixBase<T3> &d, // (N)
-                 const Eigen::MatrixBase<T1> &W, // (N, J)
-                 const Eigen::MatrixBase<T4> &S, // (N, J*J)
-
-                 Eigen::MatrixBase<T5> &bU, // (N, J)
-                 Eigen::MatrixBase<T6> &bP, // (N-1, J)
-                 Eigen::MatrixBase<T7> &ba, // (N)
-                 Eigen::MatrixBase<T5> &bV  // (N, J)
+template <typename U_t, typename P_t, typename d_t, typename W_t, typename S_t, typename bU_t, typename bP_t, typename ba_t, typename bV_t>
+void factor_grad(const Eigen::MatrixBase<U_t> &U,    // (N, J)
+                 const Eigen::MatrixBase<P_t> &P,    // (N-1, J)
+                 const Eigen::MatrixBase<d_t> &d,    // (N)
+                 const Eigen::MatrixBase<W_t> &W,    // (N, J)
+                 const Eigen::MatrixBase<S_t> &S,    // (N, J*J)
+                 Eigen::MatrixBase<bU_t> const &bU_, // (N, J)
+                 Eigen::MatrixBase<bP_t> const &bP_, // (N-1, J)
+                 Eigen::MatrixBase<ba_t> const &ba_, // (N);    initially set to bd
+                 Eigen::MatrixBase<bV_t> const &bV_  // (N, J); initially set to bW
 ) {
+  typedef typename U_t::Scalar Scalar;
+  constexpr int J_comp = U_t::ColsAtCompileTime;
+
   int N = U.rows(), J = U.cols();
 
   // Make local copies of the gradients that we need.
-  typedef Eigen::Matrix<typename T1::Scalar, T1::ColsAtCompileTime, T1::ColsAtCompileTime, T1::IsRowMajor> S_t;
-  S_t S_(J, J), bS = S_t::Zero(J, J);
-  Eigen::Matrix<typename T1::Scalar, T1::ColsAtCompileTime, 1> bSWT;
+  Eigen::Matrix<Scalar, J_comp, J_comp> Sn(J, J), bS(J, J);
+  Eigen::Matrix<Scalar, J_comp, 1> bSWT;
 
+  Eigen::MatrixBase<bU_t> &bU = const_cast<Eigen::MatrixBase<bU_t> &>(bU_);
+  Eigen::MatrixBase<bP_t> &bP = const_cast<Eigen::MatrixBase<bP_t> &>(bP_);
+  Eigen::MatrixBase<ba_t> &ba = const_cast<Eigen::MatrixBase<ba_t> &>(ba_);
+  Eigen::MatrixBase<bV_t> &bV = const_cast<Eigen::MatrixBase<bV_t> &>(bV_);
+  bU.derived().resize(N, J);
+  bP.derived().resize(N - 1, J);
+
+  bS.setZero();
   bV.array().colwise() /= d.array();
   for (int n = N - 1; n > 0; --n) {
     for (int j = 0; j < J; ++j)
-      for (int k = 0; k < J; ++k) S_(j, k) = S(n, j * J + k);
+      for (int k = 0; k < J; ++k) Sn(j, k) = S(n, j * J + k);
 
     // Step 6
     ba(n) -= W.row(n) * bV.row(n).transpose();
-    bU.row(n).noalias() = -(bV.row(n) + 2.0 * ba(n) * U.row(n)) * S_ * P.row(n - 1).asDiagonal();
+    bU.row(n).noalias() = -(bV.row(n) + 2.0 * ba(n) * U.row(n)) * Sn * P.row(n - 1).asDiagonal();
     bS.noalias() -= U.row(n).transpose() * (bV.row(n) + ba(n) * U.row(n));
 
     // Step 4
-    bP.row(n - 1).noalias() = (bS * S_ + S_.transpose() * bS).diagonal();
+    bP.row(n - 1).noalias() = (bS * Sn + Sn.transpose() * bS).diagonal();
 
     // Step 3
     bS   = P.row(n - 1).asDiagonal() * bS * P.row(n - 1).asDiagonal();
