@@ -49,7 +49,7 @@ void matmul(const Eigen::MatrixBase<a_t> &a, // (N)
 
   int N = U.rows(), J = U.cols(), Nrhs = Z.cols();
 
-  Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> F(J, Nrhs);
+  Eigen::Matrix<Scalar, J_comp, Nrhs_comp> F(J, Nrhs);
   Eigen::MatrixBase<Y_t> &Y = const_cast<Eigen::MatrixBase<Y_t> &>(Y_);
   Y.derived().resize(N, Nrhs);
 
@@ -68,59 +68,44 @@ void matmul(const Eigen::MatrixBase<a_t> &a, // (N)
   }
 }
 
-template <typename T1, typename T2, typename T3, typename T4>
-void dotL(const Eigen::MatrixBase<T1> &U, // (N, J)
-          const Eigen::MatrixBase<T2> &P, // (N-1, J)
-          const Eigen::MatrixBase<T3> &d, // (N)
-          const Eigen::MatrixBase<T1> &W, // (N, J)
-          Eigen::MatrixBase<T4> &Z        // (N, Nrhs); initially set to Y
+template <typename U_t, typename P_t, typename d_t, typename W_t, typename S_t>
+int factor(const Eigen::MatrixBase<U_t> &U,  // (N, J)
+           const Eigen::MatrixBase<P_t> &P,  // (N-1, J)
+           Eigen::MatrixBase<d_t> const &d_, // (N);    initially set to A
+           Eigen::MatrixBase<W_t> const &W_, // (N, J); initially set to V
+           Eigen::MatrixBase<S_t> const &S_  // (N, J*J)
 ) {
-  int N = U.rows(), J = U.cols(), nrhs = Z.cols();
+  typedef typename U_t::Scalar Scalar;
+  constexpr int J_comp = U_t::ColsAtCompileTime;
+  typedef typename Eigen::internal::plain_row_type<U_t>::type RowVector;
 
-  Eigen::Matrix<typename T3::Scalar, T3::RowsAtCompileTime, 1> sqrtd = sqrt(d.array());
-  Eigen::Matrix<typename T1::Scalar, T1::ColsAtCompileTime, T4::ColsAtCompileTime> F(J, nrhs);
-  Eigen::Matrix<typename T4::Scalar, 1, T4::ColsAtCompileTime> tmp(1, nrhs);
-
-  F.setZero();
-  Z.row(0) *= sqrtd(0);
-  tmp = Z.row(0);
-
-  for (int n = 1; n < N; ++n) {
-    F        = P.row(n - 1).asDiagonal() * (F + W.row(n - 1).transpose() * tmp);
-    tmp      = sqrtd(n) * Z.row(n);
-    Z.row(n) = tmp + U.row(n) * F;
-  }
-}
-
-template <typename T1, typename T2, typename T3, typename T4, typename T5>
-int factor(const Eigen::MatrixBase<T1> &U, // (N, J)
-           const Eigen::MatrixBase<T2> &P, // (N-1, J)
-           Eigen::MatrixBase<T3> &d,       // (N);    initially set to A
-           Eigen::MatrixBase<T4> &W,       // (N, J); initially set to V
-           Eigen::MatrixBase<T5> &S        // (N, J*J)
-) {
   int N = U.rows(), J = U.cols();
 
-  Eigen::Matrix<typename T1::Scalar, 1, T1::ColsAtCompileTime> tmp(1, J);
-  Eigen::Matrix<typename T1::Scalar, T1::ColsAtCompileTime, T1::ColsAtCompileTime> S_(J, J);
+  RowVector tmp;
+  Eigen::Matrix<Scalar, J_comp, J_comp> Sn(J, J);
+
+  Eigen::MatrixBase<d_t> &d = const_cast<Eigen::MatrixBase<d_t> &>(d_);
+  Eigen::MatrixBase<W_t> &W = const_cast<Eigen::MatrixBase<W_t> &>(W_);
+  Eigen::MatrixBase<S_t> &S = const_cast<Eigen::MatrixBase<S_t> &>(S_);
+  S.derived().resize(N, J * J);
 
   // First row
-  S_.setZero();
+  Sn.setZero();
   S.row(0).setZero();
   W.row(0) /= d(0);
 
   // The rest of the rows
   for (int n = 1; n < N; ++n) {
     // Update S = diag(P) * (S + d*W*W.T) * diag(P)
-    S_.noalias() += d(n - 1) * W.row(n - 1).transpose() * W.row(n - 1);
-    S_ = P.row(n - 1).asDiagonal() * S_;
-    // S_.array() *= (P.row(n-1).transpose() * P.row(n-1)).array();
+    Sn.noalias() += d(n - 1) * W.row(n - 1).transpose() * W.row(n - 1);
+    Sn = P.row(n - 1).asDiagonal() * Sn;
+    // Sn.array() *= (P.row(n-1).transpose() * P.row(n-1)).array();
     for (int j = 0; j < J; ++j)
-      for (int k = 0; k < J; ++k) S(n, j * J + k) = S_(j, k);
-    S_ *= P.row(n - 1).asDiagonal();
+      for (int k = 0; k < J; ++k) S(n, j * J + k) = Sn(j, k);
+    Sn *= P.row(n - 1).asDiagonal();
 
     // Update d = a - U * S * U.T
-    tmp = U.row(n) * S_;
+    tmp = U.row(n) * Sn;
     d(n) -= tmp * U.row(n).transpose();
     if (d(n) <= 0.0) return n;
 
@@ -275,6 +260,36 @@ void solve_grad(const Eigen::MatrixBase<T1> &U,  // (N, J)
     // Grad of: F.noalias() += W.row(n-1).transpose() * Z.row(n-1);
     bW.row(n - 1).noalias() += Z_.row(n - 1) * bF.transpose();
     bY.row(n - 1).noalias() += W.row(n - 1) * bF;
+  }
+}
+
+template <typename U_t, typename P_t, typename d_t, typename W_t, typename Z_t>
+void dotL(const Eigen::MatrixBase<U_t> &U, // (N, J)
+          const Eigen::MatrixBase<P_t> &P, // (N-1, J)
+          const Eigen::MatrixBase<d_t> &d, // (N)
+          const Eigen::MatrixBase<W_t> &W, // (N, J)
+          Eigen::MatrixBase<Z_t> const &Z_ // (N, Nrhs); initially set to Y
+) {
+  typedef typename U_t::Scalar Scalar;
+  constexpr int J_comp    = U_t::ColsAtCompileTime;
+  constexpr int Nrhs_comp = Z_t::ColsAtCompileTime;
+  typedef typename Eigen::internal::plain_row_type<Z_t>::type RowVectorZ;
+
+  Eigen::MatrixBase<Z_t> &Z = const_cast<Eigen::MatrixBase<Z_t> &>(Z_);
+
+  int N = U.rows(), J = U.cols(), nrhs = Z.cols();
+
+  Eigen::Matrix<Scalar, d_t::RowsAtCompileTime, 1> sqrtd = sqrt(d.array());
+  Eigen::Matrix<Scalar, J_comp, Nrhs_comp> F(J, nrhs);
+
+  F.setZero();
+  Z.row(0) *= sqrtd(0);
+  RowVectorZ tmp = Z.row(0);
+
+  for (int n = 1; n < N; ++n) {
+    F        = P.row(n - 1).asDiagonal() * (F + W.row(n - 1).transpose() * tmp);
+    tmp      = sqrtd(n) * Z.row(n);
+    Z.row(n) = tmp + U.row(n) * F;
   }
 }
 

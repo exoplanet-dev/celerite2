@@ -5,7 +5,7 @@
 #include <celerite2/terms.hpp>
 #include <celerite2/core.hpp>
 
-TEMPLATE_LIST_TEST_CASE("matmul produces correct values", "[matmul]", TestKernels) {
+TEMPLATE_LIST_TEST_CASE("check the results of matmul", "[matmul]", TestKernels) {
   auto kernel = TestType::get_kernel();
 
   Eigen::VectorXd x, diag;

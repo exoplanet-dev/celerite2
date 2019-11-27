@@ -5,7 +5,7 @@
 #include <celerite2/terms.hpp>
 #include <celerite2/core.hpp>
 
-TEMPLATE_LIST_TEST_CASE("to_dense produces correct values", "[to_dense]", TestKernels) {
+TEMPLATE_LIST_TEST_CASE("check the results of to_dense", "[to_dense]", TestKernels) {
   auto kernel = TestType::get_kernel();
 
   Eigen::VectorXd x, diag;
