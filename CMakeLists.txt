@@ -26,40 +26,8 @@ message(STATUS "Build-type: ${CMAKE_BUILD_TYPE}")
 # Export the list of compile-commands into compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# # Create a 'linkable' target
-# add_library(Celerite2 INTERFACE)
-
-# # Depend on some obvious c++11 features so the dependency is transitively added dependents
-# target_compile_features(Celerite2
-#   INTERFACE
-#     cxx_alignas
-#     cxx_alignof
-#     cxx_attributes
-#     cxx_auto_type
-#     cxx_constexpr
-#     cxx_defaulted_functions
-#     cxx_deleted_functions
-#     cxx_final
-#     cxx_lambdas
-#     cxx_noexcept
-#     cxx_override
-#     cxx_range_for
-#     cxx_rvalue_references
-#     cxx_static_assert
-#     cxx_strong_enums
-#     cxx_trailing_return_types
-#     cxx_unicode_literals
-#     cxx_user_literals
-#     cxx_variadic_macros
-# )
-# target_include_directories(Celerite2
-#   INTERFACE
-#     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
-#     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-# )
-# target_link_libraries(Celerite2 INTERFACE Eigen3::Eigen)
-
 include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
+include_directories(${CMAKE_CURRENT_LIST_DIR}/vendor/eigen_3.3.7)
 
 # Install the headers
 install(

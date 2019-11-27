@@ -1,0 +1,18 @@
+trigger:
+- master
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: CMake@1
+  inputs:
+    workingDirectory: "build"
+  #   #cmakeArgs: # Optional
+  displayName: 'Build the code'
+
+- script: |
+    cd build
+    make VERBOSE=1
+    make test
+  displayName: 'Run tests'
