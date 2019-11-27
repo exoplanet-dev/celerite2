@@ -118,6 +118,7 @@ class RealTerm : public Term<T, 1> {
   typedef T Scalar;
   constexpr static int Width = 1;
   using typename Term<Scalar, 1>::Vector;
+  using typename Term<Scalar, 1>::LowRank;
   RealTerm(const Scalar &a, const Scalar &c) {
     Vector ar(1), cr(1), ac, bc, cc, dc;
     ar << a;
@@ -132,6 +133,7 @@ class ComplexTerm : public Term<T, 2> {
   typedef T Scalar;
   constexpr static int Width = 2;
   using typename Term<Scalar, 2>::Vector;
+  using typename Term<Scalar, 2>::LowRank;
   ComplexTerm(const Scalar &a, const Scalar &b, const Scalar &c, const Scalar &d) {
     Vector ar, cr, ac(1), bc(1), cc(1), dc(1);
     ac << a;
@@ -148,6 +150,7 @@ class SHOTerm : public Term<T, 2> {
   typedef T Scalar;
   constexpr static int Width = 2;
   using typename Term<Scalar, 2>::Vector;
+  using typename Term<Scalar, 2>::LowRank;
   SHOTerm(const Scalar &S0, const Scalar &w0, const Scalar &Q, const Scalar &eps = 1e-5) {
     Vector ar, cr, ac, bc, cc, dc;
     if (Q < 0.5) {

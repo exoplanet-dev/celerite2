@@ -3,10 +3,13 @@
 
 #include <celerite2/terms.hpp>
 
+typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Matrix;
+typedef Eigen::Matrix<double, Eigen::Dynamic, 1> Vector;
+
 // A helper function for generating test data
-std::tuple<Eigen::VectorXd, Eigen::VectorXd, Eigen::MatrixXd> get_data(const int N = 50, const int Nrhs = 5) {
-  Eigen::VectorXd x(N), diag(N);
-  Eigen::MatrixXd Y(N, Nrhs);
+std::tuple<Vector, Vector, Matrix> get_data(const int N = 50, const int Nrhs = 5) {
+  Vector x(N), diag(N);
+  Matrix Y(N, Nrhs);
   for (int i = 0; i < N; ++i) {
     auto delta = double(i) / (N - 1);
     x(i)       = 10 * delta + delta * delta;

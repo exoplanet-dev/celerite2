@@ -8,29 +8,34 @@
 TEMPLATE_LIST_TEST_CASE("check the results of factor_grad", "[factor_grad]", TestKernels) {
   auto kernel = TestType::get_kernel();
 
-  Eigen::VectorXd x, diag;
-  Eigen::MatrixXd Y;
+  typedef typename decltype(kernel)::LowRank LowRank;
+
+  Vector x, diag;
+  Matrix Y;
   std::tie(x, diag, Y) = get_data(10);
   const int N          = x.rows();
 
-  Eigen::VectorXd a;
-  Eigen::MatrixXd U, V, P;
+  Vector a;
+  LowRank U, V, P;
   std::tie(a, U, V, P) = kernel.get_celerite_matrices(x, diag);
   const int J          = U.cols();
 
-  Eigen::VectorXd d = a, d0;
-  Eigen::MatrixXd S, W = V, U0, P0, W0;
+  Vector d  = a, d0;
+  LowRank W = V, U0, P0, W0;
+  Matrix S;
   int flag = celerite::core::factor(U, P, d, W, S);
   REQUIRE(flag == 0);
 
-  Eigen::VectorXd ba(N);
-  Eigen::MatrixXd bV(N, J), bU, bP;
+  Vector ba(N);
+  LowRank bV(N, J), bU, bP;
 
   // Compute numerical derivatives
   const double eps = 1.234e-8;
   const double tol = 500 * eps;
-  std::vector<Eigen::MatrixXd> ddda(N), dWda(N);
-  std::vector<std::vector<Eigen::MatrixXd>> dddV(N), dWdV(N), dddU(N), dWdU(N), dddP(N - 1), dWdP(N - 1);
+  std::vector<Vector> ddda(N);
+  std::vector<LowRank> dWda(N);
+  std::vector<std::vector<Vector>> dddV(N), dddU(N), dddP(N - 1);
+  std::vector<std::vector<LowRank>> dWdV(N), dWdU(N), dWdP(N - 1);
   for (int n = 0; n < N; ++n) {
     d0 = a;
     W0 = V;

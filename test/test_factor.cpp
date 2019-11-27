@@ -8,16 +8,16 @@
 TEMPLATE_LIST_TEST_CASE("check the results of factor", "[factor]", TestKernels) {
   auto kernel = TestType::get_kernel();
 
-  Eigen::VectorXd x, diag;
-  Eigen::MatrixXd Y;
+  Vector x, diag;
+  Matrix Y;
   std::tie(x, diag, Y) = get_data();
   const int N          = x.rows();
 
-  Eigen::VectorXd a;
-  Eigen::MatrixXd U, V, P;
+  typename decltype(kernel)::Vector a;
+  typename decltype(kernel)::LowRank U, V, P;
   std::tie(a, U, V, P) = kernel.get_celerite_matrices(x, diag);
 
-  Eigen::MatrixXd K, S;
+  Matrix K, S;
   celerite::core::to_dense(a, U, V, P, K);
 
   // Do the Cholesky using celerite
@@ -25,12 +25,12 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor", "[factor]", TestKernels) 
   REQUIRE(flag == 0);
 
   // Reconstruct the L matrix
-  Eigen::MatrixXd UWT;
+  Matrix UWT;
   celerite::core::to_dense(Eigen::VectorXd::Ones(N), U, V, P, UWT);
   UWT.triangularView<Eigen::StrictlyUpper>().setConstant(0.0);
 
   // Brute force the Cholesky factorization
-  Eigen::LDLT<Eigen::MatrixXd> LDLT(K);
+  Eigen::LDLT<Matrix> LDLT(K);
   Eigen::MatrixXd matrixL = LDLT.matrixL();
 
   // Check that the lower triangle is correct

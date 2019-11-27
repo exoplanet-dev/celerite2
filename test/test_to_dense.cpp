@@ -7,18 +7,18 @@
 TEMPLATE_LIST_TEST_CASE("check the results of to_dense", "[to_dense]", TestKernels) {
   auto kernel = TestType::get_kernel();
 
-  Eigen::VectorXd x, diag;
-  Eigen::MatrixXd Y;
+  Vector x, diag;
+  Matrix Y;
   std::tie(x, diag, Y) = get_data();
   const int N          = x.rows();
 
-  Eigen::VectorXd ar, cr, ac, bc, cc, dc;
+  Vector ar, cr, ac, bc, cc, dc;
   std::tie(ar, cr, ac, bc, cc, dc) = kernel.get_coefficients();
   auto matrices                    = kernel.get_celerite_matrices(x, diag);
 
   int nr = ar.rows(), nc = ac.rows();
 
-  Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> K;
+  Matrix K;
   celerite::core::to_dense(std::get<0>(matrices), std::get<1>(matrices), std::get<2>(matrices), std::get<3>(matrices), K);
 
   for (int n = 0; n < N; ++n) {

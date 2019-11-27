@@ -101,7 +101,7 @@ int factor(const Eigen::MatrixBase<U_t> &U,  // (N, J)
     Sn = P.row(n - 1).asDiagonal() * Sn;
     // Sn.array() *= (P.row(n-1).transpose() * P.row(n-1)).array();
     for (int j = 0; j < J; ++j)
-      for (int k = 0; k < J; ++k) S(n, j * J + k) = Sn(j, k);
+      for (int k = 0; k < J; ++k) S(n, j * J + k) = Sn(k, j);
     Sn *= P.row(n - 1).asDiagonal();
 
     // Update d = a - U * S * U.T
@@ -148,7 +148,7 @@ void factor_grad(const Eigen::MatrixBase<U_t> &U,    // (N, J)
   bV.array().colwise() /= d.array();
   for (int n = N - 1; n > 0; --n) {
     for (int j = 0; j < J; ++j)
-      for (int k = 0; k < J; ++k) Sn(j, k) = S(n, j * J + k);
+      for (int k = 0; k < J; ++k) Sn(k, j) = S(n, j * J + k);
 
     // Step 6
     ba(n) -= W.row(n) * bV.row(n).transpose();
@@ -169,39 +169,50 @@ void factor_grad(const Eigen::MatrixBase<U_t> &U,    // (N, J)
   ba(0) -= bV.row(0) * W.row(0).transpose();
 }
 
-template <typename T1, typename T2, typename T3, typename T4, typename T5>
-void solve(const Eigen::MatrixBase<T1> &U, // (N, J)
-           const Eigen::MatrixBase<T2> &P, // (N-1, J)
-           const Eigen::MatrixBase<T3> &d, // (N)
-           const Eigen::MatrixBase<T1> &W, // (N, J)
-           Eigen::MatrixBase<T4> &Z,       // (N, Nrhs); initially set to Y
-           Eigen::MatrixBase<T5> &F,       // (N, J*Nrhs)
-           Eigen::MatrixBase<T5> &G        // (N, J*Nrhs)
+template <typename U_t, typename P_t, typename d_t, typename W_t, typename Z_t, typename F_t, typename G_t>
+void solve(const Eigen::MatrixBase<U_t> &U,  // (N, J)
+           const Eigen::MatrixBase<P_t> &P,  // (N-1, J)
+           const Eigen::MatrixBase<d_t> &d,  // (N)
+           const Eigen::MatrixBase<W_t> &W,  // (N, J)
+           Eigen::MatrixBase<Z_t> const &Z_, // (N, Nrhs); initially set to Y
+           Eigen::MatrixBase<F_t> const &F_, // (N, J*Nrhs)
+           Eigen::MatrixBase<G_t> const &G_  // (N, J*Nrhs)
 ) {
-  int N = U.rows(), J = U.cols(), nrhs = Z.cols();
+  typedef typename U_t::Scalar Scalar;
+  constexpr int J_comp    = U_t::ColsAtCompileTime;
+  constexpr int Nrhs_comp = Z_t::ColsAtCompileTime;
 
-  Eigen::Matrix<typename T1::Scalar, T1::ColsAtCompileTime, T4::ColsAtCompileTime> F_(J, nrhs);
-  F_.setZero();
+  int N = U.rows(), J = U.cols(), nrhs = Z_.cols();
+
+  Eigen::Matrix<Scalar, J_comp, Nrhs_comp> Fn(J, nrhs);
+
+  Eigen::MatrixBase<Z_t> &Z = const_cast<Eigen::MatrixBase<Z_t> &>(Z_);
+  Eigen::MatrixBase<F_t> &F = const_cast<Eigen::MatrixBase<F_t> &>(F_);
+  Eigen::MatrixBase<G_t> &G = const_cast<Eigen::MatrixBase<G_t> &>(G_);
+  F.derived().resize(N, J * nrhs);
+  G.derived().resize(N, J * nrhs);
+
+  Fn.setZero();
   F.row(0).setZero();
 
   for (int n = 1; n < N; ++n) {
-    F_.noalias() += W.row(n - 1).transpose() * Z.row(n - 1);
-    for (int j = 0; j < J; ++j)
-      for (int k = 0; k < nrhs; ++k) F(n, j * nrhs + k) = F_(j, k);
-    F_ = P.row(n - 1).asDiagonal() * F_;
-    Z.row(n).noalias() -= U.row(n) * F_;
+    Fn.noalias() += W.row(n - 1).transpose() * Z.row(n - 1);
+    for (int k = 0; k < nrhs; ++k)
+      for (int j = 0; j < J; ++j) F(n, j * nrhs + k) = Fn(j, k);
+    Fn = P.row(n - 1).asDiagonal() * Fn;
+    Z.row(n).noalias() -= U.row(n) * Fn;
   }
 
   Z.array().colwise() /= d.array();
 
-  F_.setZero();
+  Fn.setZero();
   G.row(N - 1).setZero();
   for (int n = N - 2; n >= 0; --n) {
-    F_.noalias() += U.row(n + 1).transpose() * Z.row(n + 1);
-    for (int j = 0; j < J; ++j)
-      for (int k = 0; k < nrhs; ++k) G(n, j * nrhs + k) = F_(j, k);
-    F_ = P.row(n).asDiagonal() * F_;
-    Z.row(n).noalias() -= W.row(n) * F_;
+    Fn.noalias() += U.row(n + 1).transpose() * Z.row(n + 1);
+    for (int k = 0; k < nrhs; ++k)
+      for (int j = 0; j < J; ++j) G(n, j * nrhs + k) = Fn(j, k);
+    Fn = P.row(n).asDiagonal() * Fn;
+    Z.row(n).noalias() -= W.row(n) * Fn;
   }
 }
 
@@ -228,8 +239,8 @@ void solve_grad(const Eigen::MatrixBase<T1> &U,  // (N, J)
 
   bY = bZ;
   for (int n = 0; n <= N - 2; ++n) {
-    for (int j = 0; j < J; ++j)
-      for (int k = 0; k < nrhs; ++k) F_(j, k) = G(n, j * nrhs + k);
+    for (int k = 0; k < nrhs; ++k)
+      for (int j = 0; j < J; ++j) F_(j, k) = G(n, j * nrhs + k);
 
     // Grad of: Z.row(n).noalias() -= W.row(n) * G;
     bW.row(n).noalias() -= bY.row(n) * (P.row(n).asDiagonal() * F_).transpose();
@@ -255,8 +266,8 @@ void solve_grad(const Eigen::MatrixBase<T1> &U,  // (N, J)
 
   bF.setZero();
   for (int n = N - 1; n >= 1; --n) {
-    for (int j = 0; j < J; ++j)
-      for (int k = 0; k < nrhs; ++k) F_(j, k) = F(n, j * nrhs + k);
+    for (int k = 0; k < nrhs; ++k)
+      for (int j = 0; j < J; ++j) F_(j, k) = F(n, j * nrhs + k);
 
     // Grad of: Z.row(n).noalias() -= U.row(n) * f;
     bU.row(n).noalias() -= bY.row(n) * (P.row(n - 1).asDiagonal() * F_).transpose();
