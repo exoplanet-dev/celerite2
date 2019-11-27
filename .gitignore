@@ -32,3 +32,4 @@
 *.app
 env
 .DS_Store
+build
