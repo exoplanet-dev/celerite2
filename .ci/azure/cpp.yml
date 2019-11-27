@@ -5,14 +5,21 @@ pool:
   vmImage: 'ubuntu-latest'
 
 steps:
-- task: CMake@1
-  inputs:
-    workingDirectory: "build"
-  #   #cmakeArgs: # Optional
-  displayName: 'Build the code'
+# - task: CMake@1
+#   inputs:
+#     workingDirectory: "build"
+#   #   #cmakeArgs: # Optional
+#   displayName: 'Build the code'
+
+- script: |
+    mkdir -p build
+    cd build
+    echo `which cmake`
+    cmake ..
+    make VERBOSE=1
+  displayName: 'Build'
 
 - script: |
     cd build
-    make VERBOSE=1
     make test
-  displayName: 'Run tests'
+  displayName: 'Test'
