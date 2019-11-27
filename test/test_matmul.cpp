@@ -21,6 +21,6 @@ TEMPLATE_LIST_TEST_CASE("check the results of matmul", "[matmul]", TestKernels) 
   celerite::core::to_dense(a, U, V, P, K);
   celerite::core::matmul(a, U, V, P, Y, Z);
 
-  auto max_resid = (K * Y - Z).array().abs().maxCoeff();
+  double max_resid = (K * Y - Z).array().abs().maxCoeff();
   REQUIRE(max_resid < 1e-12);
 }

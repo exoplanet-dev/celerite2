@@ -264,11 +264,11 @@ void solve_grad(const Eigen::MatrixBase<T1> &U,  // (N, J)
 }
 
 template <typename U_t, typename P_t, typename d_t, typename W_t, typename Z_t>
-void dotL(const Eigen::MatrixBase<U_t> &U, // (N, J)
-          const Eigen::MatrixBase<P_t> &P, // (N-1, J)
-          const Eigen::MatrixBase<d_t> &d, // (N)
-          const Eigen::MatrixBase<W_t> &W, // (N, J)
-          Eigen::MatrixBase<Z_t> const &Z_ // (N, Nrhs); initially set to Y
+void dot_l(const Eigen::MatrixBase<U_t> &U, // (N, J)
+           const Eigen::MatrixBase<P_t> &P, // (N-1, J)
+           const Eigen::MatrixBase<d_t> &d, // (N)
+           const Eigen::MatrixBase<W_t> &W, // (N, J)
+           Eigen::MatrixBase<Z_t> const &Z_ // (N, Nrhs); initially set to Y
 ) {
   typedef typename U_t::Scalar Scalar;
   constexpr int J_comp    = U_t::ColsAtCompileTime;

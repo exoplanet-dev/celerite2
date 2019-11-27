@@ -6,7 +6,7 @@
 #include <celerite2/terms.hpp>
 #include <celerite2/core.hpp>
 
-TEMPLATE_LIST_TEST_CASE("check the results of factor", "[factor]", TestKernels) {
+TEMPLATE_LIST_TEST_CASE("check the results of dot_l", "[dot_l]", TestKernels) {
   auto kernel = TestType::get_kernel();
 
   Eigen::VectorXd x, diag;
@@ -31,14 +31,12 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor", "[factor]", TestKernels) 
   UWT.triangularView<Eigen::StrictlyUpper>().setConstant(0.0);
 
   // Brute force the Cholesky factorization
-  Eigen::LDLT<Eigen::MatrixXd> LDLT(K);
-  Eigen::MatrixXd matrixL = LDLT.matrixL();
+  Eigen::LLT<Eigen::MatrixXd> LLT(K);
+  Eigen::MatrixXd expect = LLT.matrixL() * Y;
 
-  // Check that the lower triangle is correct
-  double resid = (matrixL - UWT).array().abs().maxCoeff();
+  // Do the product using celerite
+  celerite::core::dot_l(U, P, a, V, Y);
+
+  double resid = (Y - expect).array().abs().maxCoeff();
   REQUIRE(resid < 1e-12);
-
-  // Check that the diagonal is correct
-  double diag_resid = (LDLT.vectorD() - a).array().abs().maxCoeff();
-  REQUIRE(diag_resid < 1e-12);
 }
