@@ -2,7 +2,6 @@
 #define _CELERITE2_CORE_HPP_DEFINED_
 
 #include <Eigen/Core>
-#include <cassert>
 
 namespace celerite {
 namespace core {
@@ -198,7 +197,7 @@ void solve(const Eigen::MatrixBase<U_t> &U,  // (N, J)
   for (int n = 1; n < N; ++n) {
     Fn.noalias() += W.row(n - 1).transpose() * Z.row(n - 1);
     for (int k = 0; k < nrhs; ++k)
-      for (int j = 0; j < J; ++j) F(n, j * nrhs + k) = Fn(j, k);
+      for (int j = 0; j < J; ++j) F(n, k * J + j) = Fn(j, k);
     Fn = P.row(n - 1).asDiagonal() * Fn;
     Z.row(n).noalias() -= U.row(n) * Fn;
   }
@@ -210,56 +209,77 @@ void solve(const Eigen::MatrixBase<U_t> &U,  // (N, J)
   for (int n = N - 2; n >= 0; --n) {
     Fn.noalias() += U.row(n + 1).transpose() * Z.row(n + 1);
     for (int k = 0; k < nrhs; ++k)
-      for (int j = 0; j < J; ++j) G(n, j * nrhs + k) = Fn(j, k);
+      for (int j = 0; j < J; ++j) G(n, k * J + j) = Fn(j, k);
     Fn = P.row(n).asDiagonal() * Fn;
     Z.row(n).noalias() -= W.row(n) * Fn;
   }
 }
 
-template <typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8, typename T9>
-void solve_grad(const Eigen::MatrixBase<T1> &U,  // (N, J)
-                const Eigen::MatrixBase<T2> &P,  // (N-1, J)
-                const Eigen::MatrixBase<T3> &d,  // (N)
-                const Eigen::MatrixBase<T1> &W,  // (N, J)
-                const Eigen::MatrixBase<T4> &Z,  // (N, Nrhs)
-                const Eigen::MatrixBase<T5> &F,  // (N, J*Nrhs)
-                const Eigen::MatrixBase<T5> &G,  // (N, J*Nrhs)
-                const Eigen::MatrixBase<T4> &bZ, // (N, Nrhs)
-                Eigen::MatrixBase<T6> &bU,       // (N, J)
-                Eigen::MatrixBase<T7> &bP,       // (N-1, J)
-                Eigen::MatrixBase<T8> &bd,       // (N)
-                Eigen::MatrixBase<T6> &bW,       // (N, J)
-                Eigen::MatrixBase<T9> &bY        // (N, Nrhs)
+template <typename U_t, typename P_t, typename d_t, typename W_t, typename Z_t, typename F_t, typename G_t, typename bZ_t, typename bU_t,
+          typename bP_t, typename bd_t, typename bW_t, typename bY_t>
+void solve_grad(const Eigen::MatrixBase<U_t> &U,    // (N, J)
+                const Eigen::MatrixBase<P_t> &P,    // (N-1, J)
+                const Eigen::MatrixBase<d_t> &d,    // (N)
+                const Eigen::MatrixBase<W_t> &W,    // (N, J)
+                const Eigen::MatrixBase<Z_t> &Z,    // (N, Nrhs)
+                const Eigen::MatrixBase<F_t> &F,    // (N, J*Nrhs)
+                const Eigen::MatrixBase<G_t> &G,    // (N, J*Nrhs)
+                const Eigen::MatrixBase<bZ_t> &bZ,  // (N, Nrhs)
+                Eigen::MatrixBase<bU_t> const &bU_, // (N, J)
+                Eigen::MatrixBase<bP_t> const &bP_, // (N-1, J)
+                Eigen::MatrixBase<bd_t> const &bd_, // (N)
+                Eigen::MatrixBase<bW_t> const &bW_, // (N, J)
+                Eigen::MatrixBase<bY_t> const &bY_  // (N, Nrhs)
 ) {
+  typedef typename U_t::Scalar Scalar;
+  constexpr int J_comp    = U_t::ColsAtCompileTime;
+  constexpr int Nrhs_comp = Z_t::ColsAtCompileTime;
+
   int N = U.rows(), J = U.cols(), nrhs = Z.cols();
 
-  Eigen::Matrix<typename T4::Scalar, T4::RowsAtCompileTime, T4::ColsAtCompileTime, T4::IsRowMajor> Z_ = Z;
-  typedef Eigen::Matrix<typename T1::Scalar, T1::ColsAtCompileTime, Eigen::RowMajor> F_t;
-  F_t F_(J, nrhs), bF = F_t::Zero(J, nrhs);
+  Eigen::Matrix<Scalar, Z_t::RowsAtCompileTime, Z_t::ColsAtCompileTime, Z_t::IsRowMajor> Z_ = Z;
+
+  Eigen::MatrixBase<bU_t> &bU = const_cast<Eigen::MatrixBase<bU_t> &>(bU_);
+  Eigen::MatrixBase<bP_t> &bP = const_cast<Eigen::MatrixBase<bP_t> &>(bP_);
+  Eigen::MatrixBase<bd_t> &bd = const_cast<Eigen::MatrixBase<bd_t> &>(bd_);
+  Eigen::MatrixBase<bW_t> &bW = const_cast<Eigen::MatrixBase<bW_t> &>(bW_);
+  Eigen::MatrixBase<bY_t> &bY = const_cast<Eigen::MatrixBase<bY_t> &>(bY_);
+  bU.derived().resize(N, J);
+  bP.derived().resize(N - 1, J);
+  bd.derived().resize(N);
+  bW.derived().resize(N, J);
+  bY.derived().resize(N, nrhs);
+
+  Eigen::Matrix<Scalar, J_comp, Nrhs_comp> Fn(J, nrhs), bF(J, nrhs);
+  bF.setZero();
+
+  bU.row(0).setZero();
 
   bY = bZ;
   for (int n = 0; n <= N - 2; ++n) {
     for (int k = 0; k < nrhs; ++k)
-      for (int j = 0; j < J; ++j) F_(j, k) = G(n, j * nrhs + k);
+      for (int j = 0; j < J; ++j) Fn(j, k) = G(n, k * J + j);
 
     // Grad of: Z.row(n).noalias() -= W.row(n) * G;
-    bW.row(n).noalias() -= bY.row(n) * (P.row(n).asDiagonal() * F_).transpose();
+    bW.row(n).noalias() = -bY.row(n) * (P.row(n).asDiagonal() * Fn).transpose();
     bF.noalias() -= W.row(n).transpose() * bY.row(n);
 
     // Inverse of: Z.row(n).noalias() -= W.row(n) * G;
-    Z_.row(n).noalias() += W.row(n) * (P.row(n).asDiagonal() * F_);
+    Z_.row(n).noalias() += W.row(n) * (P.row(n).asDiagonal() * Fn);
 
     // Grad of: g = P.row(n).asDiagonal() * G;
-    bP.row(n).noalias() += (F_ * bF.transpose()).diagonal();
-    bF = P.row(n).asDiagonal() * bF;
+    bP.row(n).noalias() = (Fn * bF.transpose()).diagonal();
+    bF                  = P.row(n).asDiagonal() * bF;
 
     // Grad of: g.noalias() += U.row(n+1).transpose() * Z.row(n+1);
-    bU.row(n + 1).noalias() += Z_.row(n + 1) * bF.transpose();
+    bU.row(n + 1).noalias() = Z_.row(n + 1) * bF.transpose();
     bY.row(n + 1).noalias() += U.row(n + 1) * bF;
   }
 
+  bW.row(N - 1).setZero();
+
   bY.array().colwise() /= d.array();
-  bd.array() -= (Z_.array() * bY.array()).rowwise().sum();
+  bd.array() = -(Z_.array() * bY.array()).rowwise().sum();
 
   // Inverse of: Z.array().colwise() /= d.array();
   Z_.array().colwise() *= d.array();
@@ -267,20 +287,22 @@ void solve_grad(const Eigen::MatrixBase<T1> &U,  // (N, J)
   bF.setZero();
   for (int n = N - 1; n >= 1; --n) {
     for (int k = 0; k < nrhs; ++k)
-      for (int j = 0; j < J; ++j) F_(j, k) = F(n, j * nrhs + k);
+      for (int j = 0; j < J; ++j) Fn(j, k) = F(n, k * J + j);
 
     // Grad of: Z.row(n).noalias() -= U.row(n) * f;
-    bU.row(n).noalias() -= bY.row(n) * (P.row(n - 1).asDiagonal() * F_).transpose();
+    bU.row(n).noalias() -= bY.row(n) * (P.row(n - 1).asDiagonal() * Fn).transpose();
     bF.noalias() -= U.row(n).transpose() * bY.row(n);
 
     // Grad of: F = P.row(n-1).asDiagonal() * F;
-    bP.row(n - 1).noalias() += (F_ * bF.transpose()).diagonal();
+    bP.row(n - 1).noalias() += (Fn * bF.transpose()).diagonal();
     bF = P.row(n - 1).asDiagonal() * bF;
 
     // Grad of: F.noalias() += W.row(n-1).transpose() * Z.row(n-1);
     bW.row(n - 1).noalias() += Z_.row(n - 1) * bF.transpose();
     bY.row(n - 1).noalias() += W.row(n - 1) * bF;
   }
+
+  bY -= bZ;
 }
 
 template <typename U_t, typename P_t, typename d_t, typename W_t, typename Z_t>
