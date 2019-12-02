@@ -12,7 +12,7 @@ TEMPLATE_LIST_TEST_CASE("check the results of solve_grad", "[solve_grad]", TestK
 
   Vector x, diag;
   Matrix Y;
-  std::tie(x, diag, Y) = get_data(10);
+  std::tie(x, diag, Y) = get_data();
   const int N          = x.rows();
   const int nrhs       = Y.cols();
 

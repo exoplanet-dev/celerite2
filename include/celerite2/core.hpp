@@ -335,19 +335,25 @@ void dot_l(const Eigen::MatrixBase<U_t> &U, // (N, J)
   }
 }
 
-template <typename T1, typename T2, typename T3, typename T4, typename T5, typename T6>
-void conditional_mean(const Eigen::MatrixBase<T1> &U,      // (N, J)
-                      const Eigen::MatrixBase<T1> &V,      // (N, J)
-                      const Eigen::MatrixBase<T2> &P,      // (N-1, J)
-                      const Eigen::MatrixBase<T3> &z,      // (N)  ->  The result of a solve
-                      const Eigen::MatrixBase<T4> &U_star, // (M, J)
-                      const Eigen::MatrixBase<T4> &V_star, // (M, J)
-                      const Eigen::MatrixBase<T5> &inds,   // (M)  ->  Index where the mth data point should be
-                                                           // inserted (the output of search_sorted)
-                      Eigen::MatrixBase<T6> &mu) {
+template <typename U_t, typename V_t, typename P_t, typename z_t, typename U_star_t, typename V_star_t, typename inds_t, typename mu_t>
+void conditional_mean(const Eigen::MatrixBase<U_t> &U,           // (N, J)
+                      const Eigen::MatrixBase<V_t> &V,           // (N, J)
+                      const Eigen::MatrixBase<P_t> &P,           // (N-1, J)
+                      const Eigen::MatrixBase<z_t> &z,           // (N)  ->  The result of a solve
+                      const Eigen::MatrixBase<U_star_t> &U_star, // (M, J)
+                      const Eigen::MatrixBase<V_star_t> &V_star, // (M, J)
+                      const Eigen::MatrixBase<inds_t> &inds,     // (M)  ->  Index where the mth data point should be
+                                                                 // inserted (the output of search_sorted)
+                      Eigen::MatrixBase<mu_t> const &mu_         // (M)
+) {
+  typedef typename U_t::Scalar Scalar;
+  constexpr int J_comp = U_t::ColsAtCompileTime;
+
   int N = U.rows(), J = U.cols(), M = U_star.rows();
 
-  Eigen::Matrix<typename T1::Scalar, 1, T1::ColsAtCompileTime> q(1, J);
+  Eigen::Matrix<Scalar, 1, J_comp> q(1, J);
+  Eigen::MatrixBase<mu_t> &mu = const_cast<Eigen::MatrixBase<mu_t> &>(mu_);
+  mu.derived().resize(M);
 
   // Forward pass
   int m = 0;
