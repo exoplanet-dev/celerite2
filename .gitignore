@@ -30,6 +30,6 @@
 *.exe
 *.out
 *.app
-env
-.DS_Store
-build
+
+# C++
+c++/build
