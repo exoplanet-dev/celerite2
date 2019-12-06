@@ -98,10 +98,49 @@ int factor(const Eigen::MatrixBase<U_t> &U,  // (N, J)
     // Update S = diag(P) * (S + d*W*W.T) * diag(P)
     Sn.noalias() += d(n - 1) * W.row(n - 1).transpose() * W.row(n - 1);
     Sn = P.row(n - 1).asDiagonal() * Sn;
-    // Sn.array() *= (P.row(n-1).transpose() * P.row(n-1)).array();
     for (int j = 0; j < J; ++j)
       for (int k = 0; k < J; ++k) S(n, j * J + k) = Sn(k, j);
     Sn *= P.row(n - 1).asDiagonal();
+
+    // Update d = a - U * S * U.T
+    tmp = U.row(n) * Sn;
+    d(n) -= tmp * U.row(n).transpose();
+    if (d(n) <= 0.0) return n;
+
+    // Update W = (V - U * S) / d
+    W.row(n).noalias() -= tmp;
+    W.row(n) /= d(n);
+  }
+
+  return 0;
+}
+
+template <typename U_t, typename P_t, typename d_t, typename W_t>
+int factor(const Eigen::MatrixBase<U_t> &U,  // (N, J)
+           const Eigen::MatrixBase<P_t> &P,  // (N-1, J)
+           Eigen::MatrixBase<d_t> const &d_, // (N);    initially set to A
+           Eigen::MatrixBase<W_t> const &W_  // (N, J); initially set to V
+) {
+  typedef typename U_t::Scalar Scalar;
+  constexpr int J_comp = U_t::ColsAtCompileTime;
+  typedef typename Eigen::internal::plain_row_type<U_t>::type RowVector;
+
+  int N = U.rows(), J = U.cols();
+
+  RowVector tmp;
+  Eigen::Matrix<Scalar, J_comp, J_comp> Sn(J, J);
+
+  Eigen::MatrixBase<d_t> &d = const_cast<Eigen::MatrixBase<d_t> &>(d_);
+  Eigen::MatrixBase<W_t> &W = const_cast<Eigen::MatrixBase<W_t> &>(W_);
+
+  Sn.setZero();
+  W.row(0) /= d(0);
+
+  // The rest of the rows
+  for (int n = 1; n < N; ++n) {
+    // Update S = diag(P) * (S + d*W*W.T) * diag(P)
+    Sn.noalias() += d(n - 1) * W.row(n - 1).transpose() * W.row(n - 1);
+    Sn = P.row(n - 1).asDiagonal() * Sn * P.row(n - 1).asDiagonal();
 
     // Update d = a - U * S * U.T
     tmp = U.row(n) * Sn;
@@ -215,6 +254,41 @@ void solve(const Eigen::MatrixBase<U_t> &U,  // (N, J)
   }
 }
 
+template <typename U_t, typename P_t, typename d_t, typename W_t, typename Z_t>
+void solve(const Eigen::MatrixBase<U_t> &U, // (N, J)
+           const Eigen::MatrixBase<P_t> &P, // (N-1, J)
+           const Eigen::MatrixBase<d_t> &d, // (N)
+           const Eigen::MatrixBase<W_t> &W, // (N, J)
+           Eigen::MatrixBase<Z_t> const &Z_ // (N, Nrhs); initially set to Y
+) {
+  typedef typename U_t::Scalar Scalar;
+  constexpr int J_comp    = U_t::ColsAtCompileTime;
+  constexpr int Nrhs_comp = Z_t::ColsAtCompileTime;
+
+  int N = U.rows(), J = U.cols(), nrhs = Z_.cols();
+
+  Eigen::Matrix<Scalar, J_comp, Nrhs_comp> Fn(J, nrhs);
+
+  Eigen::MatrixBase<Z_t> &Z = const_cast<Eigen::MatrixBase<Z_t> &>(Z_);
+
+  Fn.setZero();
+
+  for (int n = 1; n < N; ++n) {
+    Fn.noalias() += W.row(n - 1).transpose() * Z.row(n - 1);
+    Fn = P.row(n - 1).asDiagonal() * Fn;
+    Z.row(n).noalias() -= U.row(n) * Fn;
+  }
+
+  Z.array().colwise() /= d.array();
+
+  Fn.setZero();
+  for (int n = N - 2; n >= 0; --n) {
+    Fn.noalias() += U.row(n + 1).transpose() * Z.row(n + 1);
+    Fn = P.row(n).asDiagonal() * Fn;
+    Z.row(n).noalias() -= W.row(n) * Fn;
+  }
+}
+
 template <typename U_t, typename P_t, typename d_t, typename W_t, typename Z_t, typename F_t, typename G_t, typename bZ_t, typename bU_t,
           typename bP_t, typename bd_t, typename bW_t, typename bY_t>
 void solve_grad(const Eigen::MatrixBase<U_t> &U,    // (N, J)
@@ -306,11 +380,11 @@ void solve_grad(const Eigen::MatrixBase<U_t> &U,    // (N, J)
 }
 
 template <typename U_t, typename P_t, typename d_t, typename W_t, typename Z_t>
-void dot_l(const Eigen::MatrixBase<U_t> &U, // (N, J)
-           const Eigen::MatrixBase<P_t> &P, // (N-1, J)
-           const Eigen::MatrixBase<d_t> &d, // (N)
-           const Eigen::MatrixBase<W_t> &W, // (N, J)
-           Eigen::MatrixBase<Z_t> const &Z_ // (N, Nrhs); initially set to Y
+void dot_tril(const Eigen::MatrixBase<U_t> &U, // (N, J)
+              const Eigen::MatrixBase<P_t> &P, // (N-1, J)
+              const Eigen::MatrixBase<d_t> &d, // (N)
+              const Eigen::MatrixBase<W_t> &W, // (N, J)
+              Eigen::MatrixBase<Z_t> const &Z_ // (N, Nrhs); initially set to Y
 ) {
   typedef typename U_t::Scalar Scalar;
   constexpr int J_comp    = U_t::ColsAtCompileTime;

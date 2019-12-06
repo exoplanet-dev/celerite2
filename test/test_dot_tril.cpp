@@ -5,7 +5,7 @@
 #include <Eigen/Dense>
 #include <celerite2/core.hpp>
 
-TEMPLATE_LIST_TEST_CASE("check the results of dot_l", "[dot_l]", TestKernels) {
+TEMPLATE_LIST_TEST_CASE("check the results of dot_tril", "[dot_tril]", TestKernels) {
   auto kernel = TestType::get_kernel();
 
   Vector x, diag;
@@ -34,7 +34,7 @@ TEMPLATE_LIST_TEST_CASE("check the results of dot_l", "[dot_l]", TestKernels) {
   Eigen::MatrixXd expect = LLT.matrixL() * Y;
 
   // Do the product using celerite
-  celerite::core::dot_l(U, P, a, V, Y);
+  celerite::core::dot_tril(U, P, a, V, Y);
 
   double resid = (Y - expect).array().abs().maxCoeff();
   REQUIRE(resid < 1e-12);

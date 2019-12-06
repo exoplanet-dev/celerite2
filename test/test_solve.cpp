@@ -9,7 +9,7 @@ TEMPLATE_LIST_TEST_CASE("check the results of solve", "[solve]", TestKernels) {
   auto kernel = TestType::get_kernel();
 
   Vector x, diag;
-  Matrix Y, Z;
+  Matrix Y, Z, Zng;
   std::tie(x, diag, Y) = get_data();
   const int N          = x.rows();
 
@@ -25,6 +25,11 @@ TEMPLATE_LIST_TEST_CASE("check the results of solve", "[solve]", TestKernels) {
   REQUIRE(flag == 0);
   Z = Y;
   celerite::core::solve(U, P, a, V, Z, F, G);
+
+  // Check the no grad version
+  Zng = Y;
+  celerite::core::solve(U, P, a, V, Zng);
+  REQUIRE((Zng - Z).array().abs().maxCoeff() < 1e-12);
 
   // Brute force the solve
   Eigen::LDLT<Matrix> LDLT(K);
