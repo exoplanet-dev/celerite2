@@ -9,7 +9,7 @@ steps:
     mkdir -p c++/build
     cd c++/build
     cmake -DCMAKE_BUILD_TYPE=Debug ..
-    make
+    make -j2
   displayName: 'Build'
 
 - script: |
