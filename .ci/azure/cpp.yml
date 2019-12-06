@@ -6,13 +6,13 @@ pool:
 
 steps:
 - script: |
-    mkdir -p build
-    cd build
+    mkdir -p c++/build
+    cd c++/build
     cmake -DCMAKE_BUILD_TYPE=Debug ..
     make
   displayName: 'Build'
 
 - script: |
-    cd build
+    cd c++/build
     CTEST_OUTPUT_ON_FAILURE=1 make test
   displayName: 'Test'
