@@ -1,0 +1,25 @@
+name: C++
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: |
+        mkdir -p c++/build
+        cd c++/build
+        cmake -DCMAKE_BUILD_TYPE=Debug ..
+        make -j2
+    - name: Run tests
+      run: |
+        cd c++/build
+        CTEST_OUTPUT_ON_FAILURE=1 make test
