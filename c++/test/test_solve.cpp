@@ -18,17 +18,17 @@ TEMPLATE_LIST_TEST_CASE("check the results of solve", "[solve]", TestKernels) {
   std::tie(a, U, V, P) = kernel.get_celerite_matrices(x, diag);
 
   Matrix K, S, F, G;
-  celerite::core::to_dense(a, U, V, P, K);
+  celerite2::core::to_dense(a, U, V, P, K);
 
   // Do the solve using celerite
-  int flag = celerite::core::factor(U, P, a, V, S);
+  int flag = celerite2::core::factor(U, P, a, V, S);
   REQUIRE(flag == 0);
   Z = Y;
-  celerite::core::solve(U, P, a, V, Z, F, G);
+  celerite2::core::solve(U, P, a, V, Z, F, G);
 
   // Check the no grad version
   Zng = Y;
-  celerite::core::solve(U, P, a, V, Zng);
+  celerite2::core::solve(U, P, a, V, Zng);
   REQUIRE((Zng - Z).array().abs().maxCoeff() < 1e-12);
 
   // Brute force the solve

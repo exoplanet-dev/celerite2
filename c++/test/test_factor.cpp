@@ -18,16 +18,16 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor", "[factor]", TestKernels) 
   std::tie(a, U, V, P) = kernel.get_celerite_matrices(x, diag);
 
   Matrix K, S;
-  celerite::core::to_dense(a, U, V, P, K);
+  celerite2::core::to_dense(a, U, V, P, K);
 
   // Check the no-grad version first
   W        = V;
   d        = a;
-  int flag = celerite::core::factor(U, P, d, W);
+  int flag = celerite2::core::factor(U, P, d, W);
   REQUIRE(flag == 0);
 
   // Do the Cholesky using celerite
-  flag = celerite::core::factor(U, P, a, V, S);
+  flag = celerite2::core::factor(U, P, a, V, S);
   REQUIRE(flag == 0);
 
   // Make sure that the no-grad version gives the right answer
@@ -36,7 +36,7 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor", "[factor]", TestKernels) 
 
   // Reconstruct the L matrix
   Matrix UWT;
-  celerite::core::to_dense(Eigen::VectorXd::Ones(N), U, V, P, UWT);
+  celerite2::core::to_dense(Eigen::VectorXd::Ones(N), U, V, P, UWT);
   UWT.triangularView<Eigen::StrictlyUpper>().setConstant(0.0);
 
   // Brute force the Cholesky factorization

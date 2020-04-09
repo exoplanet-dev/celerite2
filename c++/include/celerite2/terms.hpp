@@ -5,7 +5,7 @@
 #include <exception>
 #include <Eigen/Core>
 
-namespace celerite {
+namespace celerite2 {
 
 #ifndef CELERITE_MAX_WIDTH
 #define CELERITE_MAX_WIDTH 32
@@ -71,9 +71,9 @@ class Term {
     V.block(0, 0, N, nr).setConstant(Scalar(1));
     P.block(0, 0, N - 1, nr) = exp(-(dx * cr_.transpose()).array());
 
-    auto arg                   = (x * dc_.transpose()).array().eval();
-    auto ca                    = cos(arg).eval();
-    auto sa                    = sin(arg).eval();
+    auto arg = (x * dc_.transpose()).array().eval();
+    auto ca  = cos(arg).eval();
+    auto sa  = sin(arg).eval();
     U.block(0, nr, N, nc)      = ca.array().rowwise() * ac_.transpose().array() + sa.array().rowwise() * bc_.transpose().array();
     U.block(0, nr + nc, N, nc) = sa.array().rowwise() * ac_.transpose().array() - ca.array().rowwise() * bc_.transpose().array();
     V.block(0, nr, N, nc)      = ca;
@@ -180,6 +180,6 @@ class SHOTerm : public Term<T, 2> {
   };
 };
 
-} // namespace celerite
+} // namespace celerite2
 
 #endif // _CELERITE2_TERMS_HPP_DEFINED_

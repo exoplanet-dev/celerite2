@@ -3,7 +3,7 @@
 
 #include <Eigen/Core>
 
-namespace celerite {
+namespace celerite2 {
 namespace core {
 
 template <typename a_t, typename U_t, typename P_t, typename K_t>
@@ -12,7 +12,7 @@ void to_dense(const Eigen::MatrixBase<a_t> &a, // (N)
               const Eigen::MatrixBase<U_t> &V, // (N, J)
               const Eigen::MatrixBase<P_t> &P, // (N-1, J)
               Eigen::MatrixBase<K_t> const &K_ // (N, N)
-) {
+              ) {
   typedef typename Eigen::internal::plain_row_type<U_t>::type RowVector;
 
   int N = U.rows(), J = U.cols();
@@ -27,7 +27,7 @@ void to_dense(const Eigen::MatrixBase<a_t> &a, // (N)
     K(m, m) = a(m);
     for (int n = m + 1; n < N; ++n) {
       p.array() *= P.row(n - 1).array();
-      un      = U.row(n);
+      un = U.row(n);
       K(n, m) = (un.array() * vm.array() * p.array()).sum();
       K(m, n) = K(n, m);
     }
@@ -41,7 +41,7 @@ void matmul(const Eigen::MatrixBase<a_t> &a, // (N)
             const Eigen::MatrixBase<P_t> &P, // (N-1, J)
             const Eigen::MatrixBase<Z_t> &Z, // (N, Nrhs)
             Eigen::MatrixBase<Y_t> const &Y_ // (N, Nrhs)
-) {
+            ) {
   typedef typename a_t::Scalar Scalar;
   constexpr int J_comp    = U_t::ColsAtCompileTime;
   constexpr int Nrhs_comp = Z_t::ColsAtCompileTime;
@@ -73,7 +73,7 @@ int factor(const Eigen::MatrixBase<U_t> &U,  // (N, J)
            Eigen::MatrixBase<d_t> const &d_, // (N);    initially set to A
            Eigen::MatrixBase<W_t> const &W_, // (N, J); initially set to V
            Eigen::MatrixBase<S_t> const &S_  // (N, J*J)
-) {
+           ) {
   typedef typename U_t::Scalar Scalar;
   constexpr int J_comp = U_t::ColsAtCompileTime;
   typedef typename Eigen::internal::plain_row_type<U_t>::type RowVector;
@@ -120,7 +120,7 @@ int factor(const Eigen::MatrixBase<U_t> &U,  // (N, J)
            const Eigen::MatrixBase<P_t> &P,  // (N-1, J)
            Eigen::MatrixBase<d_t> const &d_, // (N);    initially set to A
            Eigen::MatrixBase<W_t> const &W_  // (N, J); initially set to V
-) {
+           ) {
   typedef typename U_t::Scalar Scalar;
   constexpr int J_comp = U_t::ColsAtCompileTime;
   typedef typename Eigen::internal::plain_row_type<U_t>::type RowVector;
@@ -165,7 +165,7 @@ void factor_grad(const Eigen::MatrixBase<U_t> &U,    // (N, J)
                  Eigen::MatrixBase<bP_t> const &bP_, // (N-1, J)
                  Eigen::MatrixBase<ba_t> const &ba_, // (N);    initially set to bd
                  Eigen::MatrixBase<bV_t> const &bV_  // (N, J); initially set to bW
-) {
+                 ) {
   typedef typename U_t::Scalar Scalar;
   constexpr int J_comp = U_t::ColsAtCompileTime;
 
@@ -215,7 +215,7 @@ void solve(const Eigen::MatrixBase<U_t> &U,  // (N, J)
            Eigen::MatrixBase<Z_t> const &Z_, // (N, Nrhs); initially set to Y
            Eigen::MatrixBase<F_t> const &F_, // (N, J*Nrhs)
            Eigen::MatrixBase<G_t> const &G_  // (N, J*Nrhs)
-) {
+           ) {
   typedef typename U_t::Scalar Scalar;
   constexpr int J_comp    = U_t::ColsAtCompileTime;
   constexpr int Nrhs_comp = Z_t::ColsAtCompileTime;
@@ -260,7 +260,7 @@ void solve(const Eigen::MatrixBase<U_t> &U, // (N, J)
            const Eigen::MatrixBase<d_t> &d, // (N)
            const Eigen::MatrixBase<W_t> &W, // (N, J)
            Eigen::MatrixBase<Z_t> const &Z_ // (N, Nrhs); initially set to Y
-) {
+           ) {
   typedef typename U_t::Scalar Scalar;
   constexpr int J_comp    = U_t::ColsAtCompileTime;
   constexpr int Nrhs_comp = Z_t::ColsAtCompileTime;
@@ -304,7 +304,7 @@ void solve_grad(const Eigen::MatrixBase<U_t> &U,    // (N, J)
                 Eigen::MatrixBase<bd_t> const &bd_, // (N)
                 Eigen::MatrixBase<bW_t> const &bW_, // (N, J)
                 Eigen::MatrixBase<bY_t> const &bY_  // (N, Nrhs)
-) {
+                ) {
   typedef typename U_t::Scalar Scalar;
   constexpr int J_comp    = U_t::ColsAtCompileTime;
   constexpr int Nrhs_comp = Z_t::ColsAtCompileTime;
@@ -385,7 +385,7 @@ void dot_tril(const Eigen::MatrixBase<U_t> &U, // (N, J)
               const Eigen::MatrixBase<d_t> &d, // (N)
               const Eigen::MatrixBase<W_t> &W, // (N, J)
               Eigen::MatrixBase<Z_t> const &Z_ // (N, Nrhs); initially set to Y
-) {
+              ) {
   typedef typename U_t::Scalar Scalar;
   constexpr int J_comp    = U_t::ColsAtCompileTime;
   constexpr int Nrhs_comp = Z_t::ColsAtCompileTime;
@@ -419,7 +419,7 @@ void conditional_mean(const Eigen::MatrixBase<U_t> &U,           // (N, J)
                       const Eigen::MatrixBase<inds_t> &inds,     // (M)  ->  Index where the mth data point should be
                                                                  // inserted (the output of search_sorted)
                       Eigen::MatrixBase<mu_t> const &mu_         // (M)
-) {
+                      ) {
   typedef typename U_t::Scalar Scalar;
   constexpr int J_comp = U_t::ColsAtCompileTime;
 
@@ -470,6 +470,6 @@ void conditional_mean(const Eigen::MatrixBase<U_t> &U,           // (N, J)
 }
 
 } // namespace core
-} // namespace celerite
+} // namespace celerite2
 
 #endif // _CELERITE2_CORE_HPP_DEFINED_

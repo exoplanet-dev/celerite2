@@ -17,8 +17,8 @@ TEMPLATE_LIST_TEST_CASE("check the results of matmul", "[matmul]", TestKernels) 
   std::tie(a, U, V, P) = kernel.get_celerite_matrices(x, diag);
 
   Matrix K, Z;
-  celerite::core::to_dense(a, U, V, P, K);
-  celerite::core::matmul(a, U, V, P, Y, Z);
+  celerite2::core::to_dense(a, U, V, P, K);
+  celerite2::core::matmul(a, U, V, P, Y, Z);
 
   double max_resid = (K * Y - Z).array().abs().maxCoeff();
   REQUIRE(max_resid < 1e-12);

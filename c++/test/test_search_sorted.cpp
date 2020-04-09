@@ -10,13 +10,13 @@ TEST_CASE("check the results of search_sorted", "[search_sorted]") {
   std::tie(x, diag, Y) = get_data();
   const int N          = x.rows();
 
-  REQUIRE(celerite::utils::search_sorted(x, x.minCoeff() - 1.0) == 0);
-  REQUIRE(celerite::utils::search_sorted(x, x.minCoeff()) == 1);
-  REQUIRE(celerite::utils::search_sorted(x, x.maxCoeff() + 1.0) == N);
-  REQUIRE(celerite::utils::search_sorted(x, x.maxCoeff()) == N);
+  REQUIRE(celerite2::utils::search_sorted(x, x.minCoeff() - 1.0) == 0);
+  REQUIRE(celerite2::utils::search_sorted(x, x.minCoeff()) == 1);
+  REQUIRE(celerite2::utils::search_sorted(x, x.maxCoeff() + 1.0) == N);
+  REQUIRE(celerite2::utils::search_sorted(x, x.maxCoeff()) == N);
 
   for (double v = x.minCoeff() + 1e-5; v <= x.maxCoeff() - 1e-5; v += 1e-3) {
-    const int ind = celerite::utils::search_sorted(x, v);
+    const int ind = celerite2::utils::search_sorted(x, v);
     REQUIRE(x(ind - 1) <= v);
     REQUIRE(x(ind) > v);
   }

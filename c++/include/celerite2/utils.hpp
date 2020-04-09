@@ -1,10 +1,10 @@
-#ifndef _CELERITE_UTILS_HPP_DEFINED_
-#define _CELERITE_UTILS_HPP_DEFINED_
+#ifndef _CELERITE2_UTILS_HPP_DEFINED_
+#define _CELERITE2_UTILS_HPP_DEFINED_
 
 #include <Eigen/Core>
 #include <cassert>
 
-namespace celerite {
+namespace celerite2 {
 namespace utils {
 
 #define ASSERT_SAME_OR_DYNAMIC(VAL, J) assert((VAL == Eigen::Dynamic) || (VAL == J))
@@ -26,6 +26,6 @@ inline int search_sorted(const Eigen::MatrixBase<T> &x, const typename T::Scalar
 }
 
 } // namespace utils
-} // namespace celerite
+} // namespace celerite2
 
-#endif // _CELERITE_UTILS_HPP_DEFINED_
+#endif // _CELERITE2_UTILS_HPP_DEFINED_

@@ -21,19 +21,19 @@ std::tuple<Vector, Vector, Matrix> get_data(const int N = 50, const int Nrhs = 5
 
 // Create a list of test kernels
 struct TestKernelReal {
-  static auto get_kernel() { return celerite::RealTerm<double>(1.0, 0.1); }
+  static auto get_kernel() { return celerite2::RealTerm<double>(1.0, 0.1); }
 };
 
 struct TestKernelComplex {
-  static auto get_kernel() { return celerite::ComplexTerm<double>(0.8, 0.03, 1.0, 0.1); }
+  static auto get_kernel() { return celerite2::ComplexTerm<double>(0.8, 0.03, 1.0, 0.1); }
 };
 
 struct TestKernelSHO1 {
-  static auto get_kernel() { return celerite::SHOTerm<double>(1.2, 0.3, 0.1); }
+  static auto get_kernel() { return celerite2::SHOTerm<double>(1.2, 0.3, 0.1); }
 };
 
 struct TestKernelSHO2 {
-  static auto get_kernel() { return celerite::SHOTerm<double>(0.1, 1.3, 5.3); }
+  static auto get_kernel() { return celerite2::SHOTerm<double>(0.1, 1.3, 5.3); }
 };
 
 struct TestKernelSum1 {

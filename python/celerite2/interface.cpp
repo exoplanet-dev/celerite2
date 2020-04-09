@@ -57,7 +57,7 @@ void factor(py::array_t<double, py::array::c_style> U, py::array_t<double, py::a
 
   int flag = 0;
 
-  // Insane hack to deal with fixed dimensions in small systems
+// Insane hack to deal with fixed dimensions in small systems
 #define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
   {                                                                                                                                                  \
     constexpr int RowMajor = (SIZE == 1) ? Eigen::ColMajor : Eigen::RowMajor;                                                                        \
@@ -69,7 +69,7 @@ void factor(py::array_t<double, py::array::c_style> U, py::array_t<double, py::a
     ConstMatrixMap P_((double *)Pbuf.ptr, N - 1, J);                                                                                                 \
     VectorMap d_((double *)dbuf.ptr, N, 1);                                                                                                          \
     MatrixMap W_((double *)Wbuf.ptr, N, J);                                                                                                          \
-    flag = celerite::core::factor(U_, P_, d_, W_);                                                                                                   \
+    flag = celerite2::core::factor(U_, P_, d_, W_);                                                                                                  \
   }
   UNWRAP_CASES
 #undef FIXED_SIZE_MAP
@@ -98,7 +98,7 @@ void solve(py::array_t<double, py::array::c_style> U, py::array_t<double, py::ar
   }
   if (Zbuf.shape[0] != N) throw std::runtime_error("Invalid shape: Z");
 
-    // Insane hack to deal with fixed dimensions in small systems
+// Insane hack to deal with fixed dimensions in small systems
 #define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
   {                                                                                                                                                  \
     constexpr int RowMajor = (SIZE == 1) ? Eigen::ColMajor : Eigen::RowMajor;                                                                        \
@@ -111,7 +111,7 @@ void solve(py::array_t<double, py::array::c_style> U, py::array_t<double, py::ar
     ConstVectorMap d_((double *)dbuf.ptr, N, 1);                                                                                                     \
     ConstMatrixMap W_((double *)Wbuf.ptr, N, J);                                                                                                     \
     MatrixMap Z_((double *)Zbuf.ptr, N, nrhs);                                                                                                       \
-    celerite::core::solve(U_, P_, d_, W_, Z_);                                                                                                       \
+    celerite2::core::solve(U_, P_, d_, W_, Z_);                                                                                                      \
   }
   UNWRAP_CASES
 #undef FIXED_SIZE_MAP

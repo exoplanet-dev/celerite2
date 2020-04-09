@@ -23,7 +23,7 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor_grad", "[factor_grad]", Tes
   Vector d  = a, d0;
   LowRank W = V, U0, P0, W0;
   Matrix S;
-  int flag = celerite::core::factor(U, P, d, W, S);
+  int flag = celerite2::core::factor(U, P, d, W, S);
   REQUIRE(flag == 0);
 
   Vector ba(N);
@@ -42,7 +42,7 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor_grad", "[factor_grad]", Tes
     U0 = U;
     P0 = P;
     d0(n) += eps;
-    celerite::core::factor(U0, P0, d0, W0, S);
+    celerite2::core::factor(U0, P0, d0, W0, S);
     ddda[n] = (d0 - d) / eps;
     dWda[n] = (W0 - W) / eps;
 
@@ -54,7 +54,7 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor_grad", "[factor_grad]", Tes
       d0 = a;
       W0 = V;
       W0(n, j) += eps;
-      celerite::core::factor(U0, P0, d0, W0, S);
+      celerite2::core::factor(U0, P0, d0, W0, S);
       dddV[n][j] = (d0 - d) / eps;
       dWdV[n][j] = (W0 - W) / eps;
 
@@ -62,7 +62,7 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor_grad", "[factor_grad]", Tes
       d0 = a;
       W0 = V;
       U0(n, j) += eps;
-      celerite::core::factor(U0, P0, d0, W0, S);
+      celerite2::core::factor(U0, P0, d0, W0, S);
       U0(n, j) -= eps;
       dddU[n][j] = (d0 - d) / eps;
       dWdU[n][j] = (W0 - W) / eps;
@@ -76,7 +76,7 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor_grad", "[factor_grad]", Tes
         d0 = a;
         W0 = V;
         P0(n, j) += eps;
-        celerite::core::factor(U0, P0, d0, W0, S);
+        celerite2::core::factor(U0, P0, d0, W0, S);
         P0(n, j) -= eps;
         dddP[n][j] = (d0 - d) / eps;
         dWdP[n][j] = (W0 - W) / eps;
@@ -90,7 +90,7 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor_grad", "[factor_grad]", Tes
     ba.setZero();
     bV.setZero();
     ba(n) = 1.0;
-    celerite::core::factor_grad(U, P, d, W, S, bU, bP, ba, bV);
+    celerite2::core::factor_grad(U, P, d, W, S, bU, bP, ba, bV);
     for (int m = 0; m < N; ++m) {
       REQUIRE(std::abs(ddda[m](n) - ba(m)) < tol);
       for (int j = 0; j < J; ++j) {
@@ -107,7 +107,7 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor_grad", "[factor_grad]", Tes
       ba.setZero();
       bV.setZero();
       bV(n, k) = 1.0;
-      celerite::core::factor_grad(U, P, d, W, S, bU, bP, ba, bV);
+      celerite2::core::factor_grad(U, P, d, W, S, bU, bP, ba, bV);
       for (int m = 0; m < N; ++m) {
         REQUIRE(std::abs(dWda[m](n, k) - ba(m)) < tol);
         for (int j = 0; j < J; ++j) {
