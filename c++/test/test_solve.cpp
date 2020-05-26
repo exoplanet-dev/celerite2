@@ -11,7 +11,6 @@ TEMPLATE_LIST_TEST_CASE("check the results of solve", "[solve]", TestKernels) {
   Vector x, diag;
   Matrix Y, Z, Zng;
   std::tie(x, diag, Y) = get_data();
-  const int N          = x.rows();
 
   typename decltype(kernel)::Vector a;
   typename decltype(kernel)::LowRank U, V, P;

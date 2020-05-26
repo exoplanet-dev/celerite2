@@ -10,7 +10,6 @@ TEMPLATE_LIST_TEST_CASE("check the results of matmul", "[matmul]", TestKernels) 
   Vector x, diag;
   Matrix Y;
   std::tie(x, diag, Y) = get_data();
-  const int N          = x.rows();
 
   typename decltype(kernel)::Vector a;
   typename decltype(kernel)::LowRank U, V, P;

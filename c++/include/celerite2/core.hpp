@@ -13,6 +13,12 @@ namespace core {
 // Implementations of some of the forward ops live within an "internal" namespace to deal with optional arguments
 namespace internal {
 
+#ifdef __cpp_if_constexpr
+#define if_constexpr if constexpr
+#else
+#define if_constexpr if
+#endif
+
 template <bool general, typename U_t, typename P_t, typename d_t, typename W_t, typename S_t>
 int factor(const Eigen::MatrixBase<U_t> &U,  // (N, J)
            const Eigen::MatrixBase<P_t> &P,  // (N-1, J)
@@ -32,7 +38,7 @@ int factor(const Eigen::MatrixBase<U_t> &U,  // (N, J)
   Eigen::MatrixBase<d_t> &d = const_cast<Eigen::MatrixBase<d_t> &>(d_);
   Eigen::MatrixBase<W_t> &W = const_cast<Eigen::MatrixBase<W_t> &>(W_);
   Eigen::MatrixBase<S_t> &S = const_cast<Eigen::MatrixBase<S_t> &>(S_);
-  if (general) {
+  if_constexpr(general) {
     S.derived().resize(N, J * J);
     S.row(0).setZero();
   }
@@ -46,7 +52,7 @@ int factor(const Eigen::MatrixBase<U_t> &U,  // (N, J)
     // Update S = diag(P) * (S + d*W*W.T) * diag(P)
     Sn.noalias() += d(n - 1) * W.row(n - 1).transpose() * W.row(n - 1);
     Sn = P.row(n - 1).asDiagonal() * Sn;
-    if (general) {
+    if_constexpr(general) {
       for (int j = 0; j < J; ++j)
         for (int k = 0; k < J; ++k) S(n, j * J + k) = Sn(k, j);
     }
@@ -84,7 +90,7 @@ void forward_pass(const Eigen::MatrixBase<U_t> &U,  // (N, J)
 
   Eigen::MatrixBase<Z_t> &Z = const_cast<Eigen::MatrixBase<Z_t> &>(Z_);
   Eigen::MatrixBase<F_t> &F = const_cast<Eigen::MatrixBase<F_t> &>(F_);
-  if constexpr (general) {
+  if_constexpr(general) {
     F.derived().resize(N, J * nrhs);
     F.row(0).setZero();
   }
@@ -93,15 +99,16 @@ void forward_pass(const Eigen::MatrixBase<U_t> &U,  // (N, J)
   Fn.setZero();
   for (int n = 1; n < N; ++n) {
     Fn.noalias() += W.row(n - 1).transpose() * tmp;
-    if constexpr (general) {
+    if_constexpr(general) {
       for (int k = 0; k < nrhs; ++k)
         for (int j = 0; j < J; ++j) F(n, k * J + j) = Fn(j, k);
     }
     Fn = P.row(n - 1).asDiagonal() * Fn;
-    if constexpr (is_solve) {
+    if_constexpr(is_solve) {
       Z.row(n).noalias() -= U.row(n) * Fn;
       tmp = Z.row(n);
-    } else {
+    }
+    else {
       tmp = Y.row(n);
       Z.row(n).noalias() += U.row(n) * Fn;
     }
@@ -127,7 +134,7 @@ void backward_pass(const Eigen::MatrixBase<U_t> &U,  // (N, J)
 
   Eigen::MatrixBase<Z_t> &Z = const_cast<Eigen::MatrixBase<Z_t> &>(Z_);
   Eigen::MatrixBase<G_t> &G = const_cast<Eigen::MatrixBase<G_t> &>(G_);
-  if constexpr (general) {
+  if_constexpr(general) {
     G.derived().resize(N, J * nrhs);
     G.row(N - 1).setZero();
   }
@@ -136,15 +143,16 @@ void backward_pass(const Eigen::MatrixBase<U_t> &U,  // (N, J)
   Fn.setZero();
   for (int n = N - 2; n >= 0; --n) {
     Fn.noalias() += U.row(n + 1).transpose() * tmp;
-    if constexpr (general) {
+    if_constexpr(general) {
       for (int k = 0; k < nrhs; ++k)
         for (int j = 0; j < J; ++j) G(n, k * J + j) = Fn(j, k);
     }
     Fn = P.row(n).asDiagonal() * Fn;
-    if constexpr (is_solve) {
+    if_constexpr(is_solve) {
       Z.row(n).noalias() -= W.row(n) * Fn;
       tmp = Z.row(n);
-    } else {
+    }
+    else {
       tmp = Y.row(n);
       Z.row(n).noalias() += W.row(n) * Fn;
     }
