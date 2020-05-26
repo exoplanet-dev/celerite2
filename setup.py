@@ -28,7 +28,24 @@ CLASSIFIERS = [
 INSTALL_REQUIRES = [
     "numpy>=1.13.0",
     "pybind11>=2.4",
+    "setuptools>=40.6.0",
+    "setuptools_scm",
 ]
+EXTRA_REQUIRE = {
+    "test": ["scipy", "celerite>=0.3.1"],
+}
+EXTRA_REQUIRE["dev"] = EXTRA_REQUIRE["test"] + [
+    "pre-commit",
+    "black",
+    "black_nbconvert",
+    "isort",
+    "toml",
+    "flake8",
+    "nbstripout",
+    "pep517",
+    "twine",
+]
+
 
 # END PROJECT SPECIFIC
 
@@ -173,6 +190,7 @@ if __name__ == "__main__":
         include_package_data=True,
         install_requires=INSTALL_REQUIRES,
         setup_requires=INSTALL_REQUIRES,
+        extras_require=EXTRA_REQUIRE,
         classifiers=CLASSIFIERS,
         zip_safe=False,
         ext_modules=ext_modules,

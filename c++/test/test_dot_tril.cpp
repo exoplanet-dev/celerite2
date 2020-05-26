@@ -9,7 +9,7 @@ TEMPLATE_LIST_TEST_CASE("check the results of dot_tril", "[dot_tril]", TestKerne
   auto kernel = TestType::get_kernel();
 
   Vector x, diag;
-  Matrix Y;
+  Matrix Y, F;
   std::tie(x, diag, Y) = get_data();
   const int N          = x.rows();
 
@@ -34,8 +34,13 @@ TEMPLATE_LIST_TEST_CASE("check the results of dot_tril", "[dot_tril]", TestKerne
   Eigen::MatrixXd expect = LLT.matrixL() * Y;
 
   // Do the product using celerite
-  celerite2::core::dot_tril(U, P, a, V, Y);
+  Matrix Z = Y;
+  celerite2::core::dot_tril(U, P, a, V, Z);
+  double resid = (Z - expect).array().abs().maxCoeff();
+  REQUIRE(resid < 1e-12);
 
-  double resid = (Y - expect).array().abs().maxCoeff();
+  // Check the grad version too
+  celerite2::core::dot_tril(U, P, a, V, Y, F);
+  resid = (Y - expect).array().abs().maxCoeff();
   REQUIRE(resid < 1e-12);
 }
