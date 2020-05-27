@@ -74,7 +74,7 @@ void factor(py::array_t<double, py::array::c_style> U, py::array_t<double, py::a
   UNWRAP_CASES
 #undef FIXED_SIZE_MAP
 
-  if (flag) throw std::runtime_error("Linear algrbra error");
+  if (flag) throw std::runtime_error("Linear algebra error");
 }
 
 void solve(py::array_t<double, py::array::c_style> U, py::array_t<double, py::array::c_style> P, py::array_t<double, py::array::c_style> d,

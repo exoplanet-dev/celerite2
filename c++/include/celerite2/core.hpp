@@ -71,14 +71,13 @@ int factor(const Eigen::MatrixBase<U_t> &U,  // (N, J)
   return 0;
 }
 
-template <bool is_solve, bool general, typename U_t, typename P_t, typename d_t, typename W_t, typename Y_t, typename Z_t, typename F_t>
-void forward_pass(const Eigen::MatrixBase<U_t> &U,  // (N, J)
-                  const Eigen::MatrixBase<P_t> &P,  // (N-1, J)
-                  const Eigen::MatrixBase<d_t> &d,  // (N)
-                  const Eigen::MatrixBase<W_t> &W,  // (N, J)
-                  const Eigen::MatrixBase<Y_t> &Y,  // (N, Nrhs)
-                  Eigen::MatrixBase<Z_t> const &Z_, // (N, Nrhs)
-                  Eigen::MatrixBase<F_t> const &F_  // (N, J*Nrhs)
+template <bool is_solve, bool general, typename U_t, typename P_t, typename W_t, typename Y_t, typename Z_t, typename F_t>
+void forward_sweep(const Eigen::MatrixBase<U_t> &U,  // (N, J)
+                   const Eigen::MatrixBase<P_t> &P,  // (N-1, J)
+                   const Eigen::MatrixBase<W_t> &W,  // (N, J)
+                   const Eigen::MatrixBase<Y_t> &Y,  // (N, Nrhs)
+                   Eigen::MatrixBase<Z_t> const &Z_, // (N, Nrhs)
+                   Eigen::MatrixBase<F_t> const &F_  // (N, J*Nrhs)
 ) {
   typedef typename U_t::Scalar Scalar;
   constexpr int J_comp    = U_t::ColsAtCompileTime;
@@ -95,7 +94,7 @@ void forward_pass(const Eigen::MatrixBase<U_t> &U,  // (N, J)
     F.row(0).setZero();
   }
 
-  RowVectorZ tmp = Y.row(0);
+  RowVectorZ tmp = Y.row(0); // This is required to handle inplace operations
   Fn.setZero();
   for (int n = 1; n < N; ++n) {
     Fn.noalias() += W.row(n - 1).transpose() * tmp;
@@ -115,14 +114,13 @@ void forward_pass(const Eigen::MatrixBase<U_t> &U,  // (N, J)
   }
 }
 
-template <bool is_solve, bool general, typename U_t, typename P_t, typename d_t, typename W_t, typename Y_t, typename Z_t, typename G_t>
-void backward_pass(const Eigen::MatrixBase<U_t> &U,  // (N, J)
-                   const Eigen::MatrixBase<P_t> &P,  // (N-1, J)
-                   const Eigen::MatrixBase<d_t> &d,  // (N)
-                   const Eigen::MatrixBase<W_t> &W,  // (N, J)
-                   const Eigen::MatrixBase<Y_t> &Y,  // (N, Nrhs)
-                   Eigen::MatrixBase<Z_t> const &Z_, // (N, Nrhs)
-                   Eigen::MatrixBase<G_t> const &G_  // (N, J*Nrhs)
+template <bool is_solve, bool general, typename U_t, typename P_t, typename W_t, typename Y_t, typename Z_t, typename G_t>
+void backward_sweep(const Eigen::MatrixBase<U_t> &U,  // (N, J)
+                    const Eigen::MatrixBase<P_t> &P,  // (N-1, J)
+                    const Eigen::MatrixBase<W_t> &W,  // (N, J)
+                    const Eigen::MatrixBase<Y_t> &Y,  // (N, Nrhs)
+                    Eigen::MatrixBase<Z_t> const &Z_, // (N, Nrhs)
+                    Eigen::MatrixBase<G_t> const &G_  // (N, J*Nrhs)
 ) {
   typedef typename U_t::Scalar Scalar;
   constexpr int J_comp    = U_t::ColsAtCompileTime;
@@ -159,6 +157,124 @@ void backward_pass(const Eigen::MatrixBase<U_t> &U,  // (N, J)
   }
 }
 
+template <bool is_solve, typename U_t, typename P_t, typename W_t, typename Y_t, typename Z_t, typename F_t, typename bZ_t, typename bU_t,
+          typename bP_t, typename bW_t, typename bY_t>
+void forward_sweep_grad(const Eigen::MatrixBase<U_t> &U,    // (N, J)
+                        const Eigen::MatrixBase<P_t> &P,    // (N-1, J)
+                        const Eigen::MatrixBase<W_t> &W,    // (N, J)
+                        const Eigen::MatrixBase<Y_t> &Y,    // (N, Nrhs)
+                        const Eigen::MatrixBase<Z_t> &Z,    // (N, Nrhs)
+                        const Eigen::MatrixBase<F_t> &F,    // (N, J*Nrhs)
+                        const Eigen::MatrixBase<bZ_t> &bZ,  // (N, Nrhs)
+                        Eigen::MatrixBase<bU_t> const &bU_, // (N, J)
+                        Eigen::MatrixBase<bP_t> const &bP_, // (N-1, J)
+                        Eigen::MatrixBase<bW_t> const &bW_, // (N, J)
+                        Eigen::MatrixBase<bY_t> const &bY_  // (N, Nrhs)
+) {
+  typedef typename U_t::Scalar Scalar;
+  constexpr int J_comp    = U_t::ColsAtCompileTime;
+  constexpr int Nrhs_comp = Z_t::ColsAtCompileTime;
+
+  int N = U.rows(), J = U.cols(), nrhs = Z.cols();
+  Eigen::Matrix<Scalar, J_comp, Nrhs_comp> Fn(J, nrhs), bF(J, nrhs);
+
+  Eigen::MatrixBase<bU_t> &bU = const_cast<Eigen::MatrixBase<bU_t> &>(bU_);
+  Eigen::MatrixBase<bP_t> &bP = const_cast<Eigen::MatrixBase<bP_t> &>(bP_);
+  Eigen::MatrixBase<bW_t> &bW = const_cast<Eigen::MatrixBase<bW_t> &>(bW_);
+  Eigen::MatrixBase<bY_t> &bY = const_cast<Eigen::MatrixBase<bY_t> &>(bY_);
+
+  bF.setZero();
+  for (int n = N - 1; n >= 1; --n) {
+    for (int k = 0; k < nrhs; ++k)
+      for (int j = 0; j < J; ++j) Fn(j, k) = F(n, k * J + j);
+
+    if_constexpr(is_solve) {
+      // Grad of: Z.row(n).noalias() -= U.row(n) * Fn;
+      bU.row(n).noalias() -= bZ.row(n) * (P.row(n - 1).asDiagonal() * Fn).transpose();
+      bF.noalias() -= U.row(n).transpose() * bZ.row(n);
+    }
+    else {
+      // Grad of: Z.row(n).noalias() += U.row(n) * Fn;
+      bU.row(n).noalias() += bZ.row(n) * (P.row(n - 1).asDiagonal() * Fn).transpose();
+      bF.noalias() += U.row(n).transpose() * bZ.row(n);
+    }
+
+    // Grad of: F = P.row(n-1).asDiagonal() * F;
+    bP.row(n - 1).noalias() += (Fn * bF.transpose()).diagonal();
+    bF = P.row(n - 1).asDiagonal() * bF;
+
+    if_constexpr(is_solve) {
+      // Grad of: F.noalias() += W.row(n-1).transpose() * Z.row(n-1);
+      bW.row(n - 1).noalias() += Z.row(n - 1) * bF.transpose();
+      bY.row(n - 1).noalias() += W.row(n - 1) * bF;
+    }
+    else {
+      // Grad of: F.noalias() += W.row(n-1).transpose() * Y.row(n-1);
+      bW.row(n - 1).noalias() += Y.row(n - 1) * bF.transpose();
+      bY.row(n - 1).noalias() += W.row(n - 1) * bF;
+    }
+  }
+}
+
+template <bool is_solve, typename U_t, typename P_t, typename W_t, typename Y_t, typename Z_t, typename G_t, typename bZ_t, typename bU_t,
+          typename bP_t, typename bW_t, typename bY_t>
+void backward_sweep_grad(const Eigen::MatrixBase<U_t> &U,    // (N, J)
+                         const Eigen::MatrixBase<P_t> &P,    // (N-1, J)
+                         const Eigen::MatrixBase<W_t> &W,    // (N, J)
+                         const Eigen::MatrixBase<Y_t> &Y,    // (N, Nrhs)
+                         const Eigen::MatrixBase<Z_t> &Z,    // (N, Nrhs)
+                         const Eigen::MatrixBase<G_t> &G,    // (N, J*Nrhs)
+                         const Eigen::MatrixBase<bZ_t> &bZ,  // (N, Nrhs)
+                         Eigen::MatrixBase<bU_t> const &bU_, // (N, J)
+                         Eigen::MatrixBase<bP_t> const &bP_, // (N-1, J)
+                         Eigen::MatrixBase<bW_t> const &bW_, // (N, J)
+                         Eigen::MatrixBase<bY_t> const &bY_  // (N, Nrhs)
+) {
+  typedef typename U_t::Scalar Scalar;
+  constexpr int J_comp    = U_t::ColsAtCompileTime;
+  constexpr int Nrhs_comp = Z_t::ColsAtCompileTime;
+
+  int N = U.rows(), J = U.cols(), nrhs = Z.cols();
+  Eigen::Matrix<Scalar, J_comp, Nrhs_comp> Fn(J, nrhs), bF(J, nrhs);
+
+  Eigen::MatrixBase<bU_t> &bU = const_cast<Eigen::MatrixBase<bU_t> &>(bU_);
+  Eigen::MatrixBase<bP_t> &bP = const_cast<Eigen::MatrixBase<bP_t> &>(bP_);
+  Eigen::MatrixBase<bW_t> &bW = const_cast<Eigen::MatrixBase<bW_t> &>(bW_);
+  Eigen::MatrixBase<bY_t> &bY = const_cast<Eigen::MatrixBase<bY_t> &>(bY_);
+
+  bF.setZero();
+  for (int n = 0; n <= N - 2; ++n) {
+    for (int k = 0; k < nrhs; ++k)
+      for (int j = 0; j < J; ++j) Fn(j, k) = G(n, k * J + j);
+
+    if_constexpr(is_solve) {
+      // Grad of: Z.row(n).noalias() -= W.row(n) * Fn;
+      bW.row(n).noalias() -= bZ.row(n) * (P.row(n).asDiagonal() * Fn).transpose();
+      bF.noalias() -= W.row(n).transpose() * bZ.row(n);
+    }
+    else {
+      // Grad of: Z.row(n).noalias() += W.row(n) * Fn;
+      bW.row(n).noalias() += bZ.row(n) * (P.row(n).asDiagonal() * Fn).transpose();
+      bF.noalias() += W.row(n).transpose() * bZ.row(n);
+    }
+
+    // Grad of: F = P.row(n).asDiagonal() * F;
+    bP.row(n).noalias() += (Fn * bF.transpose()).diagonal();
+    bF = P.row(n).asDiagonal() * bF;
+
+    if_constexpr(is_solve) {
+      // Grad of: F.noalias() += U.row(n+1).transpose() * Z.row(n+1);
+      bU.row(n + 1).noalias() += Z.row(n + 1) * bF.transpose();
+      bY.row(n + 1).noalias() += U.row(n + 1) * bF;
+    }
+    else {
+      // Grad of: F.noalias() += U.row(n+1).transpose() * Y.row(n+1);
+      bU.row(n + 1).noalias() += Y.row(n + 1) * bF.transpose();
+      bY.row(n + 1).noalias() += U.row(n + 1) * bF;
+    }
+  }
+}
+
 template <bool general, typename U_t, typename P_t, typename d_t, typename W_t, typename Z_t, typename F_t, typename G_t>
 void solve(const Eigen::MatrixBase<U_t> &U,  // (N, J)
            const Eigen::MatrixBase<P_t> &P,  // (N-1, J)
@@ -169,9 +285,9 @@ void solve(const Eigen::MatrixBase<U_t> &U,  // (N, J)
            Eigen::MatrixBase<G_t> const &G_  // (N, J*Nrhs)
 ) {
   Eigen::MatrixBase<Z_t> &Z = const_cast<Eigen::MatrixBase<Z_t> &>(Z_);
-  forward_pass<true, general, U_t, P_t, d_t, W_t, Z_t, Z_t, F_t>(U, P, d, W, Z, Z, F_);
+  forward_sweep<true, general, U_t, P_t, W_t, Z_t, Z_t, F_t>(U, P, W, Z, Z, F_);
   Z.array().colwise() /= d.array();
-  backward_pass<true, general, U_t, P_t, d_t, W_t, Z_t, Z_t, G_t>(U, P, d, W, Z, Z, G_);
+  backward_sweep<true, general, U_t, P_t, W_t, Z_t, Z_t, G_t>(U, P, W, Z, Z, G_);
 }
 
 template <bool general, typename U_t, typename P_t, typename d_t, typename W_t, typename Z_t, typename F_t>
@@ -185,7 +301,7 @@ void dot_tril(const Eigen::MatrixBase<U_t> &U,  // (N, J)
 
   Eigen::MatrixBase<Z_t> &Z = const_cast<Eigen::MatrixBase<Z_t> &>(Z_);
   Z.array().colwise() *= sqrt(d.array());
-  forward_pass<false, general, U_t, P_t, d_t, W_t, Z_t, Z_t, F_t>(U, P, d, W, Z, Z, F_);
+  forward_sweep<false, general, U_t, P_t, W_t, Z_t, Z_t, F_t>(U, P, W, Z, Z, F_);
 }
 
 template <bool general, typename a_t, typename U_t, typename V_t, typename P_t, typename Z_t, typename Y_t, typename F_t, typename G_t>
@@ -201,9 +317,11 @@ void matmul(const Eigen::MatrixBase<a_t> &a,  // (N)
   Eigen::MatrixBase<Y_t> &Y = const_cast<Eigen::MatrixBase<Y_t> &>(Y_);
   Y                         = Z;
   Y.array().colwise() *= a.array();
-  forward_pass<false, general, U_t, P_t, a_t, V_t, Z_t, Y_t, F_t>(U, P, a, V, Z, Y, F_);
-  backward_pass<false, general, U_t, P_t, a_t, V_t, Z_t, Y_t, F_t>(U, P, a, V, Z, Y, G_);
+  forward_sweep<false, general, U_t, P_t, V_t, Z_t, Y_t, F_t>(U, P, V, Z, Y, F_);
+  backward_sweep<false, general, U_t, P_t, V_t, Z_t, Y_t, F_t>(U, P, V, Z, Y, G_);
 }
+
+#undef if_constexpr
 
 } // namespace internal
 
