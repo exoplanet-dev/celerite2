@@ -3,12 +3,15 @@
 #include "helpers.hpp"
 
 #include <vector>
-#include <celerite2/core.hpp>
+#include <celerite2/core2.hpp>
 
 TEMPLATE_LIST_TEST_CASE("check the results of factor_grad", "[factor_grad]", TestKernels) {
   auto kernel = TestType::get_kernel();
 
   typedef typename decltype(kernel)::LowRank LowRank;
+
+  const double eps = 1.234e-8;
+  const double tol = 500 * eps;
 
   Vector x, diag;
   Matrix Y;
@@ -20,52 +23,52 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor_grad", "[factor_grad]", Tes
   std::tie(a, U, V, P) = kernel.get_celerite_matrices(x, diag);
   const int J          = U.cols();
 
-  Vector d  = a, d0;
-  LowRank W = V, U0, P0, W0;
-  Matrix S;
-  int flag = celerite2::core::factor(U, P, d, W, S);
+  Vector d, d0;
+  LowRank W, W0;
+  Matrix S, S0;
+
+  // Make sure everything is the right size
+  d.resize(N);
+  W.resize(N, J);
+  S.resize(N, J * J);
+  d0.resize(N);
+  W0.resize(N, J);
+  S0.resize(N, J * J);
+
+  // Compute the reference matrices
+  int flag = celerite2::core2::factor(a, U, V, P, d0, W0, S0);
   REQUIRE(flag == 0);
 
-  Vector ba(N);
-  LowRank bV(N, J), bU, bP;
-
   // Compute numerical derivatives
-  const double eps = 1.234e-8;
-  const double tol = 500 * eps;
   std::vector<Vector> ddda(N);
   std::vector<LowRank> dWda(N);
   std::vector<std::vector<Vector>> dddV(N), dddU(N), dddP(N - 1);
   std::vector<std::vector<LowRank>> dWdV(N), dWdU(N), dWdP(N - 1);
   for (int n = 0; n < N; ++n) {
-    d0 = a;
-    W0 = V;
-    U0 = U;
-    P0 = P;
-    d0(n) += eps;
-    celerite2::core::factor(U0, P0, d0, W0, S);
-    ddda[n] = (d0 - d) / eps;
-    dWda[n] = (W0 - W) / eps;
+    a(n) += eps;
+    celerite2::core2::factor(a, U, V, P, d, W, S);
+    a(n) -= eps;
+    ddda[n] = (d - d0) / eps;
+    dWda[n] = (W - W0) / eps;
 
     dddV[n].resize(J);
     dWdV[n].resize(J);
     dddU[n].resize(J);
     dWdU[n].resize(J);
     for (int j = 0; j < J; ++j) {
-      d0 = a;
-      W0 = V;
-      W0(n, j) += eps;
-      celerite2::core::factor(U0, P0, d0, W0, S);
-      dddV[n][j] = (d0 - d) / eps;
-      dWdV[n][j] = (W0 - W) / eps;
-
       // U
-      d0 = a;
-      W0 = V;
-      U0(n, j) += eps;
-      celerite2::core::factor(U0, P0, d0, W0, S);
-      U0(n, j) -= eps;
-      dddU[n][j] = (d0 - d) / eps;
-      dWdU[n][j] = (W0 - W) / eps;
+      U(n, j) += eps;
+      celerite2::core2::factor(a, U, V, P, d, W, S);
+      U(n, j) -= eps;
+      dddU[n][j] = (d - d0) / eps;
+      dWdU[n][j] = (W - W0) / eps;
+
+      // V
+      V(n, j) += eps;
+      celerite2::core2::factor(a, U, V, P, d, W, S);
+      V(n, j) -= eps;
+      dddV[n][j] = (d - d0) / eps;
+      dWdV[n][j] = (W - W0) / eps;
     }
 
     // P
@@ -73,24 +76,25 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor_grad", "[factor_grad]", Tes
       dddP[n].resize(J);
       dWdP[n].resize(J);
       for (int j = 0; j < J; ++j) {
-        d0 = a;
-        W0 = V;
-        P0(n, j) += eps;
-        celerite2::core::factor(U0, P0, d0, W0, S);
-        P0(n, j) -= eps;
-        dddP[n][j] = (d0 - d) / eps;
-        dWdP[n][j] = (W0 - W) / eps;
+        P(n, j) += eps;
+        celerite2::core2::factor(a, U, V, P, d, W, S);
+        P(n, j) -= eps;
+        dddP[n][j] = (d - d0) / eps;
+        dWdP[n][j] = (W - W0) / eps;
       }
     }
   }
 
+  Vector ba(N), bd(N);
+  LowRank bU(N, J), bV(N, J), bP(N - 1, J), bW(N, J);
+
   // Test these against the backpropagated derivatives
   for (int n = 0; n < N; ++n) {
     // a
-    ba.setZero();
-    bV.setZero();
-    ba(n) = 1.0;
-    celerite2::core::factor_grad(U, P, d, W, S, bU, bP, ba, bV);
+    bd.setZero();
+    bW.setZero();
+    bd(n) = 1.0;
+    celerite2::core2::factor_rev(a, U, V, P, d0, W0, S0, bd, bW, ba, bU, bV, bP);
     for (int m = 0; m < N; ++m) {
       REQUIRE(std::abs(ddda[m](n) - ba(m)) < tol);
       for (int j = 0; j < J; ++j) {
@@ -104,10 +108,10 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor_grad", "[factor_grad]", Tes
 
     // W
     for (int k = 0; k < J; ++k) {
-      ba.setZero();
-      bV.setZero();
-      bV(n, k) = 1.0;
-      celerite2::core::factor_grad(U, P, d, W, S, bU, bP, ba, bV);
+      bd.setZero();
+      bW.setZero();
+      bW(n, k) = 1.0;
+      celerite2::core2::factor_rev(a, U, V, P, d0, W0, S0, bd, bW, ba, bU, bV, bP);
       for (int m = 0; m < N; ++m) {
         REQUIRE(std::abs(dWda[m](n, k) - ba(m)) < tol);
         for (int j = 0; j < J; ++j) {

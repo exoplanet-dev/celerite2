@@ -4,12 +4,13 @@
 
 #include <Eigen/Dense>
 #include <celerite2/core.hpp>
+#include <celerite2/core2.hpp>
 
 TEMPLATE_LIST_TEST_CASE("check the results of dot_tril", "[dot_tril]", TestKernels) {
   auto kernel = TestType::get_kernel();
 
   Vector x, diag;
-  Matrix Y, F;
+  Matrix Y;
   std::tie(x, diag, Y) = get_data();
   const int N          = x.rows();
 
@@ -21,7 +22,7 @@ TEMPLATE_LIST_TEST_CASE("check the results of dot_tril", "[dot_tril]", TestKerne
   celerite2::core::to_dense(a, U, V, P, K);
 
   // Do the Cholesky using celerite
-  int flag = celerite2::core::factor(U, P, a, V, S);
+  int flag = celerite2::core2::factor(a, U, V, P, a, V, S);
   REQUIRE(flag == 0);
 
   // Reconstruct the L matrix
@@ -34,13 +35,8 @@ TEMPLATE_LIST_TEST_CASE("check the results of dot_tril", "[dot_tril]", TestKerne
   Eigen::MatrixXd expect = LLT.matrixL() * Y;
 
   // Do the product using celerite
-  Matrix Z = Y;
-  celerite2::core::dot_tril(U, P, a, V, Z);
+  Matrix Z(Y.rows(), Y.cols()), F(Y.rows(), Y.cols() * U.cols());
+  celerite2::core2::dot_tril(U, P, a, V, Y, Z, F);
   double resid = (Z - expect).array().abs().maxCoeff();
-  REQUIRE(resid < 1e-12);
-
-  // Check the grad version too
-  celerite2::core::dot_tril(U, P, a, V, Y, F);
-  resid = (Y - expect).array().abs().maxCoeff();
   REQUIRE(resid < 1e-12);
 }

@@ -13,6 +13,7 @@ namespace core {
 // Implementations of some of the forward ops live within an "internal" namespace to deal with optional arguments
 namespace internal {
 
+// We can use "if constexpr" to optimize out some conditionals if it is supported
 #ifdef __cpp_if_constexpr
 #define if_constexpr if constexpr
 #else
@@ -190,8 +191,8 @@ void forward_sweep_grad(const Eigen::MatrixBase<U_t> &U,    // (N, J)
 
     if_constexpr(is_solve) {
       // Grad of: Z.row(n).noalias() -= U.row(n) * Fn;
-      bU.row(n).noalias() -= bZ.row(n) * (P.row(n - 1).asDiagonal() * Fn).transpose();
-      bF.noalias() -= U.row(n).transpose() * bZ.row(n);
+      bU.row(n).noalias() -= bY.row(n) * (P.row(n - 1).asDiagonal() * Fn).transpose();
+      bF.noalias() -= U.row(n).transpose() * bY.row(n);
     }
     else {
       // Grad of: Z.row(n).noalias() += U.row(n) * Fn;
@@ -221,7 +222,7 @@ template <bool is_solve, typename U_t, typename P_t, typename W_t, typename Y_t,
 void backward_sweep_grad(const Eigen::MatrixBase<U_t> &U,    // (N, J)
                          const Eigen::MatrixBase<P_t> &P,    // (N-1, J)
                          const Eigen::MatrixBase<W_t> &W,    // (N, J)
-                         const Eigen::MatrixBase<Y_t> &Y,    // (N, Nrhs)
+                         Eigen::MatrixBase<Y_t> const &Y_,   // (N, Nrhs)
                          const Eigen::MatrixBase<Z_t> &Z,    // (N, Nrhs)
                          const Eigen::MatrixBase<G_t> &G,    // (N, J*Nrhs)
                          const Eigen::MatrixBase<bZ_t> &bZ,  // (N, Nrhs)
@@ -235,8 +236,9 @@ void backward_sweep_grad(const Eigen::MatrixBase<U_t> &U,    // (N, J)
   constexpr int Nrhs_comp = Z_t::ColsAtCompileTime;
 
   int N = U.rows(), J = U.cols(), nrhs = Z.cols();
-  Eigen::Matrix<Scalar, J_comp, Nrhs_comp> Fn(J, nrhs), bF(J, nrhs);
+  Eigen::Matrix<Scalar, J_comp, Nrhs_comp> Fn(J, nrhs), bF(J, nrhs), PFn;
 
+  Eigen::MatrixBase<Y_t> &Y   = const_cast<Eigen::MatrixBase<Y_t> &>(Y_);
   Eigen::MatrixBase<bU_t> &bU = const_cast<Eigen::MatrixBase<bU_t> &>(bU_);
   Eigen::MatrixBase<bP_t> &bP = const_cast<Eigen::MatrixBase<bP_t> &>(bP_);
   Eigen::MatrixBase<bW_t> &bW = const_cast<Eigen::MatrixBase<bW_t> &>(bW_);
@@ -247,15 +249,22 @@ void backward_sweep_grad(const Eigen::MatrixBase<U_t> &U,    // (N, J)
     for (int k = 0; k < nrhs; ++k)
       for (int j = 0; j < J; ++j) Fn(j, k) = G(n, k * J + j);
 
+    PFn = P.row(n).asDiagonal() * Fn;
     if_constexpr(is_solve) {
       // Grad of: Z.row(n).noalias() -= W.row(n) * Fn;
-      bW.row(n).noalias() -= bZ.row(n) * (P.row(n).asDiagonal() * Fn).transpose();
-      bF.noalias() -= W.row(n).transpose() * bZ.row(n);
+      bW.row(n).noalias() -= bY.row(n) * PFn.transpose();
+      bF.noalias() -= W.row(n).transpose() * bY.row(n);
+
+      // Inverse of: Z.row(n).noalias() -= W.row(n) * Fn;
+      Y.row(n).noalias() += W.row(n) * PFn;
     }
     else {
       // Grad of: Z.row(n).noalias() += W.row(n) * Fn;
-      bW.row(n).noalias() += bZ.row(n) * (P.row(n).asDiagonal() * Fn).transpose();
+      bW.row(n).noalias() += bZ.row(n) * PFn.transpose();
       bF.noalias() += W.row(n).transpose() * bZ.row(n);
+
+      // Inverse of: Z.row(n).noalias() += W.row(n) * Fn;
+      // Y.row(n).noalias() -= W.row(n) * PFn;
     }
 
     // Grad of: F = P.row(n).asDiagonal() * F;
@@ -520,30 +529,12 @@ void solve_grad(const Eigen::MatrixBase<U_t> &U,    // (N, J)
   Eigen::Matrix<Scalar, J_comp, Nrhs_comp> Fn(J, nrhs), bF(J, nrhs);
   bF.setZero();
 
-  bU.row(0).setZero();
-
+  bU.setZero();
+  bP.setZero();
+  bW.setZero();
   bY = bZ;
-  for (int n = 0; n <= N - 2; ++n) {
-    for (int k = 0; k < nrhs; ++k)
-      for (int j = 0; j < J; ++j) Fn(j, k) = G(n, k * J + j);
 
-    // Grad of: Z.row(n).noalias() -= W.row(n) * G;
-    bW.row(n).noalias() = -bY.row(n) * (P.row(n).asDiagonal() * Fn).transpose();
-    bF.noalias() -= W.row(n).transpose() * bY.row(n);
-
-    // Inverse of: Z.row(n).noalias() -= W.row(n) * G;
-    Z_.row(n).noalias() += W.row(n) * (P.row(n).asDiagonal() * Fn);
-
-    // Grad of: g = P.row(n).asDiagonal() * G;
-    bP.row(n).noalias() = (Fn * bF.transpose()).diagonal();
-    bF                  = P.row(n).asDiagonal() * bF;
-
-    // Grad of: g.noalias() += U.row(n+1).transpose() * Z.row(n+1);
-    bU.row(n + 1).noalias() = Z_.row(n + 1) * bF.transpose();
-    bY.row(n + 1).noalias() += U.row(n + 1) * bF;
-  }
-
-  bW.row(N - 1).setZero();
+  internal::backward_sweep_grad<true, U_t, P_t, W_t, Z_t, Z_t, G_t, bZ_t, bU_t, bP_t, bW_t, bY_t>(U, P, W, Z_, Z, G, bZ, bU, bP, bW, bY);
 
   bY.array().colwise() /= d.array();
   bd.array() = -(Z_.array() * bY.array()).rowwise().sum();
@@ -551,25 +542,31 @@ void solve_grad(const Eigen::MatrixBase<U_t> &U,    // (N, J)
   // Inverse of: Z.array().colwise() /= d.array();
   Z_.array().colwise() *= d.array();
 
-  bF.setZero();
-  for (int n = N - 1; n >= 1; --n) {
-    for (int k = 0; k < nrhs; ++k)
-      for (int j = 0; j < J; ++j) Fn(j, k) = F(n, k * J + j);
-
-    // Grad of: Z.row(n).noalias() -= U.row(n) * f;
-    bU.row(n).noalias() -= bY.row(n) * (P.row(n - 1).asDiagonal() * Fn).transpose();
-    bF.noalias() -= U.row(n).transpose() * bY.row(n);
-
-    // Grad of: F = P.row(n-1).asDiagonal() * F;
-    bP.row(n - 1).noalias() += (Fn * bF.transpose()).diagonal();
-    bF = P.row(n - 1).asDiagonal() * bF;
-
-    // Grad of: F.noalias() += W.row(n-1).transpose() * Z.row(n-1);
-    bW.row(n - 1).noalias() += Z_.row(n - 1) * bF.transpose();
-    bY.row(n - 1).noalias() += W.row(n - 1) * bF;
-  }
+  // bY += bZ;
+  internal::forward_sweep_grad<true, U_t, P_t, W_t, Z_t, Z_t, F_t, bY_t, bU_t, bP_t, bW_t, bY_t>(U, P, W, Z_, Z_, F, bY, bU, bP, bW, bY);
 
   bY -= bZ;
+}
+
+template <typename U_t, typename P_t, typename d_t, typename W_t, typename Z_t, typename F_t, typename bZ_t, typename bU_t, typename bP_t,
+          typename bd_t, typename bW_t, typename bY_t>
+void dot_tril_grad(const Eigen::MatrixBase<U_t> &U,    // (N, J)
+                   const Eigen::MatrixBase<P_t> &P,    // (N-1, J)
+                   const Eigen::MatrixBase<d_t> &d,    // (N)
+                   const Eigen::MatrixBase<W_t> &W,    // (N, J)
+                   const Eigen::MatrixBase<Z_t> &Z,    // (N, Nrhs)
+                   const Eigen::MatrixBase<F_t> &F,    // (N, J*Nrhs)
+                   const Eigen::MatrixBase<bZ_t> &bZ,  // (N, Nrhs)
+                   Eigen::MatrixBase<bU_t> const &bU_, // (N, J)
+                   Eigen::MatrixBase<bP_t> const &bP_, // (N-1, J)
+                   Eigen::MatrixBase<bd_t> const &bd_, // (N)
+                   Eigen::MatrixBase<bW_t> const &bW_, // (N, J)
+                   Eigen::MatrixBase<bY_t> const &bY_  // (N, Nrhs)
+
+) {
+  Eigen::MatrixBase<bY_t> &bY = const_cast<Eigen::MatrixBase<bY_t> &>(bY_);
+  internal::forward_sweep_grad<false, U_t, P_t, W_t, Z_t, Z_t, F_t, bZ_t, bU_t, bP_t, bW_t, bY_t>(U, P, W, Z, Z, F, bZ, bU_, bP_, bW_, bY);
+  // return internal::dot_tril<true, U_t, P_t, d_t, W_t, Z_t, F_t>(U, P, d, W, Z_, F_);
 }
 
 // ****************
