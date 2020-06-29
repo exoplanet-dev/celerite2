@@ -1,8 +1,10 @@
 #define CATCH_CONFIG_MAIN
+
 #include "catch.hpp"
 #include "helpers.hpp"
-
 #include <celerite2/utils.hpp>
+
+using namespace celerite2::test;
 
 TEST_CASE("check the results of search_sorted", "[search_sorted]") {
   Vector x, diag;

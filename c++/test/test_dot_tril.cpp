@@ -6,17 +6,10 @@
 #include <celerite2/core.hpp>
 #include <celerite2/core2.hpp>
 
+using namespace celerite2::test;
+
 TEMPLATE_LIST_TEST_CASE("check the results of dot_tril", "[dot_tril]", TestKernels) {
-  auto kernel = TestType::get_kernel();
-
-  Vector x, diag;
-  Matrix Y;
-  std::tie(x, diag, Y) = get_data();
-  const int N          = x.rows();
-
-  typename decltype(kernel)::Vector a;
-  typename decltype(kernel)::LowRank U, V, P;
-  std::tie(a, U, V, P) = kernel.get_celerite_matrices(x, diag);
+  SETUP_TEST(50);
 
   Matrix K, S;
   celerite2::core::to_dense(a, U, V, P, K);
@@ -27,7 +20,7 @@ TEMPLATE_LIST_TEST_CASE("check the results of dot_tril", "[dot_tril]", TestKerne
 
   // Reconstruct the L matrix
   Matrix UWT;
-  celerite2::core::to_dense(Eigen::VectorXd::Ones(N), U, V, P, UWT);
+  celerite2::core2::to_dense(Eigen::VectorXd::Ones(N), U, V, P, UWT);
   UWT.triangularView<Eigen::StrictlyUpper>().setConstant(0.0);
 
   // Brute force the Cholesky factorization

@@ -1,0 +1,240 @@
+#ifndef _CELERITE2_INTERNAL_HPP_DEFINED_
+#define _CELERITE2_INTERNAL_HPP_DEFINED_
+
+#include <Eigen/Core>
+
+namespace celerite2 {
+namespace core2 {
+
+#define CAST_BASE(TYPE, VAR) Eigen::MatrixBase<TYPE> &VAR = const_cast<Eigen::MatrixBase<TYPE> &>(VAR##_out)
+
+#define CAST_VEC(TYPE, VAR, ROWS)                                                                                                                    \
+  CAST_BASE(TYPE, VAR);                                                                                                                              \
+  VAR.derived().resize(ROWS)
+
+#define CAST_MAT(TYPE, VAR, ROWS, COLS)                                                                                                              \
+  CAST_BASE(TYPE, VAR);                                                                                                                              \
+  VAR.derived().resize(ROWS, COLS)
+
+#define GET_MACRO(_1, _2, _3, _4, NAME, ...) NAME
+#define CAST(...) GET_MACRO(__VA_ARGS__, CAST_MAT, CAST_VEC, CAST_BASE)(__VA_ARGS__)
+
+const int THE_WORKSPACE_VARIABLE_MUST_BE_ROW_MAJOR = 0;
+#define ASSERT_ROW_MAJOR(TYPE) EIGEN_STATIC_ASSERT(TYPE::IsRowMajor, THE_WORKSPACE_VARIABLE_MUST_BE_ROW_MAJOR)
+
+namespace internal {
+
+template <bool is_solve = false>
+struct update_f {
+  template <typename A, typename B, typename C, typename D>
+  static void apply(const Eigen::MatrixBase<A> &a, const Eigen::MatrixBase<B> &b, const Eigen::MatrixBase<C> &c, Eigen::MatrixBase<D> const &d_out) {
+    CAST(D, d);
+    d.noalias() += a * b;
+  }
+
+  template <typename A, typename B, typename C, typename D, typename E, typename F, typename G>
+  static void reverse(const Eigen::MatrixBase<A> &a, const Eigen::MatrixBase<B> &b, const Eigen::MatrixBase<C> &c, const Eigen::MatrixBase<D> &d,
+                      Eigen::MatrixBase<E> const &e_out, Eigen::MatrixBase<F> const &f_out, Eigen::MatrixBase<G> const &g_out) {
+    CAST(E, e);
+    CAST(F, f);
+    e.noalias() += b * d.transpose();
+    f.noalias() += a * d;
+  }
+};
+
+template <>
+struct update_f<true> {
+  template <typename A, typename B, typename C, typename D>
+  static void apply(const Eigen::MatrixBase<A> &a, const Eigen::MatrixBase<B> &b, const Eigen::MatrixBase<C> &c, Eigen::MatrixBase<D> const &d_out) {
+    CAST(D, d);
+    d.noalias() += a * c;
+  }
+
+  template <typename A, typename B, typename C, typename D, typename E, typename F, typename G>
+  static void reverse(const Eigen::MatrixBase<A> &a, const Eigen::MatrixBase<B> &b, const Eigen::MatrixBase<C> &c, const Eigen::MatrixBase<D> &d,
+                      Eigen::MatrixBase<E> const &e_out, Eigen::MatrixBase<F> const &f_out, Eigen::MatrixBase<G> const &g_out) {
+    CAST(E, e);
+    CAST(G, g);
+    e.noalias() += c * d.transpose();
+    g.noalias() += a * d;
+  }
+};
+
+template <bool is_solve = false>
+struct update_z {
+  template <typename A, typename B>
+  static void apply(const Eigen::MatrixBase<A> &a, Eigen::MatrixBase<B> const &b_out) {
+    CAST(B, b);
+    b.noalias() += a;
+  }
+};
+
+template <>
+struct update_z<true> {
+  template <typename A, typename B>
+  static void apply(const Eigen::MatrixBase<A> &a, Eigen::MatrixBase<B> const &b_out) {
+    CAST(B, b);
+    b.noalias() -= a;
+  }
+};
+
+template <bool is_solve, typename LowRank, typename RightHandSide, typename Work>
+void forward(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
+             const Eigen::MatrixBase<LowRank> &V,           // (N, J)
+             const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
+             const Eigen::MatrixBase<RightHandSide> &Y,     // (N, Nrhs)
+             Eigen::MatrixBase<RightHandSide> const &Z_out, // (N, Nrhs)
+             Eigen::MatrixBase<Work> const &F_out           // (N, J * Nrhs)
+) {
+  ASSERT_ROW_MAJOR(Work);
+
+  typedef typename LowRank::Scalar Scalar;
+  typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
+
+  int N = U.rows(), J = U.cols(), nrhs = Y.cols();
+  CAST(RightHandSide, Z); // Must already be the right shape
+  CAST(Work, F, N, J * nrhs);
+  F.row(0).setZero();
+
+  Inner Fn(J, nrhs);
+  Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Fn.data(), 1, J * nrhs);
+
+  Fn.setZero();
+  for (int n = 1; n < N; ++n) {
+    update_f<is_solve>::apply(V.row(n - 1).transpose(), Y.row(n - 1), Z.row(n - 1), Fn);
+    F.row(n) = ptr;
+    Fn       = P.row(n - 1).asDiagonal() * Fn;
+    update_z<is_solve>::apply(U.row(n) * Fn, Z.row(n));
+  }
+}
+
+template <bool is_solve, typename LowRank, typename RightHandSide, typename Work>
+void backward(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
+              const Eigen::MatrixBase<LowRank> &V,           // (N, J)
+              const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
+              const Eigen::MatrixBase<RightHandSide> &Y,     // (N, Nrhs)
+              Eigen::MatrixBase<RightHandSide> const &Z_out, // (N, Nrhs)
+              Eigen::MatrixBase<Work> const &F_out           // (N, J * Nrhs)
+) {
+  ASSERT_ROW_MAJOR(Work);
+
+  typedef typename LowRank::Scalar Scalar;
+  typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
+
+  int N = U.rows(), J = U.cols(), nrhs = Y.cols();
+  CAST(RightHandSide, Z); // Must already be the right shape
+  CAST(Work, F, N, J * nrhs);
+  F.row(N - 1).setZero();
+
+  Inner Fn(J, nrhs);
+  Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Fn.data(), 1, J * nrhs);
+
+  Fn.setZero();
+  for (int n = N - 2; n >= 0; --n) {
+    update_f<is_solve>::apply(U.row(n + 1).transpose(), Y.row(n + 1), Z.row(n + 1), Fn);
+    F.row(n) = ptr;
+    Fn       = P.row(n).asDiagonal() * Fn;
+    update_z<is_solve>::apply(V.row(n) * Fn, Z.row(n));
+  }
+}
+
+template <bool is_solve, typename LowRank, typename RightHandSide, typename Work>
+void forward_rev(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
+                 const Eigen::MatrixBase<LowRank> &V,           // (N, J)
+                 const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
+                 const Eigen::MatrixBase<RightHandSide> &Y,     // (N, Nrhs)
+                 const Eigen::MatrixBase<RightHandSide> &Z,     // (N, Nrhs)
+                 const Eigen::MatrixBase<Work> &F,              // (N, J * Nrhs)
+                 const Eigen::MatrixBase<RightHandSide> &bZ,    // (N, Nrhs)
+                 Eigen::MatrixBase<LowRank> const &bU_out,      // (N, J)
+                 Eigen::MatrixBase<LowRank> const &bV_out,      // (N, J)
+                 Eigen::MatrixBase<LowRank> const &bP_out,      // (N-1, J)
+                 Eigen::MatrixBase<RightHandSide> const &bY_out // (N, Nrhs)
+) {
+  ASSERT_ROW_MAJOR(Work);
+
+  typedef typename LowRank::Scalar Scalar;
+  typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
+
+  int N = U.rows(), J = U.cols(), nrhs = Y.cols();
+  CAST(LowRank, bU, N, J);
+  CAST(LowRank, bV, N, J);
+  CAST(LowRank, bP, N - 1, J);
+  CAST(RightHandSide, bY, N, nrhs);
+
+  // A writable copy of bZ
+  RightHandSide bZ_ = bZ;
+
+  Inner Fn(J, nrhs), bF(J, nrhs);
+  Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Fn.data(), 1, J * nrhs);
+  bF.setZero();
+  bY.row(N - 1).setZero();
+  for (int n = N - 1; n >= 1; --n) {
+    ptr = F.row(n);
+
+    // Reverse: update_z<is_solve>::apply(U.row(n) * Fn, Z.row(n));
+    update_z<is_solve>::apply(bZ_.row(n) * (P.row(n - 1).asDiagonal() * Fn).transpose(), bU.row(n));
+    update_z<is_solve>::apply(U.row(n).transpose() * bZ_.row(n), bF);
+
+    // Reverse: Fn = P.row(n - 1).asDiagonal() * Fn;
+    bP.row(n - 1).noalias() += (Fn * bF.transpose()).diagonal();
+    bF = P.row(n - 1).asDiagonal() * bF;
+
+    // Reverse: update_f<is_solve>::apply(V.row(n - 1).transpose(), Y.row(n - 1), Z.row(n - 1), Fn);
+    update_f<is_solve>::reverse(V.row(n - 1), Y.row(n - 1), Z.row(n - 1), bF, bV.row(n - 1), bY.row(n - 1), bZ_.row(n - 1));
+  }
+}
+
+template <bool is_solve, typename LowRank, typename RightHandSide, typename Work>
+void backward_rev(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
+                  const Eigen::MatrixBase<LowRank> &V,           // (N, J)
+                  const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
+                  const Eigen::MatrixBase<RightHandSide> &Y,     // (N, Nrhs)
+                  const Eigen::MatrixBase<RightHandSide> &Z,     // (N, Nrhs)
+                  const Eigen::MatrixBase<Work> &F,              // (N, J * Nrhs)
+                  const Eigen::MatrixBase<RightHandSide> &bZ,    // (N, Nrhs)
+                  Eigen::MatrixBase<LowRank> const &bU_out,      // (N, J)
+                  Eigen::MatrixBase<LowRank> const &bV_out,      // (N, J)
+                  Eigen::MatrixBase<LowRank> const &bP_out,      // (N-1, J)
+                  Eigen::MatrixBase<RightHandSide> const &bY_out // (N, Nrhs)
+) {
+  ASSERT_ROW_MAJOR(Work);
+
+  typedef typename LowRank::Scalar Scalar;
+  typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
+
+  int N = U.rows(), J = U.cols(), nrhs = Y.cols();
+  CAST(LowRank, bU, N, J);
+  CAST(LowRank, bV, N, J);
+  CAST(LowRank, bP, N - 1, J);
+  CAST(RightHandSide, bY, N, nrhs);
+
+  // A writable copy of bZ
+  RightHandSide bZ_ = bZ;
+
+  Inner Fn(J, nrhs), bF(J, nrhs);
+  Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Fn.data(), 1, J * nrhs);
+  bF.setZero();
+  bY.row(0).setZero();
+  for (int n = 0; n <= N - 2; ++n) {
+    ptr = F.row(n);
+
+    // Reverse: update_z<is_solve>::apply(V.row(n) * Fn, Z.row(n));
+    update_z<is_solve>::apply(bZ_.row(n) * (P.row(n).asDiagonal() * Fn).transpose(), bV.row(n));
+    update_z<is_solve>::apply(V.row(n).transpose() * bZ_.row(n), bF);
+
+    // Reverse: Fn = P.row(n).asDiagonal() * Fn;
+    bP.row(n).noalias() += (Fn * bF.transpose()).diagonal();
+    bF = P.row(n).asDiagonal() * bF;
+
+    // Reverse: update_f<is_solve>::apply(U.row(n + 1).transpose(), Y.row(n + 1), Z.row(n + 1), Fn);
+    update_f<is_solve>::reverse(U.row(n + 1), Y.row(n + 1), Z.row(n + 1), bF, bU.row(n + 1), bY.row(n + 1), bZ_.row(n + 1));
+  }
+}
+
+} // namespace internal
+
+} // namespace core2
+} // namespace celerite2
+
+#endif // _CELERITE2_INTERNAL_HPP_DEFINED_

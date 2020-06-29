@@ -2,7 +2,9 @@
 #include "catch.hpp"
 #include "helpers.hpp"
 
-#include <celerite2/core.hpp>
+#include <celerite2/core2.hpp>
+
+using namespace celerite2::test;
 
 TEMPLATE_LIST_TEST_CASE("check the results of to_dense", "[to_dense]", TestKernels) {
   auto kernel = TestType::get_kernel();
@@ -19,7 +21,7 @@ TEMPLATE_LIST_TEST_CASE("check the results of to_dense", "[to_dense]", TestKerne
   int nr = ar.rows(), nc = ac.rows();
 
   Matrix K;
-  celerite2::core::to_dense(std::get<0>(matrices), std::get<1>(matrices), std::get<2>(matrices), std::get<3>(matrices), K);
+  celerite2::core2::to_dense(std::get<0>(matrices), std::get<1>(matrices), std::get<2>(matrices), std::get<3>(matrices), K);
 
   for (int n = 0; n < N; ++n) {
     for (int m = 0; m < N; ++m) {
