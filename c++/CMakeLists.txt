@@ -27,7 +27,7 @@ message(STATUS "Build-type: ${CMAKE_BUILD_TYPE}")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
-include_directories(${CMAKE_CURRENT_LIST_DIR}/vendor/eigen_3.3.7)
+include_directories(${CMAKE_CURRENT_LIST_DIR}/vendor/eigen)
 
 # Install the headers
 install(
