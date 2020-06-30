@@ -1,9 +1,8 @@
 #define CATCH_CONFIG_MAIN
+
 #include "catch.hpp"
 #include "helpers.hpp"
-
 #include <Eigen/Dense>
-#include <celerite2/core.hpp>
 #include <celerite2/core2.hpp>
 
 using namespace celerite2::test;
@@ -12,7 +11,7 @@ TEMPLATE_LIST_TEST_CASE("check the results of dot_tril", "[dot_tril]", TestKerne
   SETUP_TEST(50);
 
   Matrix K, S;
-  celerite2::core::to_dense(a, U, V, P, K);
+  celerite2::core2::to_dense(a, U, V, P, K);
 
   // Do the Cholesky using celerite
   int flag = celerite2::core2::factor(a, U, V, P, a, V, S);

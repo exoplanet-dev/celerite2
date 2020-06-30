@@ -125,15 +125,17 @@ void dot_tril(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
-  CAST(RightHandSide, Z);
+  CAST(RightHandSide, Z, Y.rows(), Y.cols());
 
   // First dot in sqrt(d)
   RightHandSide tmp = Y;
   tmp.array().colwise() *= sqrt(d.array());
 
   // Then apply L
-  Z = tmp;
+  // Z = tmp;
+  Z.setZero();
   internal::forward<false>(U, W, P, tmp, Z, F_out);
+  Z.noalias() += tmp;
 }
 
 /**

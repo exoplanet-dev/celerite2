@@ -149,7 +149,7 @@ void forward_rev(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
                  Eigen::MatrixBase<LowRank> const &bU_out,      // (N, J)
                  Eigen::MatrixBase<LowRank> const &bV_out,      // (N, J)
                  Eigen::MatrixBase<LowRank> const &bP_out,      // (N-1, J)
-                 Eigen::MatrixBase<RightHandSide> const &bY_out // (N, Nrhs)
+                 Eigen::MatrixBase<RightHandSide> const &bY_out // (N, Nrhs)  -  Must be the right shape already (and zeroed)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
@@ -160,7 +160,7 @@ void forward_rev(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
   CAST(LowRank, bU, N, J);
   CAST(LowRank, bV, N, J);
   CAST(LowRank, bP, N - 1, J);
-  CAST(RightHandSide, bY, N, nrhs);
+  CAST(RightHandSide, bY);
 
   // A writable copy of bZ
   RightHandSide bZ_ = bZ;
@@ -168,7 +168,7 @@ void forward_rev(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
   Inner Fn(J, nrhs), bF(J, nrhs);
   Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Fn.data(), 1, J * nrhs);
   bF.setZero();
-  bY.row(N - 1).setZero();
+  // bY.row(N - 1).setZero();
   for (int n = N - 1; n >= 1; --n) {
     ptr = F.row(n);
 
@@ -196,7 +196,7 @@ void backward_rev(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
                   Eigen::MatrixBase<LowRank> const &bU_out,      // (N, J)
                   Eigen::MatrixBase<LowRank> const &bV_out,      // (N, J)
                   Eigen::MatrixBase<LowRank> const &bP_out,      // (N-1, J)
-                  Eigen::MatrixBase<RightHandSide> const &bY_out // (N, Nrhs)
+                  Eigen::MatrixBase<RightHandSide> const &bY_out // (N, Nrhs)  -  Must be the right shape already (and zeroed)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
@@ -207,7 +207,7 @@ void backward_rev(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
   CAST(LowRank, bU, N, J);
   CAST(LowRank, bV, N, J);
   CAST(LowRank, bP, N - 1, J);
-  CAST(RightHandSide, bY, N, nrhs);
+  CAST(RightHandSide, bY);
 
   // A writable copy of bZ
   RightHandSide bZ_ = bZ;
@@ -215,7 +215,6 @@ void backward_rev(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
   Inner Fn(J, nrhs), bF(J, nrhs);
   Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Fn.data(), 1, J * nrhs);
   bF.setZero();
-  bY.row(0).setZero();
   for (int n = 0; n <= N - 2; ++n) {
     ptr = F.row(n);
 

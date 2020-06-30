@@ -109,6 +109,41 @@ void solve_rev(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
   internal::forward_rev<true>(U, W, P, Y, Z, F, bZ, bU, bW, bP, bY);
 }
 
+template <typename Diag, typename LowRank, typename RightHandSide, typename Work>
+void dot_tril_rev(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
+                  const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
+                  const Eigen::MatrixBase<Diag> &d,              // (N,)
+                  const Eigen::MatrixBase<LowRank> &W,           // (N, J)
+                  const Eigen::MatrixBase<RightHandSide> &Y,     // (N, nrhs)
+                  const Eigen::MatrixBase<RightHandSide> &Z,     // (N, nrhs)
+                  const Eigen::MatrixBase<Work> &F,              // (N, J*nrhs)
+                  const Eigen::MatrixBase<RightHandSide> &bZ,    // (N, nrhs)
+                  Eigen::MatrixBase<LowRank> const &bU_out,      // (N, J)
+                  Eigen::MatrixBase<LowRank> const &bP_out,      // (N-1, J)
+                  Eigen::MatrixBase<Diag> const &bd_out,         // (N,)
+                  Eigen::MatrixBase<LowRank> const &bW_out,      // (N, J)
+                  Eigen::MatrixBase<RightHandSide> const &bY_out // (N, nrhs)
+) {
+  ASSERT_ROW_MAJOR(Work);
+
+  CAST(RightHandSide, bY);
+  CAST(Diag, bd, d.rows());
+
+  Eigen::Matrix<typename Diag::Scalar, Diag::RowsAtCompileTime, 1> sqrtd = sqrt(d.array());
+
+  // We need to repeat this calculation before running the backprop
+  RightHandSide tmp = Y;
+  tmp.array().colwise() *= sqrtd.array();
+
+  // Run backprop
+  bY = bZ;
+  internal::forward_rev<false>(U, W, P, tmp, Z, F, bZ, bU_out, bW_out, bP_out, bY);
+
+  // Update bY and bd based on tmp op above
+  bd = 0.5 * (Y * bY.transpose()).diagonal().array() / sqrtd.array();
+  bY.array().colwise() *= sqrtd.array();
+}
+
 } // namespace core2
 } // namespace celerite2
 
