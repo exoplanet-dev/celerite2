@@ -144,6 +144,59 @@ void dot_tril_rev(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
   bY.array().colwise() *= sqrtd.array();
 }
 
+template <typename Diag, typename LowRank, typename RightHandSide, typename Work>
+void matmul_rev(const Eigen::MatrixBase<Diag> &a,              // (N,)
+                const Eigen::MatrixBase<LowRank> &U,           // (N, J)
+                const Eigen::MatrixBase<LowRank> &V,           // (N, J)
+                const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
+                const Eigen::MatrixBase<RightHandSide> &Y,     // (N, nrhs)
+                const Eigen::MatrixBase<RightHandSide> &X,     // (N, nrhs)
+                const Eigen::MatrixBase<RightHandSide> &M,     // (N, nrhs)
+                const Eigen::MatrixBase<Work> &F,              // (N, J*nrhs)
+                const Eigen::MatrixBase<Work> &G,              // (N, J*nrhs)
+                const Eigen::MatrixBase<RightHandSide> &bX,    // (N, nrhs)
+                Eigen::MatrixBase<Diag> const &ba_out,         // (N,)
+                Eigen::MatrixBase<LowRank> const &bU_out,      // (N, J)
+                Eigen::MatrixBase<LowRank> const &bV_out,      // (N, J)
+                Eigen::MatrixBase<LowRank> const &bP_out,      // (N-1, J)
+                Eigen::MatrixBase<RightHandSide> const &bY_out // (N, nrhs)
+) {
+  ASSERT_ROW_MAJOR(Work);
+
+  int N = U.rows(), J = U.cols(), nrhs = Y.cols();
+  CAST(Diag, ba, N);
+  CAST(LowRank, bU, N, J);
+  CAST(LowRank, bV, N, J);
+  CAST(LowRank, bP, N - 1, J);
+  CAST(RightHandSide, bY, N, nrhs);
+
+  ba.setZero();
+  bU.setZero();
+  bV.setZero();
+  bP.setZero();
+  bY.setZero();
+
+  bY = a.asDiagonal() * bX;
+  ba = (Y * bX.transpose()).diagonal();
+
+  internal::backward_rev<false>(U, V, P, Y, X, G, bX, bU, bV, bP, bY);
+
+  internal::forward_rev<false>(U, V, P, Y, M, F, bX /* bM */, bU, bV, bP, bY);
+
+  // bY += a.asDiagonal() * bX;
+
+  // CAST(RightHandSide, X);
+  // CAST(RightHandSide, M);
+
+  // // M = diag(a) * Y + tril(U V^T) * Y
+  // M = a.asDiagonal() * Y;
+  // internal::forward<false>(U, V, P, Y, M, F_out);
+
+  // // X = M + triu(V U^T) * Y
+  // X = M;
+  // internal::backward<false>(U, V, P, Y, X, G_out);
+}
+
 } // namespace core2
 } // namespace celerite2
 
