@@ -48,7 +48,10 @@ int factor(const Eigen::MatrixBase<Diag> &a,        // (N,)
   CAST(Diag, d, N);
   CAST(LowRank, W, N, J);
   CAST(Work, S);
-  if (update_workspace) { S.derived().resize(N, J * J); }
+  if (update_workspace) {
+    S.derived().resize(N, J * J);
+    S.row(0).setZero();
+  }
 
   // This is a temporary vector used to minimize computations internally
   RowVector tmp;
@@ -60,7 +63,6 @@ int factor(const Eigen::MatrixBase<Diag> &a,        // (N,)
   Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Sn.data(), 1, J * J);
 
   // First row
-  S.row(0).setZero();
   Sn.setZero();
   d(0)               = a(0);
   W.row(0).noalias() = V.row(0) / d(0);
