@@ -3,9 +3,8 @@
 
 #include <Eigen/Core>
 #include "internal.hpp"
-
 namespace celerite2 {
-namespace core2 {
+namespace core {
 
 template <typename Diag, typename LowRank, typename Dense>
 void to_dense(const Eigen::MatrixBase<Diag> &a,     // (N,)
@@ -31,7 +30,7 @@ void to_dense(const Eigen::MatrixBase<Diag> &a,     // (N,)
   }
 }
 
-template <typename Diag, typename LowRank, typename Work>
+template <bool update_workspace = true, typename Diag, typename LowRank, typename Work>
 int factor(const Eigen::MatrixBase<Diag> &a,        // (N,)
            const Eigen::MatrixBase<LowRank> &U,     // (N, J)
            const Eigen::MatrixBase<LowRank> &V,     // (N, J)
@@ -48,7 +47,8 @@ int factor(const Eigen::MatrixBase<Diag> &a,        // (N,)
   int N = U.rows(), J = U.cols();
   CAST(Diag, d, N);
   CAST(LowRank, W, N, J);
-  CAST(Work, S, N, J * J);
+  CAST(Work, S);
+  if (update_workspace) { S.derived().resize(N, J * J); }
 
   // This is a temporary vector used to minimize computations internally
   RowVector tmp;
@@ -73,7 +73,7 @@ int factor(const Eigen::MatrixBase<Diag> &a,        // (N,)
 
     // Save the current value of Sn to the workspace
     // Note: This is actually `diag(P) * (S + d*W*W.T)` without the final `* diag(P)`
-    S.row(n) = ptr;
+    internal::update_workspace<update_workspace>::apply(n, ptr, S);
 
     // Incorporate the second diag(P) that we didn't include above for bookkeeping
     Sn *= P.row(n - 1).asDiagonal();
@@ -90,7 +90,7 @@ int factor(const Eigen::MatrixBase<Diag> &a,        // (N,)
   return 0;
 }
 
-template <typename Diag, typename LowRank, typename RightHandSide, typename Work>
+template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename Work>
 void solve(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
            const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
            const Eigen::MatrixBase<Diag> &d,              // (N,)
@@ -107,14 +107,14 @@ void solve(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
   CAST(RightHandSide, Z);
 
   Z = Y;
-  internal::forward<true>(U, W, P, Y, Z, F_out);
+  internal::forward<true, update_workspace>(U, W, P, Y, Z, F_out);
 
   X = Z;
   X.array().colwise() /= d.array();
-  internal::backward<true>(U, W, P, Z, X, G_out);
+  internal::backward<true, update_workspace>(U, W, P, Z, X, G_out);
 }
 
-template <typename Diag, typename LowRank, typename RightHandSide, typename Work>
+template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename Work>
 void dot_tril(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
               const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
               const Eigen::MatrixBase<Diag> &d,              // (N,)
@@ -124,38 +124,31 @@ void dot_tril(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
               Eigen::MatrixBase<Work> const &F_out           // (N, J*nrhs)
 ) {
   ASSERT_ROW_MAJOR(Work);
-
-  CAST(RightHandSide, Z, Y.rows(), Y.cols());
-
-  // First dot in sqrt(d)
-  RightHandSide tmp = Y;
-  tmp.array().colwise() *= sqrt(d.array());
-
-  // Then apply L
-  // Z = tmp;
-  Z.setZero();
-  internal::forward<false>(U, W, P, tmp, Z, F_out);
-  Z.noalias() += tmp;
+  CAST(RightHandSide, Z);
+  Z = Y;
+  Z.array().colwise() *= sqrt(d.array());
+  internal::forward<false, update_workspace>(U, W, P, Z, Z, F_out);
 }
 
 /**
  * Matrix multiply
  *
  * This computes `X = [diag(a) + tril(U*V^T) + triu(V*U^T)] * Y` with `O(N*J^2)` scaling
- * with the `P` matrix from Foreman-Mackey et al. for numerical stability
+ * with the `P` matrix from Foreman-Mackey et al. for numerical stability. Note that this
+ * operation *cannot* be applied in-place.
  *
- * @param a      The diagonal component
- * @param U      The first low rank matrix
- * @param V      The second low rank matrix
- * @param P      The exponential difference matrix
- * @param Y      The matrix that will be left multiplied by the celerite model
- * @param X_out  The result of the operation
- * @param M_out  The intermediate state of the system
- * @param F_out  The workspace for the forward pass
- * @param G_out  The workspace for the backward pass
+ * @param a      (N,): The diagonal component
+ * @param U      (N, J): The first low rank matrix
+ * @param V      (N, J): The second low rank matrix
+ * @param P      (N - 1, J): The exponential difference matrix
+ * @param Y      (N, Nrhs): The matrix that will be left multiplied by the celerite model
+ * @param X_out  (N, Nrhs): The result of the operation
+ * @param M_out  (N, Nrhs): The intermediate state of the system
+ * @param F_out  (N, J * Nrhs): The workspace for the forward pass
+ * @param G_out  (N, J * Nrhs): The workspace for the backward pass
  *
  */
-template <typename Diag, typename LowRank, typename RightHandSide, typename Work>
+template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename Work>
 void matmul(const Eigen::MatrixBase<Diag> &a,              // (N,)
             const Eigen::MatrixBase<LowRank> &U,           // (N, J)
             const Eigen::MatrixBase<LowRank> &V,           // (N, J)
@@ -173,14 +166,69 @@ void matmul(const Eigen::MatrixBase<Diag> &a,              // (N,)
 
   // M = diag(a) * Y + tril(U V^T) * Y
   M = a.asDiagonal() * Y;
-  internal::forward<false>(U, V, P, Y, M, F_out);
+  internal::forward<false, update_workspace>(U, V, P, Y, M, F_out);
 
   // X = M + triu(V U^T) * Y
   X = M;
-  internal::backward<false>(U, V, P, Y, X, G_out);
+  internal::backward<false, update_workspace>(U, V, P, Y, X, G_out);
 }
 
-} // namespace core2
+template <typename LowRank, typename RightHandSide, typename Indices>
+void conditional_mean(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
+                      const Eigen::MatrixBase<LowRank> &V,           // (N, J)
+                      const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
+                      const Eigen::MatrixBase<RightHandSide> &z,     // (N)  ->  The result of a solve
+                      const Eigen::MatrixBase<LowRank> &U_star,      // (M, J)
+                      const Eigen::MatrixBase<LowRank> &V_star,      // (M, J)
+                      const Eigen::MatrixBase<Indices> &inds,        // (M)  ->  Index where the mth data point should be
+                                                                     // inserted (the output of search_sorted)
+                      Eigen::MatrixBase<RightHandSide> const &mu_out // (M)
+) {
+  int N = U.rows(), J = U.cols(), M = U_star.rows();
+  CAST(RightHandSide, mu, M);
+  Eigen::Matrix<typename LowRank::Scalar, 1, LowRank::ColsAtCompileTime> q(1, J);
+
+  // Forward pass
+  int m = 0;
+  q.setZero();
+  while (m < M && inds(m) <= 0) {
+    mu(m) = 0;
+    ++m;
+  }
+  for (int n = 0; n < N - 1; ++n) {
+    q += z(n) * V.row(n);
+    q *= P.row(n).asDiagonal();
+    while ((m < M) && (inds(m) <= n + 1)) {
+      mu(m) = U_star.row(m) * q.transpose();
+      ++m;
+    }
+  }
+  q += z(N - 1) * V.row(N - 1);
+  while (m < M) {
+    mu(m) = U_star.row(m) * q.transpose();
+    ++m;
+  }
+
+  // Backward pass
+  m = M - 1;
+  q.setZero();
+  while ((m >= 0) && (inds(m) > N - 1)) { --m; }
+  for (int n = N - 1; n > 0; --n) {
+    q += z(n) * U.row(n);
+    q *= P.row(n - 1).asDiagonal();
+    while ((m >= 0) && (inds(m) > n - 1)) {
+      mu(m) += V_star.row(m) * q.transpose();
+      --m;
+    }
+  }
+  q += z(0) * U.row(0);
+  while (m >= 0) {
+    mu(m) = V_star.row(m) * q.transpose();
+    --m;
+  }
+}
+
+} // namespace core
 } // namespace celerite2
 
 #endif // _CELERITE2_FORWARD_HPP_DEFINED_

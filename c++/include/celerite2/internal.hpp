@@ -4,7 +4,7 @@
 #include <Eigen/Core>
 
 namespace celerite2 {
-namespace core2 {
+namespace core {
 
 #define CAST_BASE(TYPE, VAR) Eigen::MatrixBase<TYPE> &VAR = const_cast<Eigen::MatrixBase<TYPE> &>(VAR##_out)
 
@@ -23,6 +23,21 @@ const int THE_WORKSPACE_VARIABLE_MUST_BE_ROW_MAJOR = 0;
 #define ASSERT_ROW_MAJOR(TYPE) EIGEN_STATIC_ASSERT(TYPE::IsRowMajor, THE_WORKSPACE_VARIABLE_MUST_BE_ROW_MAJOR)
 
 namespace internal {
+
+template <bool do_update = true>
+struct update_workspace {
+  template <typename A, typename B>
+  static void apply(int n, const Eigen::MatrixBase<A> &a, Eigen::MatrixBase<B> const &b_out) {
+    CAST(B, b);
+    b.row(n) = a;
+  }
+};
+
+template <>
+struct update_workspace<false> {
+  template <typename A, typename B>
+  static void apply(int n, const Eigen::MatrixBase<A> &a, Eigen::MatrixBase<B> const &b_out) {}
+};
 
 template <bool is_solve = false>
 struct update_f {
@@ -78,7 +93,7 @@ struct update_z<true> {
   }
 };
 
-template <bool is_solve, typename LowRank, typename RightHandSide, typename Work>
+template <bool is_solve, bool do_update = true, typename LowRank, typename RightHandSide, typename Work>
 void forward(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
              const Eigen::MatrixBase<LowRank> &V,           // (N, J)
              const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
@@ -89,26 +104,34 @@ void forward(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
   ASSERT_ROW_MAJOR(Work);
 
   typedef typename LowRank::Scalar Scalar;
+  typedef typename Eigen::internal::plain_row_type<RightHandSide>::type RowVector;
   typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
 
   int N = U.rows(), J = U.cols(), nrhs = Y.cols();
   CAST(RightHandSide, Z); // Must already be the right shape
-  CAST(Work, F, N, J * nrhs);
-  F.row(0).setZero();
+  CAST(Work, F);
+  if (do_update) {
+    F.derived().resize(N, J * nrhs);
+    F.row(0).setZero();
+  }
 
   Inner Fn(J, nrhs);
   Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Fn.data(), 1, J * nrhs);
 
+  // This will track the previous row allowing for inplace operations
+  RowVector tmp = Y.row(0);
+
   Fn.setZero();
   for (int n = 1; n < N; ++n) {
-    update_f<is_solve>::apply(V.row(n - 1).transpose(), Y.row(n - 1), Z.row(n - 1), Fn);
-    F.row(n) = ptr;
-    Fn       = P.row(n - 1).asDiagonal() * Fn;
+    update_f<is_solve>::apply(V.row(n - 1).transpose(), tmp, Z.row(n - 1), Fn);
+    tmp = Y.row(n);
+    update_workspace<do_update>::apply(n, ptr, F);
+    Fn = P.row(n - 1).asDiagonal() * Fn;
     update_z<is_solve>::apply(U.row(n) * Fn, Z.row(n));
   }
 }
 
-template <bool is_solve, typename LowRank, typename RightHandSide, typename Work>
+template <bool is_solve, bool do_update = true, typename LowRank, typename RightHandSide, typename Work>
 void backward(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
               const Eigen::MatrixBase<LowRank> &V,           // (N, J)
               const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
@@ -119,21 +142,29 @@ void backward(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
   ASSERT_ROW_MAJOR(Work);
 
   typedef typename LowRank::Scalar Scalar;
+  typedef typename Eigen::internal::plain_row_type<RightHandSide>::type RowVector;
   typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
 
   int N = U.rows(), J = U.cols(), nrhs = Y.cols();
   CAST(RightHandSide, Z); // Must already be the right shape
-  CAST(Work, F, N, J * nrhs);
-  F.row(N - 1).setZero();
+  CAST(Work, F);
+  if (do_update) {
+    F.derived().resize(N, J * nrhs);
+    F.row(N - 1).setZero();
+  }
 
   Inner Fn(J, nrhs);
   Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Fn.data(), 1, J * nrhs);
 
+  // This will track the previous row allowing for inplace operations
+  RowVector tmp = Y.row(N - 1);
+
   Fn.setZero();
   for (int n = N - 2; n >= 0; --n) {
-    update_f<is_solve>::apply(U.row(n + 1).transpose(), Y.row(n + 1), Z.row(n + 1), Fn);
-    F.row(n) = ptr;
-    Fn       = P.row(n).asDiagonal() * Fn;
+    update_f<is_solve>::apply(U.row(n + 1).transpose(), tmp, Z.row(n + 1), Fn);
+    tmp = Y.row(n);
+    update_workspace<do_update>::apply(n, ptr, F);
+    Fn = P.row(n).asDiagonal() * Fn;
     update_z<is_solve>::apply(V.row(n) * Fn, Z.row(n));
   }
 }
@@ -233,7 +264,7 @@ void backward_rev(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
 
 } // namespace internal
 
-} // namespace core2
+} // namespace core
 } // namespace celerite2
 
 #endif // _CELERITE2_INTERNAL_HPP_DEFINED_

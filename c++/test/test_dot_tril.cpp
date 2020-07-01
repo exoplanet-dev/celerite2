@@ -3,32 +3,41 @@
 #include "catch.hpp"
 #include "helpers.hpp"
 #include <Eigen/Dense>
-#include <celerite2/core2.hpp>
+#include <celerite2/celerite2.h>
 
 using namespace celerite2::test;
+using namespace celerite2::core;
 
 TEMPLATE_LIST_TEST_CASE("check the results of dot_tril", "[dot_tril]", TestKernels) {
   SETUP_TEST(50);
 
-  Matrix K, S;
-  celerite2::core2::to_dense(a, U, V, P, K);
+  Matrix K, S, Z, F;
+  to_dense(a, U, V, P, K);
 
   // Do the Cholesky using celerite
-  int flag = celerite2::core2::factor(a, U, V, P, a, V, S);
+  int flag = factor(a, U, V, P, a, V, S);
   REQUIRE(flag == 0);
-
-  // Reconstruct the L matrix
-  Matrix UWT;
-  celerite2::core2::to_dense(Eigen::VectorXd::Ones(N), U, V, P, UWT);
-  UWT.triangularView<Eigen::StrictlyUpper>().setConstant(0.0);
 
   // Brute force the Cholesky factorization
   Eigen::LLT<Eigen::MatrixXd> LLT(K);
   Eigen::MatrixXd expect = LLT.matrixL() * Y;
 
-  // Do the product using celerite
-  Matrix Z(Y.rows(), Y.cols()), F(Y.rows(), Y.cols() * U.cols());
-  celerite2::core2::dot_tril(U, P, a, V, Y, Z, F);
-  double resid = (Z - expect).array().abs().maxCoeff();
-  REQUIRE(resid < 1e-12);
+  SECTION("general") {
+    dot_tril(U, P, a, V, Y, Z, F);
+    double resid = (Z - expect).array().abs().maxCoeff();
+    REQUIRE(resid < 1e-12);
+  }
+
+  SECTION("no grad") {
+    dot_tril(U, P, a, V, Y, Z);
+    double resid = (Z - expect).array().abs().maxCoeff();
+    REQUIRE(resid < 1e-12);
+  }
+
+  SECTION("inplace") {
+    Z = Y;
+    dot_tril(U, P, a, V, Z, Z);
+    double resid = (Z - expect).array().abs().maxCoeff();
+    REQUIRE(resid < 1e-12);
+  }
 }

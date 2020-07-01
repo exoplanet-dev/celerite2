@@ -5,7 +5,7 @@
 #include "internal.hpp"
 
 namespace celerite2 {
-namespace core2 {
+namespace core {
 
 template <typename Diag, typename LowRank, typename Work>
 void factor_rev(const Eigen::MatrixBase<Diag> &a,         // (N,)
@@ -182,22 +182,9 @@ void matmul_rev(const Eigen::MatrixBase<Diag> &a,              // (N,)
   internal::backward_rev<false>(U, V, P, Y, X, G, bX, bU, bV, bP, bY);
 
   internal::forward_rev<false>(U, V, P, Y, M, F, bX /* bM */, bU, bV, bP, bY);
-
-  // bY += a.asDiagonal() * bX;
-
-  // CAST(RightHandSide, X);
-  // CAST(RightHandSide, M);
-
-  // // M = diag(a) * Y + tril(U V^T) * Y
-  // M = a.asDiagonal() * Y;
-  // internal::forward<false>(U, V, P, Y, M, F_out);
-
-  // // X = M + triu(V U^T) * Y
-  // X = M;
-  // internal::backward<false>(U, V, P, Y, X, G_out);
 }
 
-} // namespace core2
+} // namespace core
 } // namespace celerite2
 
 #endif // _CELERITE2_REVERSE_HPP_DEFINED_

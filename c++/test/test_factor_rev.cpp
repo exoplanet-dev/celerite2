@@ -2,9 +2,10 @@
 
 #include "catch.hpp"
 #include "helpers.hpp"
-#include <celerite2/core2.hpp>
+#include <celerite2/celerite2.h>
 
 using namespace celerite2::test;
+using namespace celerite2::core;
 
 TEMPLATE_LIST_TEST_CASE("check the results of factor_rev", "[factor_rev]", TestKernels) {
   SETUP_TEST(10);
@@ -14,17 +15,17 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor_rev", "[factor_rev]", TestK
   Matrix S;
 
   auto func = [](auto a, auto U, auto V, auto P, auto d, auto W, auto S) {
-    celerite2::core2::factor(a, U, V, P, d, W, S);
+    factor(a, U, V, P, d, W, S);
     return std::make_tuple(d, W);
   };
 
   auto rev = [](auto a, auto U, auto V, auto P, auto d, auto W, auto S, auto bd, auto bW, auto ba, auto bU, auto bV, auto bP) {
-    celerite2::core2::factor_rev(a, U, V, P, d, W, S, bd, bW, ba, bU, bV, bP);
+    factor_rev(a, U, V, P, d, W, S, bd, bW, ba, bU, bV, bP);
     return std::make_tuple(ba, bU, bV, bP);
   };
 
   // Required to compute the initial values
-  int flag = celerite2::core2::factor(a, U, V, P, d, W, S);
+  int flag = factor(a, U, V, P, d, W, S);
   REQUIRE(flag == 0);
 
   REQUIRE(check_grad(func, rev, std::make_tuple(a, U, V, P), std::make_tuple(d, W, S), std::make_tuple(bd, bW), std::make_tuple(ba, bU, bV, bP)));

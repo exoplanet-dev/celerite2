@@ -2,9 +2,10 @@
 
 #include "catch.hpp"
 #include "helpers.hpp"
-#include <celerite2/core2.hpp>
+#include <celerite2/celerite2.h>
 
 using namespace celerite2::test;
+using namespace celerite2::core;
 
 TEMPLATE_LIST_TEST_CASE("check the results of dot_tril_rev", "[dot_tril_rev]", TestKernels) {
   SETUP_TEST(10);
@@ -14,16 +15,16 @@ TEMPLATE_LIST_TEST_CASE("check the results of dot_tril_rev", "[dot_tril_rev]", T
   Matrix S, Z, F, bZ(N, nrhs), bY(N, nrhs);
 
   // Required to compute the initial values
-  celerite2::core2::factor(a, U, V, P, d, W, S);
-  celerite2::core2::dot_tril(U, P, d, W, Y, Z, F);
+  factor(a, U, V, P, d, W, S);
+  dot_tril(U, P, d, W, Y, Z, F);
 
   auto func = [](auto U, auto P, auto d, auto W, auto Y, auto Z, auto F) {
-    celerite2::core2::dot_tril(U, P, d, W, Y, Z, F);
+    dot_tril(U, P, d, W, Y, Z, F);
     return std::make_tuple(Z);
   };
 
   auto rev = [](auto U, auto P, auto d, auto W, auto Y, auto Z, auto F, auto bZ, auto bU, auto bP, auto bd, auto bW, auto bY) {
-    celerite2::core2::dot_tril_rev(U, P, d, W, Y, Z, F, bZ, bU, bP, bd, bW, bY);
+    dot_tril_rev(U, P, d, W, Y, Z, F, bZ, bU, bP, bd, bW, bY);
     return std::make_tuple(bU, bP, bd, bW, bY);
   };
 
