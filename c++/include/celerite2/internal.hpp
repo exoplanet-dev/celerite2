@@ -170,17 +170,17 @@ void backward(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
 }
 
 template <bool is_solve, typename LowRank, typename RightHandSide, typename Work>
-void forward_rev(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
-                 const Eigen::MatrixBase<LowRank> &V,           // (N, J)
-                 const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
-                 const Eigen::MatrixBase<RightHandSide> &Y,     // (N, Nrhs)
-                 const Eigen::MatrixBase<RightHandSide> &Z,     // (N, Nrhs)
-                 const Eigen::MatrixBase<Work> &F,              // (N, J * Nrhs)
-                 const Eigen::MatrixBase<RightHandSide> &bZ,    // (N, Nrhs)
-                 Eigen::MatrixBase<LowRank> const &bU_out,      // (N, J)
-                 Eigen::MatrixBase<LowRank> const &bV_out,      // (N, J)
-                 Eigen::MatrixBase<LowRank> const &bP_out,      // (N-1, J)
-                 Eigen::MatrixBase<RightHandSide> const &bY_out // (N, Nrhs)  -  Must be the right shape already (and zeroed)
+void forward_rev(const Eigen::MatrixBase<LowRank> &U,            // (N, J)
+                 const Eigen::MatrixBase<LowRank> &V,            // (N, J)
+                 const Eigen::MatrixBase<LowRank> &P,            // (N-1, J)
+                 const Eigen::MatrixBase<RightHandSide> &Y,      // (N, Nrhs)
+                 const Eigen::MatrixBase<RightHandSide> &Z,      // (N, Nrhs)
+                 const Eigen::MatrixBase<Work> &F,               // (N, J * Nrhs)
+                 Eigen::MatrixBase<RightHandSide> const &bZ_out, // (N, Nrhs)
+                 Eigen::MatrixBase<LowRank> const &bU_out,       // (N, J)
+                 Eigen::MatrixBase<LowRank> const &bV_out,       // (N, J)
+                 Eigen::MatrixBase<LowRank> const &bP_out,       // (N-1, J)
+                 Eigen::MatrixBase<RightHandSide> const &bY_out  // (N, Nrhs)  -  Must be the right shape already (and zeroed)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
@@ -192,42 +192,39 @@ void forward_rev(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
   CAST(LowRank, bV, N, J);
   CAST(LowRank, bP, N - 1, J);
   CAST(RightHandSide, bY);
-
-  // A writable copy of bZ
-  RightHandSide bZ_ = bZ;
+  CAST(RightHandSide, bZ);
 
   Inner Fn(J, nrhs), bF(J, nrhs);
   Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Fn.data(), 1, J * nrhs);
   bF.setZero();
-  // bY.row(N - 1).setZero();
   for (int n = N - 1; n >= 1; --n) {
     ptr = F.row(n);
 
     // Reverse: update_z<is_solve>::apply(U.row(n) * Fn, Z.row(n));
-    update_z<is_solve>::apply(bZ_.row(n) * (P.row(n - 1).asDiagonal() * Fn).transpose(), bU.row(n));
-    update_z<is_solve>::apply(U.row(n).transpose() * bZ_.row(n), bF);
+    update_z<is_solve>::apply(bZ.row(n) * (P.row(n - 1).asDiagonal() * Fn).transpose(), bU.row(n));
+    update_z<is_solve>::apply(U.row(n).transpose() * bZ.row(n), bF);
 
     // Reverse: Fn = P.row(n - 1).asDiagonal() * Fn;
     bP.row(n - 1).noalias() += (Fn * bF.transpose()).diagonal();
     bF = P.row(n - 1).asDiagonal() * bF;
 
     // Reverse: update_f<is_solve>::apply(V.row(n - 1).transpose(), Y.row(n - 1), Z.row(n - 1), Fn);
-    update_f<is_solve>::reverse(V.row(n - 1), Y.row(n - 1), Z.row(n - 1), bF, bV.row(n - 1), bY.row(n - 1), bZ_.row(n - 1));
+    update_f<is_solve>::reverse(V.row(n - 1), Y.row(n - 1), Z.row(n - 1), bF, bV.row(n - 1), bY.row(n - 1), bZ.row(n - 1));
   }
 }
 
 template <bool is_solve, typename LowRank, typename RightHandSide, typename Work>
-void backward_rev(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
-                  const Eigen::MatrixBase<LowRank> &V,           // (N, J)
-                  const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
-                  const Eigen::MatrixBase<RightHandSide> &Y,     // (N, Nrhs)
-                  const Eigen::MatrixBase<RightHandSide> &Z,     // (N, Nrhs)
-                  const Eigen::MatrixBase<Work> &F,              // (N, J * Nrhs)
-                  const Eigen::MatrixBase<RightHandSide> &bZ,    // (N, Nrhs)
-                  Eigen::MatrixBase<LowRank> const &bU_out,      // (N, J)
-                  Eigen::MatrixBase<LowRank> const &bV_out,      // (N, J)
-                  Eigen::MatrixBase<LowRank> const &bP_out,      // (N-1, J)
-                  Eigen::MatrixBase<RightHandSide> const &bY_out // (N, Nrhs)  -  Must be the right shape already (and zeroed)
+void backward_rev(const Eigen::MatrixBase<LowRank> &U,            // (N, J)
+                  const Eigen::MatrixBase<LowRank> &V,            // (N, J)
+                  const Eigen::MatrixBase<LowRank> &P,            // (N-1, J)
+                  const Eigen::MatrixBase<RightHandSide> &Y,      // (N, Nrhs)
+                  const Eigen::MatrixBase<RightHandSide> &Z,      // (N, Nrhs)
+                  const Eigen::MatrixBase<Work> &F,               // (N, J * Nrhs)
+                  Eigen::MatrixBase<RightHandSide> const &bZ_out, // (N, Nrhs)
+                  Eigen::MatrixBase<LowRank> const &bU_out,       // (N, J)
+                  Eigen::MatrixBase<LowRank> const &bV_out,       // (N, J)
+                  Eigen::MatrixBase<LowRank> const &bP_out,       // (N-1, J)
+                  Eigen::MatrixBase<RightHandSide> const &bY_out  // (N, Nrhs)  -  Must be the right shape already (and zeroed)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
@@ -239,9 +236,7 @@ void backward_rev(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
   CAST(LowRank, bV, N, J);
   CAST(LowRank, bP, N - 1, J);
   CAST(RightHandSide, bY);
-
-  // A writable copy of bZ
-  RightHandSide bZ_ = bZ;
+  CAST(RightHandSide, bZ);
 
   Inner Fn(J, nrhs), bF(J, nrhs);
   Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Fn.data(), 1, J * nrhs);
@@ -250,15 +245,15 @@ void backward_rev(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
     ptr = F.row(n);
 
     // Reverse: update_z<is_solve>::apply(V.row(n) * Fn, Z.row(n));
-    update_z<is_solve>::apply(bZ_.row(n) * (P.row(n).asDiagonal() * Fn).transpose(), bV.row(n));
-    update_z<is_solve>::apply(V.row(n).transpose() * bZ_.row(n), bF);
+    update_z<is_solve>::apply(bZ.row(n) * (P.row(n).asDiagonal() * Fn).transpose(), bV.row(n));
+    update_z<is_solve>::apply(V.row(n).transpose() * bZ.row(n), bF);
 
     // Reverse: Fn = P.row(n).asDiagonal() * Fn;
     bP.row(n).noalias() += (Fn * bF.transpose()).diagonal();
     bF = P.row(n).asDiagonal() * bF;
 
     // Reverse: update_f<is_solve>::apply(U.row(n + 1).transpose(), Y.row(n + 1), Z.row(n + 1), Fn);
-    update_f<is_solve>::reverse(U.row(n + 1), Y.row(n + 1), Z.row(n + 1), bF, bU.row(n + 1), bY.row(n + 1), bZ_.row(n + 1));
+    update_f<is_solve>::reverse(U.row(n + 1), Y.row(n + 1), Z.row(n + 1), bF, bU.row(n + 1), bY.row(n + 1), bZ.row(n + 1));
   }
 }
 

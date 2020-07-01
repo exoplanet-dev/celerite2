@@ -84,29 +84,24 @@ void solve_rev(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
-  int N = U.rows(), J = U.cols(), nrhs = Y.cols();
+  int N = U.rows(), J = U.cols();
   CAST(LowRank, bU, N, J);
   CAST(LowRank, bP, N - 1, J);
-  CAST(Diag, bd, N);
+  CAST(Diag, bd);
   CAST(LowRank, bW, N, J);
-  CAST(RightHandSide, bY, N, nrhs);
+  CAST(RightHandSide, bY);
 
   bU.setZero();
   bP.setZero();
-  bd.setZero();
   bW.setZero();
-  bY.setZero();
 
-  RightHandSide bZ(N, nrhs);
-  bZ.setZero();
+  bY = bX;
+  internal::backward_rev<true>(U, W, P, Z, X, G, bY, bU, bW, bP, bY);
 
-  internal::backward_rev<true>(U, W, P, Z, X, G, bX, bU, bW, bP, bZ);
+  bd = -(bY * Z.transpose()).diagonal().array() / d.array().pow(2);
+  bY.array().colwise() /= d.array();
 
-  // Reverse: X.array().colwise() /= d.array(); X = Z;
-  bd.array() = -(X.array() * bX.array()).rowwise().sum();
-  bZ.array() += bX.array().colwise() / d.array();
-
-  internal::forward_rev<true>(U, W, P, Y, Z, F, bZ, bU, bW, bP, bY);
+  internal::forward_rev<true>(U, W, P, Y, Z, F, bY, bU, bW, bP, bY);
 }
 
 template <typename Diag, typename LowRank, typename RightHandSide, typename Work>
