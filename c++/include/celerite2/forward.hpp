@@ -30,14 +30,14 @@ void to_dense(const Eigen::MatrixBase<Diag> &a,     // (N,)
   }
 }
 
-template <bool update_workspace = true, typename Diag, typename LowRank, typename Work>
-int factor(const Eigen::MatrixBase<Diag> &a,        // (N,)
-           const Eigen::MatrixBase<LowRank> &U,     // (N, J)
-           const Eigen::MatrixBase<LowRank> &V,     // (N, J)
-           const Eigen::MatrixBase<LowRank> &P,     // (N-1, J)
-           Eigen::MatrixBase<Diag> const &d_out,    // (N,)
-           Eigen::MatrixBase<LowRank> const &W_out, // (N, J)
-           Eigen::MatrixBase<Work> const &S_out     // (N, J*J)
+template <bool update_workspace = true, typename Diag, typename LowRank, typename DiagOut, typename LowRankOut, typename Work>
+int factor(const Eigen::MatrixBase<Diag> &a,           // (N,)
+           const Eigen::MatrixBase<LowRank> &U,        // (N, J)
+           const Eigen::MatrixBase<LowRank> &V,        // (N, J)
+           const Eigen::MatrixBase<LowRank> &P,        // (N-1, J)
+           Eigen::MatrixBase<DiagOut> const &d_out,    // (N,)
+           Eigen::MatrixBase<LowRankOut> const &W_out, // (N, J)
+           Eigen::MatrixBase<Work> const &S_out        // (N, J*J)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
@@ -45,8 +45,8 @@ int factor(const Eigen::MatrixBase<Diag> &a,        // (N,)
   typedef typename Eigen::internal::plain_row_type<LowRank>::type RowVector;
 
   int N = U.rows(), J = U.cols();
-  CAST(Diag, d, N);
-  CAST(LowRank, W, N, J);
+  CAST(DiagOut, d, N);
+  CAST(LowRankOut, W, N, J);
   CAST(Work, S);
   if (update_workspace) {
     S.derived().resize(N, J * J);
@@ -92,21 +92,21 @@ int factor(const Eigen::MatrixBase<Diag> &a,        // (N,)
   return 0;
 }
 
-template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename Work>
-void solve(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
-           const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
-           const Eigen::MatrixBase<Diag> &d,              // (N,)
-           const Eigen::MatrixBase<LowRank> &W,           // (N, J)
-           const Eigen::MatrixBase<RightHandSide> &Y,     // (N, nrhs)
-           Eigen::MatrixBase<RightHandSide> const &X_out, // (N, nrhs)
-           Eigen::MatrixBase<RightHandSide> const &Z_out, // (N, nrhs)
-           Eigen::MatrixBase<Work> const &F_out,          // (N, J*nrhs)
-           Eigen::MatrixBase<Work> const &G_out           // (N, J*nrhs)
+template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename RightHandSideOut, typename Work>
+void solve(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
+           const Eigen::MatrixBase<LowRank> &P,              // (N-1, J)
+           const Eigen::MatrixBase<Diag> &d,                 // (N,)
+           const Eigen::MatrixBase<LowRank> &W,              // (N, J)
+           const Eigen::MatrixBase<RightHandSide> &Y,        // (N, nrhs)
+           Eigen::MatrixBase<RightHandSideOut> const &X_out, // (N, nrhs)
+           Eigen::MatrixBase<RightHandSideOut> const &Z_out, // (N, nrhs)
+           Eigen::MatrixBase<Work> const &F_out,             // (N, J*nrhs)
+           Eigen::MatrixBase<Work> const &G_out              // (N, J*nrhs)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
-  CAST(RightHandSide, X);
-  CAST(RightHandSide, Z);
+  CAST(RightHandSideOut, X);
+  CAST(RightHandSideOut, Z);
 
   Z = Y;
   internal::forward<true, update_workspace>(U, W, P, Y, Z, F_out);
@@ -116,17 +116,40 @@ void solve(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
   internal::backward<true, update_workspace>(U, W, P, Z, X, G_out);
 }
 
-template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename Work>
-void dot_tril(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
-              const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
-              const Eigen::MatrixBase<Diag> &d,              // (N,)
-              const Eigen::MatrixBase<LowRank> &W,           // (N, J)
-              const Eigen::MatrixBase<RightHandSide> &Y,     // (N, nrhs)
-              Eigen::MatrixBase<RightHandSide> const &Z_out, // (N, nrhs)
-              Eigen::MatrixBase<Work> const &F_out           // (N, J*nrhs)
+template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename Norm, typename RightHandSideOut,
+          typename Work>
+void norm(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
+          const Eigen::MatrixBase<LowRank> &P,              // (N-1, J)
+          const Eigen::MatrixBase<Diag> &d,                 // (N,)
+          const Eigen::MatrixBase<LowRank> &W,              // (N, J)
+          const Eigen::MatrixBase<RightHandSide> &Y,        // (N, nrhs)
+          Eigen::MatrixBase<Norm> const &X_out,             // (nrhs, nrhs)
+          Eigen::MatrixBase<RightHandSideOut> const &Z_out, // (N, nrhs)
+          Eigen::MatrixBase<Work> const &F_out              // (N, J*nrhs)
 ) {
   ASSERT_ROW_MAJOR(Work);
-  CAST(RightHandSide, Z);
+
+  int nrhs = Y.cols();
+  CAST(Norm, X, nrhs, nrhs);
+  CAST(RightHandSideOut, Z);
+
+  Z = Y;
+  internal::forward<true, update_workspace>(U, W, P, Y, Z, F_out);
+
+  X = Z.transpose() * d.asDiagonal().inverse() * Z;
+}
+
+template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename RightHandSideOut, typename Work>
+void dot_tril(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
+              const Eigen::MatrixBase<LowRank> &P,              // (N-1, J)
+              const Eigen::MatrixBase<Diag> &d,                 // (N,)
+              const Eigen::MatrixBase<LowRank> &W,              // (N, J)
+              const Eigen::MatrixBase<RightHandSide> &Y,        // (N, nrhs)
+              Eigen::MatrixBase<RightHandSideOut> const &Z_out, // (N, nrhs)
+              Eigen::MatrixBase<Work> const &F_out              // (N, J*nrhs)
+) {
+  ASSERT_ROW_MAJOR(Work);
+  CAST(RightHandSideOut, Z);
   Z = Y;
   Z.array().colwise() *= sqrt(d.array());
   internal::forward<false, update_workspace>(U, W, P, Z, Z, F_out);
@@ -150,21 +173,21 @@ void dot_tril(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
  * @param G_out  (N, J * Nrhs): The workspace for the backward pass
  *
  */
-template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename Work>
-void matmul(const Eigen::MatrixBase<Diag> &a,              // (N,)
-            const Eigen::MatrixBase<LowRank> &U,           // (N, J)
-            const Eigen::MatrixBase<LowRank> &V,           // (N, J)
-            const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
-            const Eigen::MatrixBase<RightHandSide> &Y,     // (N, nrhs)
-            Eigen::MatrixBase<RightHandSide> const &X_out, // (N, nrhs)
-            Eigen::MatrixBase<RightHandSide> const &M_out, // (N, nrhs)
-            Eigen::MatrixBase<Work> const &F_out,          // (N, J*nrhs)
-            Eigen::MatrixBase<Work> const &G_out           // (N, J*nrhs)
+template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename RightHandSideOut, typename Work>
+void matmul(const Eigen::MatrixBase<Diag> &a,                 // (N,)
+            const Eigen::MatrixBase<LowRank> &U,              // (N, J)
+            const Eigen::MatrixBase<LowRank> &V,              // (N, J)
+            const Eigen::MatrixBase<LowRank> &P,              // (N-1, J)
+            const Eigen::MatrixBase<RightHandSide> &Y,        // (N, nrhs)
+            Eigen::MatrixBase<RightHandSideOut> const &X_out, // (N, nrhs)
+            Eigen::MatrixBase<RightHandSideOut> const &M_out, // (N, nrhs)
+            Eigen::MatrixBase<Work> const &F_out,             // (N, J*nrhs)
+            Eigen::MatrixBase<Work> const &G_out              // (N, J*nrhs)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
-  CAST(RightHandSide, X);
-  CAST(RightHandSide, M);
+  CAST(RightHandSideOut, X);
+  CAST(RightHandSideOut, M);
 
   // M = diag(a) * Y + tril(U V^T) * Y
   M = a.asDiagonal() * Y;
@@ -175,19 +198,19 @@ void matmul(const Eigen::MatrixBase<Diag> &a,              // (N,)
   internal::backward<false, update_workspace>(U, V, P, Y, X, G_out);
 }
 
-template <typename LowRank, typename RightHandSide, typename Indices>
-void conditional_mean(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
-                      const Eigen::MatrixBase<LowRank> &V,           // (N, J)
-                      const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
-                      const Eigen::MatrixBase<RightHandSide> &z,     // (N)  ->  The result of a solve
-                      const Eigen::MatrixBase<LowRank> &U_star,      // (M, J)
-                      const Eigen::MatrixBase<LowRank> &V_star,      // (M, J)
-                      const Eigen::MatrixBase<Indices> &inds,        // (M)  ->  Index where the mth data point should be
-                                                                     // inserted (the output of search_sorted)
-                      Eigen::MatrixBase<RightHandSide> const &mu_out // (M)
+template <typename LowRank, typename RightHandSide, typename Indices, typename RightHandSideOut>
+void conditional_mean(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
+                      const Eigen::MatrixBase<LowRank> &V,              // (N, J)
+                      const Eigen::MatrixBase<LowRank> &P,              // (N-1, J)
+                      const Eigen::MatrixBase<RightHandSide> &z,        // (N)  ->  The result of a solve
+                      const Eigen::MatrixBase<LowRank> &U_star,         // (M, J)
+                      const Eigen::MatrixBase<LowRank> &V_star,         // (M, J)
+                      const Eigen::MatrixBase<Indices> &inds,           // (M)  ->  Index where the mth data point should be
+                                                                        // inserted (the output of search_sorted)
+                      Eigen::MatrixBase<RightHandSideOut> const &mu_out // (M)
 ) {
   int N = U.rows(), J = U.cols(), M = U_star.rows();
-  CAST(RightHandSide, mu, M);
+  CAST(RightHandSideOut, mu, M);
   Eigen::Matrix<typename LowRank::Scalar, 1, LowRank::ColsAtCompileTime> q(1, J);
 
   // Forward pass

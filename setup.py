@@ -134,11 +134,11 @@ class custom_build_ext(build_ext):
 
 ext_modules = [
     Extension(
-        "celerite2.interface",
-        ["python/celerite2/interface.cpp"],
+        "celerite2.driver",
+        ["python/celerite2/driver.cpp"],
         include_dirs=[
             "c++/include",
-            "c++/vendor/eigen_3.3.7",
+            "c++/vendor/eigen",
             get_numpy_include(),
             get_pybind_include(),
             get_pybind_include(user=True),

@@ -1,7 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 
-#include <celerite2/core.hpp>
+#include <celerite2/celerite2.h>
 
 namespace py = pybind11;
 
@@ -42,8 +42,8 @@ namespace py = pybind11;
     default: FIXED_SIZE_MAP(Eigen::Dynamic);                                                                                                         \
   }
 
-void factor(py::array_t<double, py::array::c_style> U, py::array_t<double, py::array::c_style> P, py::array_t<double, py::array::c_style> d,
-            py::array_t<double, py::array::c_style> W) {
+auto factor(py::array_t<double, py::array::c_style | py::array::forcecast> U, py::array_t<double, py::array::c_style | py::array::forcecast> P,
+            py::array_t<double, py::array::c_style | py::array::forcecast> d, py::array_t<double, py::array::c_style | py::array::forcecast> W) {
 
   py::buffer_info Ubuf = U.request(), Pbuf = P.request(), dbuf = d.request(), Wbuf = W.request();
 
@@ -65,20 +65,26 @@ void factor(py::array_t<double, py::array::c_style> U, py::array_t<double, py::a
     typedef Eigen::Map<Matrix> MatrixMap;                                                                                                            \
     typedef Eigen::Map<const Matrix> ConstMatrixMap;                                                                                                 \
     typedef Eigen::Map<Eigen::VectorXd> VectorMap;                                                                                                   \
+    typedef Eigen::Map<const Eigen::VectorXd> ConstVectorMap;                                                                                        \
+    ConstVectorMap a_((double *)dbuf.ptr, N, 1);                                                                                                     \
     ConstMatrixMap U_((double *)Ubuf.ptr, N, J);                                                                                                     \
+    ConstMatrixMap V_((double *)Wbuf.ptr, N, J);                                                                                                     \
     ConstMatrixMap P_((double *)Pbuf.ptr, N - 1, J);                                                                                                 \
     VectorMap d_((double *)dbuf.ptr, N, 1);                                                                                                          \
     MatrixMap W_((double *)Wbuf.ptr, N, J);                                                                                                          \
-    flag = celerite2::core::factor(U_, P_, d_, W_);                                                                                                  \
+    flag = celerite2::core::factor(a_, U_, V_, P_, d_, W_);                                                                                          \
   }
   UNWRAP_CASES
 #undef FIXED_SIZE_MAP
 
   if (flag) throw std::runtime_error("Linear algebra error");
+
+  return std::make_tuple(d, W);
 }
 
-void solve(py::array_t<double, py::array::c_style> U, py::array_t<double, py::array::c_style> P, py::array_t<double, py::array::c_style> d,
-           py::array_t<double, py::array::c_style> W, py::array_t<double, py::array::c_style> Z) {
+auto solve(py::array_t<double, py::array::c_style | py::array::forcecast> U, py::array_t<double, py::array::c_style | py::array::forcecast> P,
+           py::array_t<double, py::array::c_style | py::array::forcecast> d, py::array_t<double, py::array::c_style | py::array::forcecast> W,
+           py::array_t<double, py::array::c_style | py::array::forcecast> Z) {
 
   py::buffer_info Ubuf = U.request(), Pbuf = P.request(), dbuf = d.request(), Wbuf = W.request(), Zbuf = Z.request();
 
@@ -103,23 +109,33 @@ void solve(py::array_t<double, py::array::c_style> U, py::array_t<double, py::ar
   {                                                                                                                                                  \
     constexpr int RowMajor = (SIZE == 1) ? Eigen::ColMajor : Eigen::RowMajor;                                                                        \
     typedef Eigen::Matrix<double, Eigen::Dynamic, SIZE, RowMajor> Matrix;                                                                            \
+    typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> GeneralMatrix;                                                    \
     typedef Eigen::Map<Matrix> MatrixMap;                                                                                                            \
     typedef Eigen::Map<const Matrix> ConstMatrixMap;                                                                                                 \
+    typedef Eigen::Map<Eigen::VectorXd> VectorMap;                                                                                                   \
     typedef Eigen::Map<const Eigen::VectorXd> ConstVectorMap;                                                                                        \
+    typedef Eigen::Map<Matrix> GeneralMatrixMap;                                                                                                     \
     ConstMatrixMap U_((double *)Ubuf.ptr, N, J);                                                                                                     \
     ConstMatrixMap P_((double *)Pbuf.ptr, N - 1, J);                                                                                                 \
     ConstVectorMap d_((double *)dbuf.ptr, N, 1);                                                                                                     \
     ConstMatrixMap W_((double *)Wbuf.ptr, N, J);                                                                                                     \
-    MatrixMap Z_((double *)Zbuf.ptr, N, nrhs);                                                                                                       \
-    celerite2::core::solve(U_, P_, d_, W_, Z_);                                                                                                      \
+    if (nrhs == 1) {                                                                                                                                 \
+      VectorMap Z_((double *)Zbuf.ptr, N, 1);                                                                                                        \
+      celerite2::core::solve(U_, P_, d_, W_, Z_, Z_);                                                                                                \
+    } else {                                                                                                                                         \
+      GeneralMatrixMap Z_((double *)Zbuf.ptr, N, nrhs);                                                                                              \
+      celerite2::core::solve(U_, P_, d_, W_, Z_, Z_);                                                                                                \
+    }                                                                                                                                                \
   }
   UNWRAP_CASES
 #undef FIXED_SIZE_MAP
+
+  return Z;
 }
 
 #undef UNWRAP_CASES
 
-PYBIND11_MODULE(interface, m) {
+PYBIND11_MODULE(driver, m) {
   m.doc() = R"doc(
   Celerite2
 

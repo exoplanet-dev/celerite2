@@ -93,13 +93,13 @@ struct update_z<true> {
   }
 };
 
-template <bool is_solve, bool do_update = true, typename LowRank, typename RightHandSide, typename Work>
-void forward(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
-             const Eigen::MatrixBase<LowRank> &V,           // (N, J)
-             const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
-             const Eigen::MatrixBase<RightHandSide> &Y,     // (N, Nrhs)
-             Eigen::MatrixBase<RightHandSide> const &Z_out, // (N, Nrhs)
-             Eigen::MatrixBase<Work> const &F_out           // (N, J * Nrhs)
+template <bool is_solve, bool do_update = true, typename LowRank, typename RightHandSide, typename RightHandSideOut, typename Work>
+void forward(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
+             const Eigen::MatrixBase<LowRank> &V,              // (N, J)
+             const Eigen::MatrixBase<LowRank> &P,              // (N-1, J)
+             const Eigen::MatrixBase<RightHandSide> &Y,        // (N, Nrhs)
+             Eigen::MatrixBase<RightHandSideOut> const &Z_out, // (N, Nrhs)
+             Eigen::MatrixBase<Work> const &F_out              // (N, J * Nrhs)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
@@ -108,7 +108,7 @@ void forward(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
   typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
 
   int N = U.rows(), J = U.cols(), nrhs = Y.cols();
-  CAST(RightHandSide, Z); // Must already be the right shape
+  CAST(RightHandSideOut, Z); // Must already be the right shape
   CAST(Work, F);
   if (do_update) {
     F.derived().resize(N, J * nrhs);
@@ -131,13 +131,13 @@ void forward(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
   }
 }
 
-template <bool is_solve, bool do_update = true, typename LowRank, typename RightHandSide, typename Work>
-void backward(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
-              const Eigen::MatrixBase<LowRank> &V,           // (N, J)
-              const Eigen::MatrixBase<LowRank> &P,           // (N-1, J)
-              const Eigen::MatrixBase<RightHandSide> &Y,     // (N, Nrhs)
-              Eigen::MatrixBase<RightHandSide> const &Z_out, // (N, Nrhs)
-              Eigen::MatrixBase<Work> const &F_out           // (N, J * Nrhs)
+template <bool is_solve, bool do_update = true, typename LowRank, typename RightHandSide, typename RightHandSideOut, typename Work>
+void backward(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
+              const Eigen::MatrixBase<LowRank> &V,              // (N, J)
+              const Eigen::MatrixBase<LowRank> &P,              // (N-1, J)
+              const Eigen::MatrixBase<RightHandSide> &Y,        // (N, Nrhs)
+              Eigen::MatrixBase<RightHandSideOut> const &Z_out, // (N, Nrhs)
+              Eigen::MatrixBase<Work> const &F_out              // (N, J * Nrhs)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
@@ -146,7 +146,7 @@ void backward(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
   typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
 
   int N = U.rows(), J = U.cols(), nrhs = Y.cols();
-  CAST(RightHandSide, Z); // Must already be the right shape
+  CAST(RightHandSideOut, Z); // Must already be the right shape
   CAST(Work, F);
   if (do_update) {
     F.derived().resize(N, J * nrhs);
@@ -169,18 +169,18 @@ void backward(const Eigen::MatrixBase<LowRank> &U,           // (N, J)
   }
 }
 
-template <bool is_solve, typename LowRank, typename RightHandSide, typename Work>
-void forward_rev(const Eigen::MatrixBase<LowRank> &U,            // (N, J)
-                 const Eigen::MatrixBase<LowRank> &V,            // (N, J)
-                 const Eigen::MatrixBase<LowRank> &P,            // (N-1, J)
-                 const Eigen::MatrixBase<RightHandSide> &Y,      // (N, Nrhs)
-                 const Eigen::MatrixBase<RightHandSide> &Z,      // (N, Nrhs)
-                 const Eigen::MatrixBase<Work> &F,               // (N, J * Nrhs)
-                 Eigen::MatrixBase<RightHandSide> const &bZ_out, // (N, Nrhs)
-                 Eigen::MatrixBase<LowRank> const &bU_out,       // (N, J)
-                 Eigen::MatrixBase<LowRank> const &bV_out,       // (N, J)
-                 Eigen::MatrixBase<LowRank> const &bP_out,       // (N-1, J)
-                 Eigen::MatrixBase<RightHandSide> const &bY_out  // (N, Nrhs)  -  Must be the right shape already (and zeroed)
+template <bool is_solve, typename LowRank, typename RightHandSide, typename Work, typename RightHandSideOut, typename LowRankOut>
+void forward_rev(const Eigen::MatrixBase<LowRank> &U,               // (N, J)
+                 const Eigen::MatrixBase<LowRank> &V,               // (N, J)
+                 const Eigen::MatrixBase<LowRank> &P,               // (N-1, J)
+                 const Eigen::MatrixBase<RightHandSide> &Y,         // (N, Nrhs)
+                 const Eigen::MatrixBase<RightHandSide> &Z,         // (N, Nrhs)
+                 const Eigen::MatrixBase<Work> &F,                  // (N, J * Nrhs)
+                 Eigen::MatrixBase<RightHandSideOut> const &bZ_out, // (N, Nrhs)
+                 Eigen::MatrixBase<LowRankOut> const &bU_out,       // (N, J)
+                 Eigen::MatrixBase<LowRankOut> const &bV_out,       // (N, J)
+                 Eigen::MatrixBase<LowRankOut> const &bP_out,       // (N-1, J)
+                 Eigen::MatrixBase<RightHandSideOut> const &bY_out  // (N, Nrhs)  -  Must be the right shape already (and zeroed)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
@@ -188,11 +188,11 @@ void forward_rev(const Eigen::MatrixBase<LowRank> &U,            // (N, J)
   typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
 
   int N = U.rows(), J = U.cols(), nrhs = Y.cols();
-  CAST(LowRank, bU, N, J);
-  CAST(LowRank, bV, N, J);
-  CAST(LowRank, bP, N - 1, J);
-  CAST(RightHandSide, bY);
-  CAST(RightHandSide, bZ);
+  CAST(LowRankOut, bU, N, J);
+  CAST(LowRankOut, bV, N, J);
+  CAST(LowRankOut, bP, N - 1, J);
+  CAST(RightHandSideOut, bY);
+  CAST(RightHandSideOut, bZ);
 
   Inner Fn(J, nrhs), bF(J, nrhs);
   Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Fn.data(), 1, J * nrhs);
@@ -213,18 +213,18 @@ void forward_rev(const Eigen::MatrixBase<LowRank> &U,            // (N, J)
   }
 }
 
-template <bool is_solve, typename LowRank, typename RightHandSide, typename Work>
-void backward_rev(const Eigen::MatrixBase<LowRank> &U,            // (N, J)
-                  const Eigen::MatrixBase<LowRank> &V,            // (N, J)
-                  const Eigen::MatrixBase<LowRank> &P,            // (N-1, J)
-                  const Eigen::MatrixBase<RightHandSide> &Y,      // (N, Nrhs)
-                  const Eigen::MatrixBase<RightHandSide> &Z,      // (N, Nrhs)
-                  const Eigen::MatrixBase<Work> &F,               // (N, J * Nrhs)
-                  Eigen::MatrixBase<RightHandSide> const &bZ_out, // (N, Nrhs)
-                  Eigen::MatrixBase<LowRank> const &bU_out,       // (N, J)
-                  Eigen::MatrixBase<LowRank> const &bV_out,       // (N, J)
-                  Eigen::MatrixBase<LowRank> const &bP_out,       // (N-1, J)
-                  Eigen::MatrixBase<RightHandSide> const &bY_out  // (N, Nrhs)  -  Must be the right shape already (and zeroed)
+template <bool is_solve, typename LowRank, typename RightHandSide, typename Work, typename RightHandSideOut, typename LowRankOut>
+void backward_rev(const Eigen::MatrixBase<LowRank> &U,               // (N, J)
+                  const Eigen::MatrixBase<LowRank> &V,               // (N, J)
+                  const Eigen::MatrixBase<LowRank> &P,               // (N-1, J)
+                  const Eigen::MatrixBase<RightHandSide> &Y,         // (N, Nrhs)
+                  const Eigen::MatrixBase<RightHandSide> &Z,         // (N, Nrhs)
+                  const Eigen::MatrixBase<Work> &F,                  // (N, J * Nrhs)
+                  Eigen::MatrixBase<RightHandSideOut> const &bZ_out, // (N, Nrhs)
+                  Eigen::MatrixBase<LowRankOut> const &bU_out,       // (N, J)
+                  Eigen::MatrixBase<LowRankOut> const &bV_out,       // (N, J)
+                  Eigen::MatrixBase<LowRankOut> const &bP_out,       // (N-1, J)
+                  Eigen::MatrixBase<RightHandSideOut> const &bY_out  // (N, Nrhs)  -  Must be the right shape already (and zeroed)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
@@ -232,11 +232,11 @@ void backward_rev(const Eigen::MatrixBase<LowRank> &U,            // (N, J)
   typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
 
   int N = U.rows(), J = U.cols(), nrhs = Y.cols();
-  CAST(LowRank, bU, N, J);
-  CAST(LowRank, bV, N, J);
-  CAST(LowRank, bP, N - 1, J);
-  CAST(RightHandSide, bY);
-  CAST(RightHandSide, bZ);
+  CAST(LowRankOut, bU, N, J);
+  CAST(LowRankOut, bV, N, J);
+  CAST(LowRankOut, bP, N - 1, J);
+  CAST(RightHandSideOut, bY);
+  CAST(RightHandSideOut, bZ);
 
   Inner Fn(J, nrhs), bF(J, nrhs);
   Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Fn.data(), 1, J * nrhs);
