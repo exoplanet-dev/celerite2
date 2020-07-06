@@ -32,19 +32,22 @@ INSTALL_REQUIRES = [
     "setuptools_scm",
 ]
 EXTRA_REQUIRE = {
-    "test": ["scipy", "celerite>=0.3.1"],
+    "test": ["pytest", "scipy", "celerite>=0.3.1"],
+    "release": ["pep517", "twine", "wheel"],
 }
-EXTRA_REQUIRE["dev"] = EXTRA_REQUIRE["test"] + [
-    "pre-commit",
-    "black",
-    "black_nbconvert",
-    "isort",
-    "toml",
-    "flake8",
-    "nbstripout",
-    "pep517",
-    "twine",
-]
+EXTRA_REQUIRE["dev"] = (
+    EXTRA_REQUIRE["test"]
+    + EXTRA_REQUIRE["release"]
+    + [
+        "pre-commit",
+        "black",
+        "black_nbconvert",
+        "isort",
+        "toml",
+        "flake8",
+        "nbstripout",
+    ]
+)
 
 
 # END PROJECT SPECIFIC

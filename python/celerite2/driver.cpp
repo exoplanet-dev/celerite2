@@ -5,6 +5,14 @@
 
 namespace py = pybind11;
 
+namespace celerite2 {
+namespace driver {
+
+//
+// SOME USEFUL MACROS
+//
+
+// Some pre-processor magic to get faster runtimes for small systems
 #define UNWRAP_CASES                                                                                                                                 \
   switch (J) {                                                                                                                                       \
     case 1: FIXED_SIZE_MAP(1); break;                                                                                                                \
@@ -42,112 +50,189 @@ namespace py = pybind11;
     default: FIXED_SIZE_MAP(Eigen::Dynamic);                                                                                                         \
   }
 
-auto factor(py::array_t<double, py::array::c_style | py::array::forcecast> U, py::array_t<double, py::array::c_style | py::array::forcecast> P,
-            py::array_t<double, py::array::c_style | py::array::forcecast> d, py::array_t<double, py::array::c_style | py::array::forcecast> W) {
+// These are some generally useful macros for interfacing between numpy and Eigen
+#define GET_ROW_MAJOR(SIZE) constexpr int RowMajor = (SIZE == 1) ? Eigen::ColMajor : Eigen::RowMajor
+#define VECTOR(NAME, BUF, ROWS) Eigen::Map<Eigen::VectorXd> NAME((double *)BUF.ptr, ROWS, 1)
+#define MATRIX(SIZE, NAME, BUF, ROWS, COLS) Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, RowMajor>> NAME((double *)BUF.ptr, ROWS, COLS)
+#define CONST_VECTOR(NAME, BUF, ROWS) Eigen::Map<const Eigen::VectorXd> NAME((double *)BUF.ptr, ROWS, 1)
+#define CONST_MATRIX(SIZE, NAME, BUF, ROWS, COLS)                                                                                                    \
+  Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, RowMajor>> NAME((double *)BUF.ptr, ROWS, COLS)
 
-  py::buffer_info Ubuf = U.request(), Pbuf = P.request(), dbuf = d.request(), Wbuf = W.request();
-
-  if (Ubuf.ndim != 2 || Pbuf.ndim != 2 || dbuf.ndim != 1 || Wbuf.ndim != 2) throw std::runtime_error("Invalid dimensions");
-
-  long N = Ubuf.shape[0], J = Ubuf.shape[1];
-  if (N == 0 || J == 0) throw std::runtime_error("Dimensions can't be zero");
-  if (Pbuf.shape[0] != N - 1 || Pbuf.shape[1] != J) throw std::runtime_error("Invalid shape: P");
-  if (dbuf.shape[0] != N) throw std::runtime_error("Invalid shape: d");
+// This gets the buffer info for the standard celerite matrix inputs and checks the dimensions
+#define SETUP_BASE_MATRICES                                                                                                                          \
+  py::buffer_info Ubuf = U.request(), Pbuf = P.request(), dbuf = d.request(), Wbuf = W.request();                                                    \
+  if (Ubuf.ndim != 2 || Pbuf.ndim != 2 || dbuf.ndim != 1 || Wbuf.ndim != 2) throw std::runtime_error("Invalid dimensions");                          \
+  long N = Ubuf.shape[0], J = Ubuf.shape[1];                                                                                                         \
+  if (N == 0 || J == 0) throw std::runtime_error("Dimensions can't be zero");                                                                        \
+  if (Pbuf.shape[0] != N - 1 || Pbuf.shape[1] != J) throw std::runtime_error("Invalid shape: P");                                                    \
+  if (dbuf.shape[0] != N) throw std::runtime_error("Invalid shape: d");                                                                              \
   if (Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::runtime_error("Invalid shape: W");
 
-  int flag = 0;
+// This gets the buffer info for a right hand side input and checks the dimensions
+#define SETUP_RHS_MATRIX(NAME)                                                                                                                       \
+  py::buffer_info NAME##buf = NAME.request();                                                                                                        \
+  long NAME##_nrhs          = 1;                                                                                                                     \
+  if (NAME##buf.ndim == 2) {                                                                                                                         \
+    NAME##_nrhs = NAME##buf.shape[1];                                                                                                                \
+  } else if (NAME##buf.ndim != 1)                                                                                                                    \
+    throw std::runtime_error(#NAME " must be a matrix");                                                                                             \
+  if (NAME##buf.shape[0] != N) throw std::runtime_error("Invalid shape: " #NAME);                                                                    \
+  if (nrhs > 0 && nrhs != NAME##_nrhs) {                                                                                                             \
+    throw std::runtime_error("dimension mismatch: " #NAME);                                                                                          \
+  } else {                                                                                                                                           \
+    nrhs = NAME##_nrhs;                                                                                                                              \
+  }
 
-// Insane hack to deal with fixed dimensions in small systems
+//
+// THE PYBIND11 INTERFACE IMPLEMENTATION
+//
+auto factor(py::array_t<double, py::array::c_style | py::array::forcecast> U, py::array_t<double, py::array::c_style | py::array::forcecast> P,
+            py::array_t<double, py::array::c_style | py::array::forcecast> d, py::array_t<double, py::array::c_style | py::array::forcecast> W) {
+  SETUP_BASE_MATRICES;
+  int flag = 0;
 #define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
   {                                                                                                                                                  \
-    constexpr int RowMajor = (SIZE == 1) ? Eigen::ColMajor : Eigen::RowMajor;                                                                        \
-    typedef Eigen::Matrix<double, Eigen::Dynamic, SIZE, RowMajor> Matrix;                                                                            \
-    typedef Eigen::Map<Matrix> MatrixMap;                                                                                                            \
-    typedef Eigen::Map<const Matrix> ConstMatrixMap;                                                                                                 \
-    typedef Eigen::Map<Eigen::VectorXd> VectorMap;                                                                                                   \
-    typedef Eigen::Map<const Eigen::VectorXd> ConstVectorMap;                                                                                        \
-    ConstVectorMap a_((double *)dbuf.ptr, N, 1);                                                                                                     \
-    ConstMatrixMap U_((double *)Ubuf.ptr, N, J);                                                                                                     \
-    ConstMatrixMap V_((double *)Wbuf.ptr, N, J);                                                                                                     \
-    ConstMatrixMap P_((double *)Pbuf.ptr, N - 1, J);                                                                                                 \
-    VectorMap d_((double *)dbuf.ptr, N, 1);                                                                                                          \
-    MatrixMap W_((double *)Wbuf.ptr, N, J);                                                                                                          \
+    GET_ROW_MAJOR(SIZE);                                                                                                                             \
+    CONST_VECTOR(a_, dbuf, N);                                                                                                                       \
+    CONST_MATRIX(SIZE, U_, Ubuf, N, J);                                                                                                              \
+    CONST_MATRIX(SIZE, V_, Wbuf, N, J);                                                                                                              \
+    CONST_MATRIX(SIZE, P_, Pbuf, N - 1, J);                                                                                                          \
+    VECTOR(d_, dbuf, N);                                                                                                                             \
+    MATRIX(SIZE, W_, Wbuf, N, J);                                                                                                                    \
     flag = celerite2::core::factor(a_, U_, V_, P_, d_, W_);                                                                                          \
   }
-  UNWRAP_CASES
+  UNWRAP_CASES;
 #undef FIXED_SIZE_MAP
-
   if (flag) throw std::runtime_error("Linear algebra error");
-
   return std::make_tuple(d, W);
 }
 
 auto solve(py::array_t<double, py::array::c_style | py::array::forcecast> U, py::array_t<double, py::array::c_style | py::array::forcecast> P,
            py::array_t<double, py::array::c_style | py::array::forcecast> d, py::array_t<double, py::array::c_style | py::array::forcecast> W,
            py::array_t<double, py::array::c_style | py::array::forcecast> Z) {
-
-  py::buffer_info Ubuf = U.request(), Pbuf = P.request(), dbuf = d.request(), Wbuf = W.request(), Zbuf = Z.request();
-
-  if (Ubuf.ndim != 2 || Pbuf.ndim != 2 || dbuf.ndim != 1 || Wbuf.ndim != 2) throw std::runtime_error("Invalid dimensions");
-
-  long N = Ubuf.shape[0], J = Ubuf.shape[1];
-  if (N == 0 || J == 0) throw std::runtime_error("Dimensions can't be zero");
-  if (Pbuf.shape[0] != N - 1 || Pbuf.shape[1] != J) throw std::runtime_error("Invalid shape: P");
-  if (dbuf.shape[0] != N) throw std::runtime_error("Invalid shape: d");
-  if (Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::runtime_error("Invalid shape: W");
-
-  long nrhs = 1;
-  if (Zbuf.ndim == 2) {
-    nrhs = Zbuf.shape[1];
-  } else if (Zbuf.ndim != 1) {
-    throw std::runtime_error("Z must be a matrix");
-  }
-  if (Zbuf.shape[0] != N) throw std::runtime_error("Invalid shape: Z");
-
-// Insane hack to deal with fixed dimensions in small systems
+  SETUP_BASE_MATRICES;
+  long nrhs = 0;
+  SETUP_RHS_MATRIX(Z);
 #define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
   {                                                                                                                                                  \
-    constexpr int RowMajor = (SIZE == 1) ? Eigen::ColMajor : Eigen::RowMajor;                                                                        \
-    typedef Eigen::Matrix<double, Eigen::Dynamic, SIZE, RowMajor> Matrix;                                                                            \
-    typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> GeneralMatrix;                                                    \
-    typedef Eigen::Map<Matrix> MatrixMap;                                                                                                            \
-    typedef Eigen::Map<const Matrix> ConstMatrixMap;                                                                                                 \
-    typedef Eigen::Map<Eigen::VectorXd> VectorMap;                                                                                                   \
-    typedef Eigen::Map<const Eigen::VectorXd> ConstVectorMap;                                                                                        \
-    typedef Eigen::Map<Matrix> GeneralMatrixMap;                                                                                                     \
-    ConstMatrixMap U_((double *)Ubuf.ptr, N, J);                                                                                                     \
-    ConstMatrixMap P_((double *)Pbuf.ptr, N - 1, J);                                                                                                 \
-    ConstVectorMap d_((double *)dbuf.ptr, N, 1);                                                                                                     \
-    ConstMatrixMap W_((double *)Wbuf.ptr, N, J);                                                                                                     \
+    GET_ROW_MAJOR(SIZE);                                                                                                                             \
+    CONST_MATRIX(SIZE, U_, Ubuf, N, J);                                                                                                              \
+    CONST_MATRIX(SIZE, P_, Pbuf, N - 1, J);                                                                                                          \
+    CONST_VECTOR(d_, dbuf, N);                                                                                                                       \
+    CONST_MATRIX(SIZE, W_, Wbuf, N, J);                                                                                                              \
     if (nrhs == 1) {                                                                                                                                 \
-      VectorMap Z_((double *)Zbuf.ptr, N, 1);                                                                                                        \
+      VECTOR(Z_, Zbuf, N);                                                                                                                           \
       celerite2::core::solve(U_, P_, d_, W_, Z_, Z_);                                                                                                \
     } else {                                                                                                                                         \
-      GeneralMatrixMap Z_((double *)Zbuf.ptr, N, nrhs);                                                                                              \
+      MATRIX(Eigen::Dynamic, Z_, Zbuf, N, nrhs);                                                                                                     \
       celerite2::core::solve(U_, P_, d_, W_, Z_, Z_);                                                                                                \
     }                                                                                                                                                \
   }
   UNWRAP_CASES
 #undef FIXED_SIZE_MAP
+  return Z;
+}
 
+auto norm(py::array_t<double, py::array::c_style | py::array::forcecast> U, py::array_t<double, py::array::c_style | py::array::forcecast> P,
+          py::array_t<double, py::array::c_style | py::array::forcecast> d, py::array_t<double, py::array::c_style | py::array::forcecast> W,
+          py::array_t<double, py::array::c_style | py::array::forcecast> Z) {
+  SETUP_BASE_MATRICES;
+  long nrhs = 0;
+  SETUP_RHS_MATRIX(Z);
+  if (nrhs != 1) throw std::runtime_error("Z must be a vector");
+  Eigen::Matrix<double, 1, 1> norm_;
+#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
+  {                                                                                                                                                  \
+    GET_ROW_MAJOR(SIZE);                                                                                                                             \
+    CONST_MATRIX(SIZE, U_, Ubuf, N, J);                                                                                                              \
+    CONST_MATRIX(SIZE, P_, Pbuf, N - 1, J);                                                                                                          \
+    CONST_VECTOR(d_, dbuf, N);                                                                                                                       \
+    CONST_MATRIX(SIZE, W_, Wbuf, N, J);                                                                                                              \
+    VECTOR(Z_, Zbuf, N);                                                                                                                             \
+    celerite2::core::norm(U_, P_, d_, W_, Z_, norm_, Z_);                                                                                            \
+  }
+  UNWRAP_CASES
+#undef FIXED_SIZE_MAP
+  return norm_(0, 0);
+}
+
+auto matmul(py::array_t<double, py::array::c_style | py::array::forcecast> d, py::array_t<double, py::array::c_style | py::array::forcecast> U,
+            py::array_t<double, py::array::c_style | py::array::forcecast> W, py::array_t<double, py::array::c_style | py::array::forcecast> P,
+            py::array_t<double, py::array::c_style | py::array::forcecast> Y, py::array_t<double, py::array::c_style | py::array::forcecast> Z) {
+  SETUP_BASE_MATRICES;
+  long nrhs = 0;
+  SETUP_RHS_MATRIX(Y);
+  SETUP_RHS_MATRIX(Z);
+#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
+  {                                                                                                                                                  \
+    GET_ROW_MAJOR(SIZE);                                                                                                                             \
+    CONST_MATRIX(SIZE, U_, Ubuf, N, J);                                                                                                              \
+    CONST_MATRIX(SIZE, P_, Pbuf, N - 1, J);                                                                                                          \
+    CONST_VECTOR(d_, dbuf, N);                                                                                                                       \
+    CONST_MATRIX(SIZE, W_, Wbuf, N, J);                                                                                                              \
+    if (nrhs == 1) {                                                                                                                                 \
+      VECTOR(Y_, Ybuf, N);                                                                                                                           \
+      VECTOR(Z_, Zbuf, N);                                                                                                                           \
+      celerite2::core::matmul(d_, U_, W_, P_, Y_, Z_);                                                                                               \
+    } else {                                                                                                                                         \
+      MATRIX(Eigen::Dynamic, Y_, Ybuf, N, nrhs);                                                                                                     \
+      MATRIX(Eigen::Dynamic, Z_, Zbuf, N, nrhs);                                                                                                     \
+      celerite2::core::matmul(d_, U_, W_, P_, Y_, Z_);                                                                                               \
+    }                                                                                                                                                \
+  }
+  UNWRAP_CASES
+#undef FIXED_SIZE_MAP
+  return Z;
+}
+
+auto dot_tril(py::array_t<double, py::array::c_style | py::array::forcecast> U, py::array_t<double, py::array::c_style | py::array::forcecast> P,
+              py::array_t<double, py::array::c_style | py::array::forcecast> d, py::array_t<double, py::array::c_style | py::array::forcecast> W,
+              py::array_t<double, py::array::c_style | py::array::forcecast> Z) {
+  SETUP_BASE_MATRICES;
+  long nrhs = 0;
+  SETUP_RHS_MATRIX(Z);
+#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
+  {                                                                                                                                                  \
+    GET_ROW_MAJOR(SIZE);                                                                                                                             \
+    CONST_MATRIX(SIZE, U_, Ubuf, N, J);                                                                                                              \
+    CONST_MATRIX(SIZE, P_, Pbuf, N - 1, J);                                                                                                          \
+    CONST_VECTOR(d_, dbuf, N);                                                                                                                       \
+    CONST_MATRIX(SIZE, W_, Wbuf, N, J);                                                                                                              \
+    if (nrhs == 1) {                                                                                                                                 \
+      VECTOR(Z_, Zbuf, N);                                                                                                                           \
+      celerite2::core::dot_tril(U_, P_, d_, W_, Z_, Z_);                                                                                             \
+    } else {                                                                                                                                         \
+      MATRIX(Eigen::Dynamic, Z_, Zbuf, N, nrhs);                                                                                                     \
+      celerite2::core::dot_tril(U_, P_, d_, W_, Z_, Z_);                                                                                             \
+    }                                                                                                                                                \
+  }
+  UNWRAP_CASES
+#undef FIXED_SIZE_MAP
   return Z;
 }
 
 #undef UNWRAP_CASES
 
+} // namespace driver
+} // namespace celerite2
+
 PYBIND11_MODULE(driver, m) {
   m.doc() = R"doc(
-  Celerite2
+    The computation engine for celerite2
 
-  )doc";
+    These functions are low level and you shouldn't generally need or want to call them as a user.
+)doc";
 
-  m.def("factor", &factor, R"doc(
-
-  )doc");
-
-  m.def("solve", &solve, R"doc(
-
-  )doc");
+  m.def("factor", &celerite2::driver::factor, "Compute the Cholesky factor of a celerite system", py::arg("U"), py::arg("P"), py::arg("d"),
+        py::arg("W"));
+  m.def("solve", &celerite2::driver::solve, "Solve a celerite system using the output of `factor`", py::arg("U"), py::arg("P"), py::arg("d"),
+        py::arg("W"), py::arg("Z"));
+  m.def("norm", &celerite2::driver::norm, "Compute the norm of a celerite system applied to a vector", py::arg("U"), py::arg("P"), py::arg("d"),
+        py::arg("W"), py::arg("z"));
+  m.def("matmul", &celerite2::driver::matmul, "Dot a celerite system into a matrix or vector", py::arg("a"), py::arg("U"), py::arg("W"), py::arg("P"),
+        py::arg("Y"), py::arg("Z"));
+  m.def("dot_tril", &celerite2::driver::dot_tril, "Dot the Cholesky factor celerite system into a matrix or vector", py::arg("U"), py::arg("P"),
+        py::arg("d"), py::arg("W"), py::arg("Z"));
 
 #ifdef VERSION_INFO
   m.attr("__version__") = VERSION_INFO;
