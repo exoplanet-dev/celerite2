@@ -2,32 +2,33 @@ name: Python
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install -U pip
-        python -m pip install ".[test]"
-    - name: Check the style
-      run: |
-        isort -c -rc python
-        black --check python
-        black_nbconvert --check .
-    - name: Run the unit tests
-      run: python -m pytest --cov=celerite2 -v python/test
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          python -m pip install ".[test]"
+      - name: Check the style
+        run: |
+          isort -c -rc python
+          black --check python
+          black_nbconvert --check .
+      - name: Run the unit tests
+        run: python -m pytest --cov=celerite2 -v python/test
