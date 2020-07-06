@@ -1,4 +1,11 @@
 include README.md LICENSE *.toml
 
+exclude .*
+recursive-exclude * CMakeLists.txt
+recursive-exclude * .gitignore
+
 graft c++/include
-graft c++/vendor
+graft c++/vendor/eigen/Eigen
+
+prune c++/test
+prune .github
