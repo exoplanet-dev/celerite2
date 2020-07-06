@@ -6,13 +6,6 @@ repos:
       - id: end-of-file-fixer
       - id: debug-statements
 
-  # - repo: https://github.com/asottile/seed-isort-config
-  #   rev: v1.9.2
-  #   hooks:
-  #   - id: seed-isort-config
-  #     args: [--application-directories=python]
-  #     # exclude: docs/notebooks
-
   - repo: https://github.com/timothycrosley/isort
     rev: 5.0.4
     hooks:
