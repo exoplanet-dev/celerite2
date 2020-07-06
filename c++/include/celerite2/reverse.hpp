@@ -28,11 +28,11 @@ void factor_rev(const Eigen::MatrixBase<Diag> &a,            // (N,)
   typedef typename Diag::Scalar Scalar;
   typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, LowRank::ColsAtCompileTime> Inner;
 
-  int N = U.rows(), J = U.cols();
-  CAST(DiagOut, ba, N);
-  CAST(LowRankOut, bU, N, J);
-  CAST(LowRankOut, bV, N, J);
-  CAST(LowRankOut, bP, N - 1, J);
+  Eigen::Index N = U.rows(), J = U.cols();
+  CL2_CAST(DiagOut, ba, N);
+  CL2_CAST(LowRankOut, bU, N, J);
+  CL2_CAST(LowRankOut, bV, N, J);
+  CL2_CAST(LowRankOut, bP, N - 1, J);
 
   // Make local copies of the gradients that we need
   Inner Sn(J, J), bS(J, J);
@@ -43,7 +43,7 @@ void factor_rev(const Eigen::MatrixBase<Diag> &a,            // (N,)
   ba.noalias() = bd;
   bV.noalias() = bW;
   bV.array().colwise() /= d.array();
-  for (int n = N - 1; n > 0; --n) {
+  for (Eigen::Index n = N - 1; n > 0; --n) {
     ptr = S.row(n);
 
     // Step 6
@@ -84,12 +84,12 @@ void solve_rev(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
-  int N = U.rows(), J = U.cols();
-  CAST(LowRankOut, bU, N, J);
-  CAST(LowRankOut, bP, N - 1, J);
-  CAST(DiagOut, bd);
-  CAST(LowRankOut, bW, N, J);
-  CAST(RightHandSideOut, bY);
+  Eigen::Index N = U.rows(), J = U.cols();
+  CL2_CAST(LowRankOut, bU, N, J);
+  CL2_CAST(LowRankOut, bP, N - 1, J);
+  CL2_CAST(DiagOut, bd);
+  CL2_CAST(LowRankOut, bW, N, J);
+  CL2_CAST(RightHandSideOut, bY);
 
   bU.setZero();
   bP.setZero();
@@ -123,12 +123,12 @@ void norm_rev(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
-  int N = U.rows(), J = U.cols();
-  CAST(LowRankOut, bU, N, J);
-  CAST(LowRankOut, bP, N - 1, J);
-  CAST(DiagOut, bd);
-  CAST(LowRankOut, bW, N, J);
-  CAST(RightHandSideOut, bY);
+  Eigen::Index N = U.rows(), J = U.cols();
+  CL2_CAST(LowRankOut, bU, N, J);
+  CL2_CAST(LowRankOut, bP, N - 1, J);
+  CL2_CAST(DiagOut, bd);
+  CL2_CAST(LowRankOut, bW, N, J);
+  CL2_CAST(RightHandSideOut, bY);
 
   bU.setZero();
   bP.setZero();
@@ -157,8 +157,8 @@ void dot_tril_rev(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
-  CAST(RightHandSideOut, bY);
-  CAST(DiagOut, bd, d.rows());
+  CL2_CAST(RightHandSideOut, bY);
+  CL2_CAST(DiagOut, bd, d.rows());
 
   Eigen::Matrix<typename Diag::Scalar, Diag::RowsAtCompileTime, 1> sqrtd = sqrt(d.array());
 
@@ -194,12 +194,12 @@ void matmul_rev(const Eigen::MatrixBase<Diag> &a,                 // (N,)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
-  int N = U.rows(), J = U.cols(), nrhs = Y.cols();
-  CAST(DiagOut, ba, N);
-  CAST(LowRankOut, bU, N, J);
-  CAST(LowRankOut, bV, N, J);
-  CAST(LowRankOut, bP, N - 1, J);
-  CAST(RightHandSideOut, bY, N, nrhs);
+  Eigen::Index N = U.rows(), J = U.cols(), nrhs = Y.cols();
+  CL2_CAST(DiagOut, ba, N);
+  CL2_CAST(LowRankOut, bU, N, J);
+  CL2_CAST(LowRankOut, bV, N, J);
+  CL2_CAST(LowRankOut, bP, N - 1, J);
+  CL2_CAST(RightHandSideOut, bY, N, nrhs);
 
   ba.setZero();
   bU.setZero();

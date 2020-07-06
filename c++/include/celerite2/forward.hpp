@@ -15,14 +15,14 @@ void to_dense(const Eigen::MatrixBase<Diag> &a,     // (N,)
 ) {
   typedef typename Eigen::internal::plain_row_type<LowRank>::type RowVector;
 
-  int N = U.rows(), J = U.cols();
-  CAST(Dense, K, N, N);
+  Eigen::Index N = U.rows(), J = U.cols();
+  CL2_CAST(Dense, K, N, N);
 
   RowVector p(1, J);
-  for (int m = 0; m < N; ++m) {
+  for (Eigen::Index m = 0; m < N; ++m) {
     p.setConstant(1.0);
     K(m, m) = a(m);
-    for (int n = m + 1; n < N; ++n) {
+    for (Eigen::Index n = m + 1; n < N; ++n) {
       p.array() *= P.row(n - 1).array();
       K(n, m) = (U.row(n).array() * V.row(m).array() * p.array()).sum();
       K(m, n) = K(n, m);
@@ -31,23 +31,23 @@ void to_dense(const Eigen::MatrixBase<Diag> &a,     // (N,)
 }
 
 template <bool update_workspace = true, typename Diag, typename LowRank, typename DiagOut, typename LowRankOut, typename Work>
-int factor(const Eigen::MatrixBase<Diag> &a,           // (N,)
-           const Eigen::MatrixBase<LowRank> &U,        // (N, J)
-           const Eigen::MatrixBase<LowRank> &V,        // (N, J)
-           const Eigen::MatrixBase<LowRank> &P,        // (N-1, J)
-           Eigen::MatrixBase<DiagOut> const &d_out,    // (N,)
-           Eigen::MatrixBase<LowRankOut> const &W_out, // (N, J)
-           Eigen::MatrixBase<Work> const &S_out        // (N, J*J)
+Eigen::Index factor(const Eigen::MatrixBase<Diag> &a,           // (N,)
+                    const Eigen::MatrixBase<LowRank> &U,        // (N, J)
+                    const Eigen::MatrixBase<LowRank> &V,        // (N, J)
+                    const Eigen::MatrixBase<LowRank> &P,        // (N-1, J)
+                    Eigen::MatrixBase<DiagOut> const &d_out,    // (N,)
+                    Eigen::MatrixBase<LowRankOut> const &W_out, // (N, J)
+                    Eigen::MatrixBase<Work> const &S_out        // (N, J*J)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
   typedef typename Diag::Scalar Scalar;
   typedef typename Eigen::internal::plain_row_type<LowRank>::type RowVector;
 
-  int N = U.rows(), J = U.cols();
-  CAST(DiagOut, d, N);
-  CAST(LowRankOut, W, N, J);
-  CAST(Work, S);
+  Eigen::Index N = U.rows(), J = U.cols();
+  CL2_CAST(DiagOut, d, N);
+  CL2_CAST(LowRankOut, W, N, J);
+  CL2_CAST(Work, S);
   if (update_workspace) {
     S.derived().resize(N, J * J);
     S.row(0).setZero();
@@ -68,7 +68,7 @@ int factor(const Eigen::MatrixBase<Diag> &a,           // (N,)
   W.row(0).noalias() = V.row(0) / d(0);
 
   // The rest of the rows
-  for (int n = 1; n < N; ++n) {
+  for (Eigen::Index n = 1; n < N; ++n) {
     // Update S_n = diag(P) * (S_n-1 + d*W*W.T) * diag(P)
     Sn.noalias() += d(n - 1) * W.row(n - 1).transpose() * W.row(n - 1);
     Sn = P.row(n - 1).asDiagonal() * Sn;
@@ -105,8 +105,8 @@ void solve(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
-  CAST(RightHandSideOut, X);
-  CAST(RightHandSideOut, Z);
+  CL2_CAST(RightHandSideOut, X);
+  CL2_CAST(RightHandSideOut, Z);
 
   Z = Y;
   internal::forward<true, update_workspace>(U, W, P, Y, Z, F_out);
@@ -129,9 +129,9 @@ void norm(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
-  int nrhs = Y.cols();
-  CAST(Norm, X, nrhs, nrhs);
-  CAST(RightHandSideOut, Z);
+  Eigen::Index nrhs = Y.cols();
+  CL2_CAST(Norm, X, nrhs, nrhs);
+  CL2_CAST(RightHandSideOut, Z);
 
   Z = Y;
   internal::forward<true, update_workspace>(U, W, P, Y, Z, F_out);
@@ -149,7 +149,7 @@ void dot_tril(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
               Eigen::MatrixBase<Work> const &F_out              // (N, J*nrhs)
 ) {
   ASSERT_ROW_MAJOR(Work);
-  CAST(RightHandSideOut, Z);
+  CL2_CAST(RightHandSideOut, Z);
   Z = Y;
   Z.array().colwise() *= sqrt(d.array());
   internal::forward<false, update_workspace>(U, W, P, Z, Z, F_out);
@@ -186,8 +186,8 @@ void matmul(const Eigen::MatrixBase<Diag> &a,                 // (N,)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
-  CAST(RightHandSideOut, X);
-  CAST(RightHandSideOut, M);
+  CL2_CAST(RightHandSideOut, X);
+  CL2_CAST(RightHandSideOut, M);
 
   // M = diag(a) * Y + tril(U V^T) * Y
   M = a.asDiagonal() * Y;
@@ -209,18 +209,18 @@ void conditional_mean(const Eigen::MatrixBase<LowRank> &U,              // (N, J
                                                                         // inserted (the output of search_sorted)
                       Eigen::MatrixBase<RightHandSideOut> const &mu_out // (M)
 ) {
-  int N = U.rows(), J = U.cols(), M = U_star.rows();
-  CAST(RightHandSideOut, mu, M);
+  Eigen::Index N = U.rows(), J = U.cols(), M = U_star.rows();
+  CL2_CAST(RightHandSideOut, mu, M);
   Eigen::Matrix<typename LowRank::Scalar, 1, LowRank::ColsAtCompileTime> q(1, J);
 
   // Forward pass
-  int m = 0;
+  Eigen::Index m = 0;
   q.setZero();
   while (m < M && inds(m) <= 0) {
     mu(m) = 0;
     ++m;
   }
-  for (int n = 0; n < N - 1; ++n) {
+  for (Eigen::Index n = 0; n < N - 1; ++n) {
     q += z(n) * V.row(n);
     q *= P.row(n).asDiagonal();
     while ((m < M) && (inds(m) <= n + 1)) {
@@ -238,7 +238,7 @@ void conditional_mean(const Eigen::MatrixBase<LowRank> &U,              // (N, J
   m = M - 1;
   q.setZero();
   while ((m >= 0) && (inds(m) > N - 1)) { --m; }
-  for (int n = N - 1; n > 0; --n) {
+  for (Eigen::Index n = N - 1; n > 0; --n) {
     q += z(n) * U.row(n);
     q *= P.row(n - 1).asDiagonal();
     while ((m >= 0) && (inds(m) > n - 1)) {
