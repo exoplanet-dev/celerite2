@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
-
-import numpy as np
-
 import celerite as original_celerite
+import numpy as np
 
 from celerite2 import driver
 

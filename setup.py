@@ -33,6 +33,7 @@ INSTALL_REQUIRES = [
 ]
 EXTRA_REQUIRE = {
     "test": [
+        "wheel",
         "toml",
         "pytest",
         "scipy",

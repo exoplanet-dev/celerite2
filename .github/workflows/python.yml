@@ -27,7 +27,7 @@ jobs:
           python -m pip install ".[test]"
       - name: Check the style
         run: |
-          isort -c -rc python
+          isort -c python
           black --check python
           black_nbconvert --check .
       - name: Run the unit tests
