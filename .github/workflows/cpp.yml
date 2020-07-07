@@ -8,10 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [windows-latest, ubuntu-latest]
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
@@ -22,7 +19,7 @@ jobs:
           mkdir -p c++/build
           cd c++/build
           cmake -DCMAKE_BUILD_TYPE=Debug ..
-          cmake --build .
+          cmake --build . --parallel 2
       - name: Run tests
         run: |
           cd c++/build
