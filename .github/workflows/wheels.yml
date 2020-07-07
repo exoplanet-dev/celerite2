@@ -1,11 +1,6 @@
 name: Wheels
 on: [push, pull_request]
 
-env:
-  CIBW_BUILD: "cp3?-*"
-  CIBW_SKIP: "*-win32 *-manylinux_i686"
-  CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-
 jobs:
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
@@ -13,7 +8,6 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-18.04, windows-latest, macos-latest]
-
     steps:
       - uses: actions/checkout@v2
         with:
@@ -24,27 +18,28 @@ jobs:
         with:
           python-version: "3.7"
 
-      # *******
-      # WINDOWS
-      # *******
-      - uses: goanpeca/setup-miniconda@v1
+      - uses: ilammy/msvc-dev-cmd@v1
         if: runner.os == 'Windows'
+
+      - name: Install cibuildwheel
+        run: |
+          python -m pip install cibuildwheel==1.5.1
+
       - name: Build wheels on Windows
         if: runner.os == 'Windows'
-        run: |
-          conda create -n buildwheel python=3.7
-          conda activate buildwheel
-          python -m pip install cibuildwheel==1.5.1
-          python -m cibuildwheel --output-dir wheelhouse
+        run: python -m cibuildwheel --output-dir wheelhouse
+        env:
+          CIBW_BUILD: "cp3?-win_amd64"
+          DISTUTILS_USE_SDK: 1
 
-      # *********
-      # MAC/LINUX
-      # *********
-      - name: Build wheels otherwise
+      - name: Build wheels on Mac and Linux
         if: runner.os != 'Windows'
         run: |
-          python -m pip install cibuildwheel==1.5.1
           python -m cibuildwheel --output-dir wheelhouse
+        env:
+          CIBW_BUILD: "cp3?-*"
+          CIBW_SKIP: "*-manylinux_i686"
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
 
       - uses: actions/upload-artifact@v2
         with:
@@ -71,7 +66,7 @@ jobs:
           path: dist/*.tar.gz
 
   upload_pypi:
-    needs: [build_wheels, build_sdist]
+    needs: [build_wheels, build_windows, build_sdist]
     runs-on: ubuntu-latest
     if: github.event_name == 'release' && github.event.action == 'published'
     steps:
