@@ -22,8 +22,8 @@ jobs:
           mkdir -p c++/build
           cd c++/build
           cmake -DCMAKE_BUILD_TYPE=Debug ..
-          make -j2
+          cmake --build .
       - name: Run tests
         run: |
           cd c++/build
-          CTEST_OUTPUT_ON_FAILURE=1 make test
+          CTEST_OUTPUT_ON_FAILURE=1 ctest
