@@ -45,7 +45,7 @@ Eigen::Index factor(const Eigen::MatrixBase<Diag> &a,           // (N,)
   typedef typename Eigen::internal::plain_row_type<LowRank>::type RowVector;
 
   Eigen::Index N = U.rows(), J = U.cols();
-  CAST(DiagOut, d, N);
+  CAST_VEC(DiagOut, d, N);
   CAST(LowRankOut, W, N, J);
   CAST(Work, S);
   if (update_workspace) {

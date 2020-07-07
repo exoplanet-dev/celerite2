@@ -30,9 +30,3 @@ jobs:
         run: |
           conda activate celerite2
           python -m pytest -v python/test
-      - name: Build wheel
-        run: |
-          conda activate celerite2
-          python -m pip install -U pip pep517 twine setuptools_scm
-          python -m pep517.build .
-          ls dist

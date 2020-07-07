@@ -62,7 +62,7 @@ namespace driver {
 #define SETUP_BASE_MATRICES                                                                                                                          \
   py::buffer_info Ubuf = U.request(), Pbuf = P.request(), dbuf = d.request(), Wbuf = W.request();                                                    \
   if (Ubuf.ndim != 2 || Pbuf.ndim != 2 || dbuf.ndim != 1 || Wbuf.ndim != 2) throw std::runtime_error("Invalid dimensions");                          \
-  long N = Ubuf.shape[0], J = Ubuf.shape[1];                                                                                                         \
+  py::size_t N = Ubuf.shape[0], J = Ubuf.shape[1];                                                                                                   \
   if (N == 0 || J == 0) throw std::runtime_error("Dimensions can't be zero");                                                                        \
   if (Pbuf.shape[0] != N - 1 || Pbuf.shape[1] != J) throw std::runtime_error("Invalid shape: P");                                                    \
   if (dbuf.shape[0] != N) throw std::runtime_error("Invalid shape: d");                                                                              \
@@ -71,7 +71,7 @@ namespace driver {
 // This gets the buffer info for a right hand side input and checks the dimensions
 #define SETUP_RHS_MATRIX(NAME)                                                                                                                       \
   py::buffer_info NAME##buf = NAME.request();                                                                                                        \
-  long NAME##_nrhs          = 1;                                                                                                                     \
+  py::size_t NAME##_nrhs    = 1;                                                                                                                     \
   if (NAME##buf.ndim == 2) {                                                                                                                         \
     NAME##_nrhs = NAME##buf.shape[1];                                                                                                                \
   } else if (NAME##buf.ndim != 1)                                                                                                                    \
@@ -89,7 +89,7 @@ namespace driver {
 auto factor(py::array_t<double, py::array::c_style | py::array::forcecast> U, py::array_t<double, py::array::c_style | py::array::forcecast> P,
             py::array_t<double, py::array::c_style | py::array::forcecast> d, py::array_t<double, py::array::c_style | py::array::forcecast> W) {
   SETUP_BASE_MATRICES;
-  int flag = 0;
+  Eigen::Index flag = 0;
 #define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
   {                                                                                                                                                  \
     GET_ROW_MAJOR(SIZE);                                                                                                                             \
@@ -111,7 +111,7 @@ auto solve(py::array_t<double, py::array::c_style | py::array::forcecast> U, py:
            py::array_t<double, py::array::c_style | py::array::forcecast> d, py::array_t<double, py::array::c_style | py::array::forcecast> W,
            py::array_t<double, py::array::c_style | py::array::forcecast> Z) {
   SETUP_BASE_MATRICES;
-  long nrhs = 0;
+  py::size_t nrhs = 0;
   SETUP_RHS_MATRIX(Z);
 #define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
   {                                                                                                                                                  \
@@ -137,7 +137,7 @@ auto norm(py::array_t<double, py::array::c_style | py::array::forcecast> U, py::
           py::array_t<double, py::array::c_style | py::array::forcecast> d, py::array_t<double, py::array::c_style | py::array::forcecast> W,
           py::array_t<double, py::array::c_style | py::array::forcecast> Z) {
   SETUP_BASE_MATRICES;
-  long nrhs = 0;
+  py::size_t nrhs = 0;
   SETUP_RHS_MATRIX(Z);
   if (nrhs != 1) throw std::runtime_error("Z must be a vector");
   Eigen::Matrix<double, 1, 1> norm_;
@@ -160,7 +160,7 @@ auto matmul(py::array_t<double, py::array::c_style | py::array::forcecast> d, py
             py::array_t<double, py::array::c_style | py::array::forcecast> W, py::array_t<double, py::array::c_style | py::array::forcecast> P,
             py::array_t<double, py::array::c_style | py::array::forcecast> Y, py::array_t<double, py::array::c_style | py::array::forcecast> Z) {
   SETUP_BASE_MATRICES;
-  long nrhs = 0;
+  py::size_t nrhs = 0;
   SETUP_RHS_MATRIX(Y);
   SETUP_RHS_MATRIX(Z);
 #define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
@@ -189,7 +189,7 @@ auto dot_tril(py::array_t<double, py::array::c_style | py::array::forcecast> U, 
               py::array_t<double, py::array::c_style | py::array::forcecast> d, py::array_t<double, py::array::c_style | py::array::forcecast> W,
               py::array_t<double, py::array::c_style | py::array::forcecast> Z) {
   SETUP_BASE_MATRICES;
-  long nrhs = 0;
+  py::size_t nrhs = 0;
   SETUP_RHS_MATRIX(Z);
 #define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
   {                                                                                                                                                  \
