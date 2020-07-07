@@ -8,12 +8,17 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: Test C++ on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
       - uses: actions/checkout@v2
         with:
           submodules: true
+      - uses: ilammy/msvc-dev-cmd@v1
       - name: Build
         run: |
           mkdir -p c++/build

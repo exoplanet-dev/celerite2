@@ -1,5 +1,7 @@
 name: Wheels
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
 
 jobs:
   build_wheels:
@@ -19,7 +21,6 @@ jobs:
           python-version: "3.7"
 
       - uses: ilammy/msvc-dev-cmd@v1
-        if: runner.os == 'Windows'
 
       - name: Install cibuildwheel
         run: |
