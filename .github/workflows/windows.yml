@@ -25,7 +25,7 @@ jobs:
           conda activate celerite2
           conda install -c conda-forge -q "numpy=1.16.5" mkl-service libpython m2w64-toolchain celerite
           python -m pip install -U wheel setuptools_scm numpy pybind11
-          python -m pip install -vv -e .[test]
+          python -m pip install -vv -e .
       - name: Run tests
         run: |
           conda activate celerite2
