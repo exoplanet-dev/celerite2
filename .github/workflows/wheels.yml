@@ -31,6 +31,7 @@ jobs:
         env:
           CIBW_BUILD: "cp3?-win_amd64"
           DISTUTILS_USE_SDK: 1
+          MSSdk: 1
 
       - name: Build wheels on Mac and Linux
         if: runner.os != 'Windows'
