@@ -28,4 +28,6 @@ jobs:
       - name: Run tests
         run: |
           cd c++/build
-          CTEST_OUTPUT_ON_FAILURE=1 ctest
+          ctest
+        env:
+          CTEST_OUTPUT_ON_FAILURE: 1
