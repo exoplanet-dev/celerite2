@@ -16,8 +16,8 @@ namespace core {
   CAST_BASE(TYPE, VAR);                                                                                                                              \
   VAR.derived().resize(ROWS, COLS)
 
-#define GET_MACRO(_1, _2, _3, _4, NAME, ...) NAME
-#define CAST(...) GET_MACRO(__VA_ARGS__, CAST_MAT, CAST_VEC, CAST_BASE)(__VA_ARGS__)
+// #define GET_MACRO(_1, _2, _3, _4, NAME, ...) NAME
+// #define CAST(...) GET_MACRO(__VA_ARGS__, CAST_MAT, CAST_VEC, CAST_BASE)(__VA_ARGS__)
 
 const int THE_WORKSPACE_VARIABLE_MUST_BE_ROW_MAJOR = 0;
 #define ASSERT_ROW_MAJOR(TYPE) EIGEN_STATIC_ASSERT(TYPE::IsRowMajor, THE_WORKSPACE_VARIABLE_MUST_BE_ROW_MAJOR)
@@ -28,7 +28,7 @@ template <bool do_update = true>
 struct update_workspace {
   template <typename A, typename B>
   static void apply(Eigen::Index n, const Eigen::MatrixBase<A> &a, Eigen::MatrixBase<B> const &b_out) {
-    CAST(B, b);
+    CAST_BASE(B, b);
     b.row(n) = a;
   }
 };
@@ -43,15 +43,15 @@ template <bool is_solve = false>
 struct update_f {
   template <typename A, typename B, typename C, typename D>
   static void apply(const Eigen::MatrixBase<A> &a, const Eigen::MatrixBase<B> &b, const Eigen::MatrixBase<C> &c, Eigen::MatrixBase<D> const &d_out) {
-    CAST(D, d);
+    CAST_BASE(D, d);
     d.noalias() += a * b;
   }
 
   template <typename A, typename B, typename C, typename D, typename E, typename F, typename G>
   static void reverse(const Eigen::MatrixBase<A> &a, const Eigen::MatrixBase<B> &b, const Eigen::MatrixBase<C> &c, const Eigen::MatrixBase<D> &d,
                       Eigen::MatrixBase<E> const &e_out, Eigen::MatrixBase<F> const &f_out, Eigen::MatrixBase<G> const &g_out) {
-    CAST(E, e);
-    CAST(F, f);
+    CAST_BASE(E, e);
+    CAST_BASE(F, f);
     e.noalias() += b * d.transpose();
     f.noalias() += a * d;
   }
@@ -61,15 +61,15 @@ template <>
 struct update_f<true> {
   template <typename A, typename B, typename C, typename D>
   static void apply(const Eigen::MatrixBase<A> &a, const Eigen::MatrixBase<B> &b, const Eigen::MatrixBase<C> &c, Eigen::MatrixBase<D> const &d_out) {
-    CAST(D, d);
+    CAST_BASE(D, d);
     d.noalias() += a * c;
   }
 
   template <typename A, typename B, typename C, typename D, typename E, typename F, typename G>
   static void reverse(const Eigen::MatrixBase<A> &a, const Eigen::MatrixBase<B> &b, const Eigen::MatrixBase<C> &c, const Eigen::MatrixBase<D> &d,
                       Eigen::MatrixBase<E> const &e_out, Eigen::MatrixBase<F> const &f_out, Eigen::MatrixBase<G> const &g_out) {
-    CAST(E, e);
-    CAST(G, g);
+    CAST_BASE(E, e);
+    CAST_BASE(G, g);
     e.noalias() += c * d.transpose();
     g.noalias() += a * d;
   }
@@ -79,7 +79,7 @@ template <bool is_solve = false>
 struct update_z {
   template <typename A, typename B>
   static void apply(const Eigen::MatrixBase<A> &a, Eigen::MatrixBase<B> const &b_out) {
-    CAST(B, b);
+    CAST_BASE(B, b);
     b.noalias() += a;
   }
 };
@@ -88,7 +88,7 @@ template <>
 struct update_z<true> {
   template <typename A, typename B>
   static void apply(const Eigen::MatrixBase<A> &a, Eigen::MatrixBase<B> const &b_out) {
-    CAST(B, b);
+    CAST_BASE(B, b);
     b.noalias() -= a;
   }
 };
@@ -108,8 +108,8 @@ void forward(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
   typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
 
   Eigen::Index N = U.rows(), J = U.cols(), nrhs = Y.cols();
-  CAST(RightHandSideOut, Z); // Must already be the right shape
-  CAST(Work, F);
+  CAST_BASE(RightHandSideOut, Z); // Must already be the right shape
+  CAST_BASE(Work, F);
   if (do_update) {
     F.derived().resize(N, J * nrhs);
     F.row(0).setZero();
@@ -146,8 +146,8 @@ void backward(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
   typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
 
   Eigen::Index N = U.rows(), J = U.cols(), nrhs = Y.cols();
-  CAST(RightHandSideOut, Z); // Must already be the right shape
-  CAST(Work, F);
+  CAST_BASE(RightHandSideOut, Z); // Must already be the right shape
+  CAST_BASE(Work, F);
   if (do_update) {
     F.derived().resize(N, J * nrhs);
     F.row(N - 1).setZero();
@@ -188,11 +188,11 @@ void forward_rev(const Eigen::MatrixBase<LowRank> &U,               // (N, J)
   typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
 
   Eigen::Index N = U.rows(), J = U.cols(), nrhs = Y.cols();
-  CAST(LowRankOut, bU, N, J);
-  CAST(LowRankOut, bV, N, J);
-  CAST(LowRankOut, bP, N - 1, J);
-  CAST(RightHandSideOut, bY);
-  CAST(RightHandSideOut, bZ);
+  CAST_MAT(LowRankOut, bU, N, J);
+  CAST_MAT(LowRankOut, bV, N, J);
+  CAST_MAT(LowRankOut, bP, N - 1, J);
+  CAST_BASE(RightHandSideOut, bY);
+  CAST_BASE(RightHandSideOut, bZ);
 
   Inner Fn(J, nrhs), bF(J, nrhs);
   Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Fn.data(), 1, J * nrhs);
@@ -232,11 +232,11 @@ void backward_rev(const Eigen::MatrixBase<LowRank> &U,               // (N, J)
   typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
 
   Eigen::Index N = U.rows(), J = U.cols(), nrhs = Y.cols();
-  CAST(LowRankOut, bU, N, J);
-  CAST(LowRankOut, bV, N, J);
-  CAST(LowRankOut, bP, N - 1, J);
-  CAST(RightHandSideOut, bY);
-  CAST(RightHandSideOut, bZ);
+  CAST_MAT(LowRankOut, bU, N, J);
+  CAST_MAT(LowRankOut, bV, N, J);
+  CAST_MAT(LowRankOut, bP, N - 1, J);
+  CAST_BASE(RightHandSideOut, bY);
+  CAST_BASE(RightHandSideOut, bZ);
 
   Inner Fn(J, nrhs), bF(J, nrhs);
   Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Fn.data(), 1, J * nrhs);

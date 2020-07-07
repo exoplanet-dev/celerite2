@@ -29,10 +29,10 @@ void factor_rev(const Eigen::MatrixBase<Diag> &a,            // (N,)
   typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, LowRank::ColsAtCompileTime> Inner;
 
   Eigen::Index N = U.rows(), J = U.cols();
-  CAST(DiagOut, ba, N);
-  CAST(LowRankOut, bU, N, J);
-  CAST(LowRankOut, bV, N, J);
-  CAST(LowRankOut, bP, N - 1, J);
+  CAST_VEC(DiagOut, ba, N);
+  CAST_MAT(LowRankOut, bU, N, J);
+  CAST_MAT(LowRankOut, bV, N, J);
+  CAST_MAT(LowRankOut, bP, N - 1, J);
 
   // Make local copies of the gradients that we need
   Inner Sn(J, J), bS(J, J);
@@ -85,11 +85,11 @@ void solve_rev(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
   ASSERT_ROW_MAJOR(Work);
 
   Eigen::Index N = U.rows(), J = U.cols();
-  CAST(LowRankOut, bU, N, J);
-  CAST(LowRankOut, bP, N - 1, J);
-  CAST(DiagOut, bd);
-  CAST(LowRankOut, bW, N, J);
-  CAST(RightHandSideOut, bY);
+  CAST_MAT(LowRankOut, bU, N, J);
+  CAST_MAT(LowRankOut, bP, N - 1, J);
+  CAST_BASE(DiagOut, bd);
+  CAST_MAT(LowRankOut, bW, N, J);
+  CAST_BASE(RightHandSideOut, bY);
 
   bU.setZero();
   bP.setZero();
@@ -124,11 +124,11 @@ void norm_rev(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
   ASSERT_ROW_MAJOR(Work);
 
   Eigen::Index N = U.rows(), J = U.cols();
-  CAST(LowRankOut, bU, N, J);
-  CAST(LowRankOut, bP, N - 1, J);
-  CAST(DiagOut, bd);
-  CAST(LowRankOut, bW, N, J);
-  CAST(RightHandSideOut, bY);
+  CAST_MAT(LowRankOut, bU, N, J);
+  CAST_MAT(LowRankOut, bP, N - 1, J);
+  CAST_BASE(DiagOut, bd);
+  CAST_MAT(LowRankOut, bW, N, J);
+  CAST_BASE(RightHandSideOut, bY);
 
   bU.setZero();
   bP.setZero();
@@ -157,8 +157,8 @@ void dot_tril_rev(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
-  CAST(RightHandSideOut, bY);
-  CAST(DiagOut, bd, d.rows());
+  CAST_BASE(RightHandSideOut, bY);
+  CAST_BASE(DiagOut, bd);
 
   Eigen::Matrix<typename Diag::Scalar, Diag::RowsAtCompileTime, 1> sqrtd = sqrt(d.array());
 
@@ -194,18 +194,16 @@ void matmul_rev(const Eigen::MatrixBase<Diag> &a,                 // (N,)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
-  Eigen::Index N = U.rows(), J = U.cols(), nrhs = Y.cols();
-  CAST(DiagOut, ba, N);
-  CAST(LowRankOut, bU, N, J);
-  CAST(LowRankOut, bV, N, J);
-  CAST(LowRankOut, bP, N - 1, J);
-  CAST(RightHandSideOut, bY, N, nrhs);
+  Eigen::Index N = U.rows(), J = U.cols();
+  CAST_BASE(DiagOut, ba);
+  CAST_MAT(LowRankOut, bU, N, J);
+  CAST_MAT(LowRankOut, bV, N, J);
+  CAST_MAT(LowRankOut, bP, N - 1, J);
+  CAST_BASE(RightHandSideOut, bY);
 
-  ba.setZero();
   bU.setZero();
   bV.setZero();
   bP.setZero();
-  bY.setZero();
 
   bY = a.asDiagonal() * bX;
   ba = (Y * bX.transpose()).diagonal();
