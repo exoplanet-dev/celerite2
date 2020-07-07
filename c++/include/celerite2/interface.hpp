@@ -13,12 +13,12 @@ namespace core {
   Empty
 
 template <typename Diag, typename LowRank, typename DiagOut, typename LowRankOut>
-int factor(const Eigen::MatrixBase<Diag> &a,          // (N,)
-           const Eigen::MatrixBase<LowRank> &U,       // (N, J)
-           const Eigen::MatrixBase<LowRank> &V,       // (N, J)
-           const Eigen::MatrixBase<LowRank> &P,       // (N-1, J)
-           Eigen::MatrixBase<DiagOut> const &d_out,   // (N,)
-           Eigen::MatrixBase<LowRankOut> const &W_out // (N, J)
+Eigen::Index factor(const Eigen::MatrixBase<Diag> &a,          // (N,)
+                    const Eigen::MatrixBase<LowRank> &U,       // (N, J)
+                    const Eigen::MatrixBase<LowRank> &V,       // (N, J)
+                    const Eigen::MatrixBase<LowRank> &P,       // (N-1, J)
+                    Eigen::MatrixBase<DiagOut> const &d_out,   // (N,)
+                    Eigen::MatrixBase<LowRankOut> const &W_out // (N, J)
 ) {
   MakeEmptyWork(Diag) S;
   return factor<false>(a, U, V, P, d_out, W_out, S);
