@@ -23,9 +23,9 @@ jobs:
         run: |
           conda create -n celerite2 python=3.7 -q -c conda-forge
           conda activate celerite2
-          conda install -c conda-forge -q numpy libpython celerite  # m2w64-toolchain
-          python -m pip install -U wheel setuptools_scm numpy pybind11
-          python -m pip install -vv -e .
+          conda install -c conda-forge -q numpy libpython celerite
+          python -m pip install -U pip
+          python -m pip install -e ".[test]"
       - name: Run tests
         run: |
           conda activate celerite2
