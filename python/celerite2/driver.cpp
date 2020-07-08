@@ -56,12 +56,22 @@ struct linalg_exception : public std::exception {
   }
 
 // These are some generally useful macros for interfacing between numpy and Eigen
-#define GET_ROW_MAJOR(SIZE) constexpr int RowMajor = (SIZE == 1) ? Eigen::ColMajor : Eigen::RowMajor
+template <int Size>
+struct order {
+  const static int value = Eigen::RowMajor;
+};
+
+template <>
+struct order<1> {
+  const static int value = Eigen::ColMajor;
+};
+
 #define VECTOR(NAME, BUF, ROWS) Eigen::Map<Eigen::VectorXd> NAME((double *)BUF.ptr, ROWS, 1)
-#define MATRIX(SIZE, NAME, BUF, ROWS, COLS) Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, RowMajor>> NAME((double *)BUF.ptr, ROWS, COLS)
+#define MATRIX(SIZE, NAME, BUF, ROWS, COLS)                                                                                                          \
+  Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> NAME((double *)BUF.ptr, ROWS, COLS)
 #define CONST_VECTOR(NAME, BUF, ROWS) Eigen::Map<const Eigen::VectorXd> NAME((double *)BUF.ptr, ROWS, 1)
 #define CONST_MATRIX(SIZE, NAME, BUF, ROWS, COLS)                                                                                                    \
-  Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, RowMajor>> NAME((double *)BUF.ptr, ROWS, COLS)
+  Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> NAME((double *)BUF.ptr, ROWS, COLS)
 
 // This gets the buffer info for the standard celerite matrix inputs and checks the dimensions
 #define SETUP_BASE_MATRICES                                                                                                                          \
@@ -97,7 +107,6 @@ auto factor(py::array_t<double, py::array::c_style | py::array::forcecast> U, py
   Eigen::Index flag = 0;
 #define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
   {                                                                                                                                                  \
-    GET_ROW_MAJOR(SIZE);                                                                                                                             \
     CONST_VECTOR(a_, dbuf, N);                                                                                                                       \
     CONST_MATRIX(SIZE, U_, Ubuf, N, J);                                                                                                              \
     CONST_MATRIX(SIZE, V_, Wbuf, N, J);                                                                                                              \
@@ -120,7 +129,6 @@ auto solve(py::array_t<double, py::array::c_style | py::array::forcecast> U, py:
   SETUP_RHS_MATRIX(Z);
 #define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
   {                                                                                                                                                  \
-    GET_ROW_MAJOR(SIZE);                                                                                                                             \
     CONST_MATRIX(SIZE, U_, Ubuf, N, J);                                                                                                              \
     CONST_MATRIX(SIZE, P_, Pbuf, N - 1, J);                                                                                                          \
     CONST_VECTOR(d_, dbuf, N);                                                                                                                       \
@@ -148,7 +156,6 @@ auto norm(py::array_t<double, py::array::c_style | py::array::forcecast> U, py::
   Eigen::Matrix<double, 1, 1> norm_;
 #define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
   {                                                                                                                                                  \
-    GET_ROW_MAJOR(SIZE);                                                                                                                             \
     CONST_MATRIX(SIZE, U_, Ubuf, N, J);                                                                                                              \
     CONST_MATRIX(SIZE, P_, Pbuf, N - 1, J);                                                                                                          \
     CONST_VECTOR(d_, dbuf, N);                                                                                                                       \
@@ -170,7 +177,6 @@ auto matmul(py::array_t<double, py::array::c_style | py::array::forcecast> d, py
   SETUP_RHS_MATRIX(Z);
 #define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
   {                                                                                                                                                  \
-    GET_ROW_MAJOR(SIZE);                                                                                                                             \
     CONST_MATRIX(SIZE, U_, Ubuf, N, J);                                                                                                              \
     CONST_MATRIX(SIZE, P_, Pbuf, N - 1, J);                                                                                                          \
     CONST_VECTOR(d_, dbuf, N);                                                                                                                       \
@@ -198,7 +204,6 @@ auto dot_tril(py::array_t<double, py::array::c_style | py::array::forcecast> U, 
   SETUP_RHS_MATRIX(Z);
 #define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
   {                                                                                                                                                  \
-    GET_ROW_MAJOR(SIZE);                                                                                                                             \
     CONST_MATRIX(SIZE, U_, Ubuf, N, J);                                                                                                              \
     CONST_MATRIX(SIZE, P_, Pbuf, N - 1, J);                                                                                                          \
     CONST_VECTOR(d_, dbuf, N);                                                                                                                       \

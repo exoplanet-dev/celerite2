@@ -2,7 +2,7 @@
 import celerite as original_celerite
 import numpy as np
 
-from celerite2 import driver
+from celerite2 import driver, terms
 
 
 def get_celerite_matrices(kernel, x, diag):
@@ -31,17 +31,15 @@ def get_celerite_matrices(kernel, x, diag):
     return a, U, V, P
 
 
-def get_matrices(size=100):
+def get_matrices(size=100, kernel=None):
     np.random.seed(721)
     x = np.sort(np.random.uniform(0, 10, size))
     Y = np.ascontiguousarray(
         np.vstack([np.sin(x), np.cos(x), x ** 2]).T, dtype=np.float64
     )
     diag = np.random.uniform(0.1, 0.3, len(x))
-    kernel = original_celerite.terms.SHOTerm(
-        log_S0=1.5, log_omega0=-0.5, log_Q=1.5
-    )
-    a, U, V, P = get_celerite_matrices(kernel, x, diag)
+    kernel = kernel if kernel else terms.SHOTerm(S0=5.0, w0=0.1, Q=3.45)
+    a, U, V, P = kernel.get_celerite_matrices(x, diag)
 
     K = kernel.get_value(x[:, None] - x[None, :])
     K[np.diag_indices_from(K)] += diag
@@ -91,6 +89,23 @@ def test_norm():
 
 def test_matmul():
     a, U, V, P, K, Y = get_matrices()
+
+    # First compute the expected value
+    expect = np.dot(K, Y)
+
+    # Then solve using celerite
+    Z = np.empty_like(Y)
+    value = driver.matmul(a, U, V, P, Y, Z)
+
+    # Make sure that no copy is made if possible
+    assert np.allclose(value, Z)
+
+    # Check that the solution is correct
+    assert np.allclose(value, expect)
+
+
+def test_matmul_order():
+    a, U, V, P, K, Y = get_matrices(kernel=terms.RealTerm(a=1.0, c=0.5))
 
     # First compute the expected value
     expect = np.dot(K, Y)

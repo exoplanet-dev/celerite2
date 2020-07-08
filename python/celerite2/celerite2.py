@@ -36,7 +36,7 @@ class GP:
         if yerr is None and diag is None:
             self._diag[:] = 0.0
 
-        elif yerr is None:
+        elif yerr is not None:
             if diag is not None:
                 raise ValueError(
                     "only one of 'diag' and 'yerr' can be provided"
@@ -81,22 +81,23 @@ class GP:
             self._t, diag=self._diag, check_sorted=False, quiet=quiet
         )
 
-    def _process_input(self, y):
+    def _process_input(self, y, inplace=False):
         y = np.atleast_1d(y)
         if self._t is None:
             raise RuntimeError("you must call 'compute' first")
         if self._t.shape[0] != y.shape[0]:
             raise ValueError("dimension mismatch")
-        return np.ascontiguousarray(y, dtype=np.float64)
-
-    def apply_inverse(self, y, inplace=False):
-        y = self._process_input(y)
+        y = np.ascontiguousarray(y, dtype=np.float64)
         if not inplace:
             y = np.copy(y)
+        return y
+
+    def apply_inverse(self, y, inplace=False):
+        y = self._process_input(y, inplace=inplace)
         return driver.solve(self._U, self._P, self._d, self._W, y)
 
-    def log_likelihood(self, y):
-        y = self._process_input(y)
+    def log_likelihood(self, y, inplace=False):
+        y = self._process_input(y, inplace=inplace)
         if self._t.shape != y.shape:
             raise ValueError("'y' must be one dimensional")
         if not np.isfinite(self._log_det):

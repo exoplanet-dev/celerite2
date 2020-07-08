@@ -96,10 +96,10 @@ class Term:
         Jc = len(ac)
         J = Jr + 2 * Jc
 
-        a = np.resize(a, N) if a else np.empty(N)
-        U = np.resize(U, (N, J)) if U else np.empty((N, J))
-        V = np.resize(V, (N, J)) if V else np.empty((N, J))
-        P = np.resize(P, (N - 1, J)) if P else np.empty((N - 1, J))
+        a = np.resize(a, N) if a is not None else np.empty(N)
+        U = np.resize(U, (N, J)) if U is not None else np.empty((N, J))
+        V = np.resize(V, (N, J)) if V is not None else np.empty((N, J))
+        P = np.resize(P, (N - 1, J)) if P is not None else np.empty((N - 1, J))
 
         a[:] = diag + np.sum(ar) + np.sum(ac)
 
@@ -453,7 +453,7 @@ class Matern32Term(Term):
 
     def get_coefficients(self):
         w0 = np.sqrt(3) / self.rho
-        S0 = self.sigma ** 2 / self.w0
+        S0 = self.sigma ** 2 / w0
         e = np.empty(0)
         return (
             e,
