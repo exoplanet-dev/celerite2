@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 __all__ = ["__version__", "terms", "GP"]
+
 from . import terms
 from .celerite2 import GP
 from .celerite2_version import __version__

@@ -96,26 +96,26 @@ class Term:
         Jc = len(ac)
         J = Jr + 2 * Jc
 
-        a = np.resize(a, N) if a is not None else np.empty(N)
-        U = np.resize(U, (N, J)) if U is not None else np.empty((N, J))
-        V = np.resize(V, (N, J)) if V is not None else np.empty((N, J))
-        P = np.resize(P, (N - 1, J)) if P is not None else np.empty((N - 1, J))
+        if a is None:
+            a = np.empty(N)
+        else:
+            a.resize(N, refcheck=False)
+        if U is None:
+            U = np.empty((N, J))
+        else:
+            U.resize((N, J), refcheck=False)
+        if V is None:
+            V = np.empty((N, J))
+        else:
+            V.resize((N, J), refcheck=False)
+        if P is None:
+            P = np.empty((N - 1, J))
+        else:
+            P.resize((N - 1, J), refcheck=False)
 
-        a[:] = diag + np.sum(ar) + np.sum(ac)
-
-        V[:, :Jr] = 1
-        cos = np.cos(dc[None, :] * x[:, None], out=V[:, Jr : Jr + Jc])
-        sin = np.sin(dc[None, :] * x[:, None], out=V[:, Jr + Jc :])
-
-        U[:, :Jr] = ar[None, :]
-        np.add(ac[None, :] * cos, bc[None, :] * sin, out=U[:, Jr : Jr + Jc])
-        np.subtract(ac[None, :] * sin, bc[None, :] * cos, out=U[:, Jr + Jc :])
-
-        dx = x[1:] - x[:-1]
-        c = np.concatenate((cr, cc, cc))
-        np.exp(-c[None, :] * dx[:, None], out=P)
-
-        return a, U, V, P
+        return driver.get_celerite_matrices(
+            ar, cr, ac, bc, cc, dc, x, diag, a, U, V, P
+        )
 
     def dot(self, x, diag, y):
         a, U, V, P = self.get_celerite_matrices(x, diag)

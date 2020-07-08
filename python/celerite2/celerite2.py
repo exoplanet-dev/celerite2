@@ -15,6 +15,8 @@ class GP:
         # Placeholders for storing data
         self._t = None
         self._diag = None
+        self._log_det = -np.inf
+        self._norm = np.inf
 
         # Placeholders to celerite matrices
         self._U = np.empty((0, 0), dtype=np.float64)
@@ -22,7 +24,9 @@ class GP:
         self._d = np.empty(0, dtype=np.float64)
         self._W = np.empty((0, 0), dtype=np.float64)
 
-    def compute(self, t, yerr=None, diag=None, check_sorted=True, quiet=False):
+    def compute(
+        self, t, *, yerr=None, diag=None, check_sorted=True, quiet=False
+    ):
         # Check the input coordinates
         t = np.atleast_1d(t)
         if check_sorted and np.any(np.diff(t) < 0.0):
@@ -72,7 +76,7 @@ class GP:
                 self._log_det + len(self._t) * np.log(2 * np.pi)
             )
 
-    def recompute(self, quiet=False):
+    def recompute(self, *, quiet=False):
         if self._t is None:
             raise RuntimeError(
                 "you must call 'compute' directly  at least once"
@@ -81,7 +85,7 @@ class GP:
             self._t, diag=self._diag, check_sorted=False, quiet=quiet
         )
 
-    def _process_input(self, y, inplace=False):
+    def _process_input(self, y, *, inplace=False):
         y = np.atleast_1d(y)
         if self._t is None:
             raise RuntimeError("you must call 'compute' first")
@@ -92,11 +96,11 @@ class GP:
             y = np.copy(y)
         return y
 
-    def apply_inverse(self, y, inplace=False):
+    def apply_inverse(self, y, *, inplace=False):
         y = self._process_input(y, inplace=inplace)
         return driver.solve(self._U, self._P, self._d, self._W, y)
 
-    def log_likelihood(self, y, inplace=False):
+    def log_likelihood(self, y, *, inplace=False):
         y = self._process_input(y, inplace=inplace)
         if self._t.shape != y.shape:
             raise ValueError("'y' must be one dimensional")

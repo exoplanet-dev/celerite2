@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import celerite as original_celerite
 import numpy as np
 
 from celerite2 import driver, terms
