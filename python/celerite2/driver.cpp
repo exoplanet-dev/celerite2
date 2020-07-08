@@ -78,7 +78,7 @@ struct order<1> {
 #define SETUP_BASE_MATRICES                                                                                                                          \
   py::buffer_info Ubuf = U.request(), Pbuf = P.request(), dbuf = d.request(), Wbuf = W.request();                                                    \
   if (Ubuf.ndim != 2 || Pbuf.ndim != 2 || dbuf.ndim != 1 || Wbuf.ndim != 2) throw std::runtime_error("Invalid dimensions");                          \
-  py::size_t N = Ubuf.shape[0], J = Ubuf.shape[1];                                                                                                   \
+  ssize_t N = Ubuf.shape[0], J = Ubuf.shape[1];                                                                                                      \
   if (N == 0 || J == 0) throw std::runtime_error("Dimensions can't be zero");                                                                        \
   if (Pbuf.shape[0] != N - 1 || Pbuf.shape[1] != J) throw std::runtime_error("Invalid shape: P");                                                    \
   if (dbuf.shape[0] != N) throw std::runtime_error("Invalid shape: d");                                                                              \
@@ -87,7 +87,7 @@ struct order<1> {
 // This gets the buffer info for a right hand side input and checks the dimensions
 #define SETUP_RHS_MATRIX(NAME)                                                                                                                       \
   py::buffer_info NAME##buf = NAME.request();                                                                                                        \
-  py::size_t NAME##_nrhs    = 1;                                                                                                                     \
+  ssize_t NAME##_nrhs       = 1;                                                                                                                     \
   if (NAME##buf.ndim == 2) {                                                                                                                         \
     NAME##_nrhs = NAME##buf.shape[1];                                                                                                                \
   } else if (NAME##buf.ndim != 1)                                                                                                                    \
@@ -125,7 +125,7 @@ auto factor(py::array_t<double, py::array::c_style> U, py::array_t<double, py::a
 auto solve(py::array_t<double, py::array::c_style> U, py::array_t<double, py::array::c_style> P, py::array_t<double, py::array::c_style> d,
            py::array_t<double, py::array::c_style> W, py::array_t<double, py::array::c_style> Z) {
   SETUP_BASE_MATRICES;
-  py::size_t nrhs = 0;
+  ssize_t nrhs = 0;
   SETUP_RHS_MATRIX(Z);
 #define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
   {                                                                                                                                                  \
@@ -149,7 +149,7 @@ auto solve(py::array_t<double, py::array::c_style> U, py::array_t<double, py::ar
 auto norm(py::array_t<double, py::array::c_style> U, py::array_t<double, py::array::c_style> P, py::array_t<double, py::array::c_style> d,
           py::array_t<double, py::array::c_style> W, py::array_t<double, py::array::c_style> Z) {
   SETUP_BASE_MATRICES;
-  py::size_t nrhs = 0;
+  ssize_t nrhs = 0;
   SETUP_RHS_MATRIX(Z);
   if (nrhs != 1) throw std::runtime_error("Z must be a vector");
   Eigen::Matrix<double, 1, 1> norm_;
@@ -170,7 +170,7 @@ auto norm(py::array_t<double, py::array::c_style> U, py::array_t<double, py::arr
 auto matmul(py::array_t<double, py::array::c_style> d, py::array_t<double, py::array::c_style> U, py::array_t<double, py::array::c_style> W,
             py::array_t<double, py::array::c_style> P, py::array_t<double, py::array::c_style> Y, py::array_t<double, py::array::c_style> Z) {
   SETUP_BASE_MATRICES;
-  py::size_t nrhs = 0;
+  ssize_t nrhs = 0;
   SETUP_RHS_MATRIX(Y);
   SETUP_RHS_MATRIX(Z);
 #define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
@@ -197,7 +197,7 @@ auto matmul(py::array_t<double, py::array::c_style> d, py::array_t<double, py::a
 auto dot_tril(py::array_t<double, py::array::c_style> U, py::array_t<double, py::array::c_style> P, py::array_t<double, py::array::c_style> d,
               py::array_t<double, py::array::c_style> W, py::array_t<double, py::array::c_style> Z) {
   SETUP_BASE_MATRICES;
-  py::size_t nrhs = 0;
+  ssize_t nrhs = 0;
   SETUP_RHS_MATRIX(Z);
 #define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
   {                                                                                                                                                  \
@@ -275,7 +275,7 @@ auto get_celerite_matrices(py::array_t<double, py::array::c_style> ar_in, py::ar
     }
   }
 
-  for (size_t n = 0; n < N - 1; ++n) {
+  for (ssize_t n = 0; n < N - 1; ++n) {
     double dx = x(n + 1) - x(n);
     for (ssize_t j = 0; j < Jr; ++j) P(n, j) = std::exp(-cr(j) * dx);
     for (ssize_t j = 0, ind = Jr; j < Jc; ++j, ind += 2) P(n, ind) = P(n, ind + 1) = std::exp(-cc(j) * dx);
