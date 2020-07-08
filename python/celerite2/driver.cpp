@@ -1,5 +1,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <exception>
 
 #include <celerite2/celerite2.h>
 
@@ -7,6 +8,10 @@ namespace py = pybind11;
 
 namespace celerite2 {
 namespace driver {
+
+struct linalg_exception : public std::exception {
+  const char *what() const throw() { return "failed to factorize or solve matrix"; }
+};
 
 //
 // SOME USEFUL MACROS
@@ -103,7 +108,7 @@ auto factor(py::array_t<double, py::array::c_style | py::array::forcecast> U, py
   }
   UNWRAP_CASES;
 #undef FIXED_SIZE_MAP
-  if (flag) throw std::runtime_error("Linear algebra error");
+  if (flag) throw linalg_exception();
   return std::make_tuple(d, W);
 }
 
@@ -222,6 +227,8 @@ PYBIND11_MODULE(driver, m) {
 
     These functions are low level and you shouldn't generally need or want to call them as a user.
 )doc";
+
+  py::register_exception<celerite2::driver::linalg_exception>(m, "LinAlgError");
 
   m.def("factor", &celerite2::driver::factor, "Compute the Cholesky factor of a celerite system", py::arg("U"), py::arg("P"), py::arg("d"),
         py::arg("W"));
