@@ -17,6 +17,9 @@ jobs:
         include:
           - os: ubuntu-latest
             python-version: 3.8
+            cflags: "-UNDEBUG"
+          - os: ubuntu-latest
+            python-version: 3.8
             cflags: "-DCELERITE2_FAST_RUN"
 
     steps:
@@ -31,7 +34,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install -U pip
-          python -m pip install -v ".[test]"
+          python -m pip install ".[test]"
         env:
           DISTUTILS_USE_SDK: 1
           MSSdk: 1
