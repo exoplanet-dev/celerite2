@@ -121,3 +121,32 @@ def test_solve_rev(vector):
     check_grad(
         backprop.solve_fwd, backprop.solve_rev, [U, P, d, W, Y], [X], [Z, F, G]
     )
+
+
+def test_norm_fwd():
+    a, U, V, P, Y = get_matrices(vector=True)
+    d, W = driver.factor(U, P, a, V)
+
+    X0 = driver.norm(U, P, d, W, np.copy(Y))
+
+    X = np.empty((1, 1))
+    Z = np.empty_like(Y)
+    F = np.empty_like(U)
+
+    X, Z, F = backprop.norm_fwd(U, P, d, W, Y, X, Z, F)
+    assert np.allclose(X0, X)
+
+
+def test_norm_rev():
+    a, U, V, P, Y = get_matrices(vector=True)
+    d, W = driver.factor(U, P, a, V)
+
+    X = np.empty((1, 1))
+    Z = np.empty_like(Y)
+    F = np.empty_like(U)
+
+    X, Z, F = backprop.norm_fwd(U, P, d, W, Y, X, Z, F)
+
+    check_grad(
+        backprop.norm_fwd, backprop.norm_rev, [U, P, d, W, Y], [X], [Z, F]
+    )
