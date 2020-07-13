@@ -4,32 +4,6 @@ import numpy as np
 from celerite2 import driver, terms
 
 
-def get_celerite_matrices(kernel, x, diag):
-    ar, cr, ac, bc, cc, dc = kernel.get_all_coefficients()
-    a = diag + np.sum(ar) + np.sum(ac)
-
-    N = len(x)
-    Jr = len(ar)
-    Jc = len(ac)
-    J = Jr + 2 * Jc
-    U = np.empty((N, J))
-    V = np.empty((N, J))
-
-    V[:, :Jr] = 1
-    cos = np.cos(dc[None, :] * x[:, None], out=V[:, Jr : Jr + Jc])
-    sin = np.sin(dc[None, :] * x[:, None], out=V[:, Jr + Jc :])
-
-    U[:, :Jr] = ar[None, :]
-    np.add(ac[None, :] * cos, bc[None, :] * sin, out=U[:, Jr : Jr + Jc])
-    np.subtract(ac[None, :] * sin, bc[None, :] * cos, out=U[:, Jr + Jc :])
-
-    dx = x[1:] - x[:-1]
-    c = np.concatenate((cr, cc, cc))
-    P = np.exp(-c[None, :] * dx[:, None])
-
-    return a, U, V, P
-
-
 def get_matrices(size=100, kernel=None):
     np.random.seed(721)
     x = np.sort(np.random.uniform(0, 10, size))

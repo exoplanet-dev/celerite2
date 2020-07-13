@@ -2,13 +2,12 @@
 
 # Inspired by:
 # https://hynek.me/articles/sharing-your-labor-of-love-pypi-quick-and-dirty/
-
 import codecs
 import os
 import re
 import sys
 
-from setuptools import find_packages, setup, Extension
+from setuptools import Extension, find_packages, setup
 from setuptools.command.build_ext import build_ext
 
 # PROJECT SPECIFIC
@@ -93,8 +92,9 @@ class custom_build_ext(build_ext):
         l_opts["unix"] += darwin_opts
 
     def has_flag(self, flagname):
-        import setuptools
         import tempfile
+
+        import setuptools
 
         with tempfile.NamedTemporaryFile("w", suffix=".cpp") as f:
             f.write("int main (int argc, char **argv) { return 0; }")
@@ -136,17 +136,25 @@ class custom_build_ext(build_ext):
         build_ext.build_extensions(self)
 
 
+include_dirs = [
+    "c++/include",
+    "c++/vendor/eigen",
+    "python/celerite2",
+    get_numpy_include(),
+    get_pybind_include(),
+    get_pybind_include(user=True),
+]
 ext_modules = [
     Extension(
         "celerite2.driver",
         ["python/celerite2/driver.cpp"],
-        include_dirs=[
-            "c++/include",
-            "c++/vendor/eigen",
-            get_numpy_include(),
-            get_pybind_include(),
-            get_pybind_include(user=True),
-        ],
+        include_dirs=include_dirs,
+        language="c++",
+    ),
+    Extension(
+        "celerite2.backprop",
+        ["python/celerite2/backprop.cpp"],
+        include_dirs=include_dirs,
         language="c++",
     ),
 ]
