@@ -174,7 +174,7 @@ auto solve_rev(py::array_t<double, py::array::c_style> U, py::array_t<double, py
   UNWRAP_CASES_FEW;
 #undef FIXED_SIZE_MAP
   return std::make_tuple(bU, bP, bd, bW, bY);
-} // namespace driver
+}
 
 } // namespace driver
 } // namespace celerite2
