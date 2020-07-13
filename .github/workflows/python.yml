@@ -14,7 +14,7 @@ jobs:
         python-version: [3.7, 3.8]
         os: [ubuntu-latest, windows-latest, macos-latest]
         env: [[]]
-        name: ["py${{ matrix.python-version }} on ${{ matrix.os }}"]
+        name: ["py${{ python-version }} on ${{ os }}"]
         include:
           - name: "Fast run"
             os: ubuntu-latest
