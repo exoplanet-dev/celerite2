@@ -150,3 +150,79 @@ def test_norm_rev():
     check_grad(
         backprop.norm_fwd, backprop.norm_rev, [U, P, d, W, Y], [X], [Z, F]
     )
+
+
+@pytest.mark.parametrize("vector", [True, False])
+def test_dot_tril_fwd(vector):
+    a, U, V, P, Y = get_matrices(vector=vector)
+    d, W = driver.factor(U, P, a, V)
+
+    Z0 = driver.dot_tril(U, P, d, W, np.copy(Y))
+
+    Z = np.empty_like(Y)
+    if vector:
+        F = np.empty_like(U)
+    else:
+        F = np.empty((U.shape[0], U.shape[1] * Y.shape[1]))
+
+    Z, F = backprop.dot_tril_fwd(U, P, d, W, Y, Z, F)
+    assert np.allclose(Z0, Z)
+
+
+@pytest.mark.parametrize("vector", [True, False])
+def test_dot_tril_rev(vector):
+    a, U, V, P, Y = get_matrices(vector=vector)
+    d, W = driver.factor(U, P, a, V)
+
+    Z = np.empty_like(Y)
+    if vector:
+        F = np.empty_like(U)
+    else:
+        F = np.empty((U.shape[0], U.shape[1] * Y.shape[1]))
+
+    Z, F = backprop.dot_tril_fwd(U, P, d, W, Y, Z, F)
+
+    check_grad(
+        backprop.dot_tril_fwd, backprop.dot_tril_rev, [U, P, d, W, Y], [Z], [F]
+    )
+
+
+@pytest.mark.parametrize("vector", [True, False])
+def test_matmul_fwd(vector):
+    a, U, V, P, Y = get_matrices(vector=vector)
+
+    X0 = driver.matmul(a, U, V, P, Y, np.empty_like(Y))
+
+    X = np.empty_like(Y)
+    Z = np.empty_like(Y)
+    if vector:
+        F = np.empty_like(U)
+    else:
+        F = np.empty((U.shape[0], U.shape[1] * Y.shape[1]))
+    G = np.empty_like(F)
+
+    X, Z, F, G = backprop.matmul_fwd(a, U, V, P, Y, X, Z, F, G)
+    assert np.allclose(X0, X)
+
+
+@pytest.mark.parametrize("vector", [True, False])
+def test_matmul_rev(vector):
+    a, U, V, P, Y = get_matrices(vector=vector)
+
+    X = np.empty_like(Y)
+    Z = np.empty_like(Y)
+    if vector:
+        F = np.empty_like(U)
+    else:
+        F = np.empty((U.shape[0], U.shape[1] * Y.shape[1]))
+    G = np.empty_like(F)
+
+    X, Z, F, G = backprop.matmul_fwd(a, U, V, P, Y, X, Z, F, G)
+
+    check_grad(
+        backprop.matmul_fwd,
+        backprop.matmul_rev,
+        [a, U, V, P, Y],
+        [X],
+        [Z, F, G],
+    )

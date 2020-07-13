@@ -163,7 +163,8 @@ void dot_tril_rev(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
   Eigen::Matrix<typename Diag::Scalar, Diag::RowsAtCompileTime, 1> sqrtd = sqrt(d.array());
 
   // We need to repeat this calculation before running the backprop
-  RightHandSide tmp = Y;
+  Eigen::Matrix<typename RightHandSide::Scalar, RightHandSide::RowsAtCompileTime, RightHandSide::ColsAtCompileTime, RightHandSide::IsRowMajor> tmp =
+     Y;
   tmp.array().colwise() *= sqrtd.array();
 
   // Run backprop
@@ -208,9 +209,12 @@ void matmul_rev(const Eigen::MatrixBase<Diag> &a,                 // (N,)
   bY = a.asDiagonal() * bX;
   ba = (Y * bX.transpose()).diagonal();
 
-  internal::backward_rev<false>(U, V, P, Y, X, G, bX, bU, bV, bP, bY);
+  Eigen::Matrix<typename RightHandSideOut::Scalar, RightHandSideOut::RowsAtCompileTime, RightHandSideOut::ColsAtCompileTime,
+                RightHandSideOut::IsRowMajor>
+     tmp = bX;
 
-  internal::forward_rev<false>(U, V, P, Y, M, F, bX /* bM */, bU, bV, bP, bY);
+  internal::backward_rev<false>(U, V, P, Y, X, G, tmp, bU, bV, bP, bY);
+  internal::forward_rev<false>(U, V, P, Y, M, F, tmp /* bM */, bU, bV, bP, bY);
 }
 
 } // namespace core
