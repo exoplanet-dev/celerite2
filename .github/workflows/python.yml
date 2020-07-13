@@ -7,20 +7,18 @@ on:
 
 jobs:
   build:
-    name: "${{ matrix.name }}"
+    name: "py${{ matrix.python-version }} on ${{ matrix.os }}"
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         python-version: [3.7, 3.8]
         os: [ubuntu-latest, windows-latest, macos-latest]
-        env: [[]]
-        name: ["py${{ python-version }} on ${{ os }}"]
+        cflags: [""]
         include:
-          - name: "Fast run"
+          - name: "Fast run on Ubuntu"
             os: ubuntu-latest
             python-version: 3.8
-            env:
-              CFLAGS: "-DCELERITE2_FAST_RUN ${CFLAGS}"
+            cflags: "-DCELERITE2_FAST_RUN"
 
     steps:
       - uses: actions/checkout@v2
@@ -38,6 +36,7 @@ jobs:
         env:
           DISTUTILS_USE_SDK: 1
           MSSdk: 1
+          CFLAGS: "${{ matrix.cflags }}"
       - name: Check the style
         run: |
           isort -c python
