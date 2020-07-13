@@ -13,6 +13,7 @@ jobs:
       matrix:
         python-version: [3.7, 3.8]
         os: [ubuntu-latest, windows-latest, macos-latest]
+        env: [[]]
         include:
           - os: ubuntu-latest
             python-version: 3.8
