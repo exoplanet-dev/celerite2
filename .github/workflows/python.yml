@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: "py${{ matrix.python-version }} on ${{ matrix.os }}"
+    name: "${{ matrix.python-version }} / ${{ matrix.os }} / ${{ matrix.cflags }}"
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -15,8 +15,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         cflags: [""]
         include:
-          - name: "Fast run on Ubuntu"
-            os: ubuntu-latest
+          - os: ubuntu-latest
             python-version: 3.8
             cflags: "-DCELERITE2_FAST_RUN"
 
