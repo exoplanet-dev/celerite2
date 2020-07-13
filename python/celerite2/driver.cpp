@@ -24,7 +24,7 @@ auto factor(py::array_t<double, py::array::c_style> U, py::array_t<double, py::a
     MATRIX(SIZE, W_, Wbuf, N, J);                                                                                                                    \
     flag = celerite2::core::factor(a_, U_, V_, P_, d_, W_);                                                                                          \
   }
-  UNWRAP_CASES;
+  UNWRAP_CASES_MOST;
 #undef FIXED_SIZE_MAP
   if (flag) throw linalg_exception();
   return std::make_tuple(d, W);
@@ -70,7 +70,7 @@ auto norm(py::array_t<double, py::array::c_style> U, py::array_t<double, py::arr
     VECTOR(Z_, Zbuf, N);                                                                                                                             \
     celerite2::core::norm(U_, P_, d_, W_, Z_, norm_, Z_);                                                                                            \
   }
-  UNWRAP_CASES
+  UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
   return norm_(0, 0);
 }
