@@ -1,15 +1,19 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+import pytest
 
 from celerite2 import backprop, driver, terms
 
 
-def get_matrices(size=100, kernel=None):
+def get_matrices(size=100, kernel=None, vector=False):
     np.random.seed(721)
     x = np.sort(np.random.uniform(0, 10, size))
-    Y = np.ascontiguousarray(
-        np.vstack([np.sin(x), np.cos(x), x ** 2]).T, dtype=np.float64
-    )
+    if vector:
+        Y = np.sin(x)
+    else:
+        Y = np.ascontiguousarray(
+            np.vstack([np.sin(x), np.cos(x), x ** 2]).T, dtype=np.float64
+        )
     diag = np.random.uniform(0.1, 0.3, len(x))
     kernel = kernel if kernel else terms.SHOTerm(S0=5.0, w0=0.1, Q=3.45)
     a, U, V, P = kernel.get_celerite_matrices(x, diag)
@@ -77,4 +81,43 @@ def test_factor_rev():
 
     check_grad(
         backprop.factor_fwd, backprop.factor_rev, [a, U, V, P], [d, W], [S]
+    )
+
+
+@pytest.mark.parametrize("vector", [True, False])
+def test_solve_fwd(vector):
+    a, U, V, P, Y = get_matrices(vector=vector)
+    d, W = driver.factor(U, P, a, V)
+
+    X0 = driver.solve(U, P, d, W, np.copy(Y))
+
+    X = np.empty_like(Y)
+    Z = np.empty_like(Y)
+    if vector:
+        F = np.empty_like(U)
+    else:
+        F = np.empty((U.shape[0], U.shape[1] * Y.shape[1]))
+    G = np.empty_like(F)
+
+    X, Z, F, G = backprop.solve_fwd(U, P, d, W, Y, X, Z, F, G)
+    assert np.allclose(X0, X)
+
+
+@pytest.mark.parametrize("vector", [True, False])
+def test_solve_rev(vector):
+    a, U, V, P, Y = get_matrices(vector=vector)
+    d, W = driver.factor(U, P, a, V)
+
+    X = np.empty_like(Y)
+    Z = np.empty_like(Y)
+    if vector:
+        F = np.empty_like(U)
+    else:
+        F = np.empty((U.shape[0], U.shape[1] * Y.shape[1]))
+    G = np.empty_like(F)
+
+    X, Z, F, G = backprop.solve_fwd(U, P, d, W, Y, X, Z, F, G)
+
+    check_grad(
+        backprop.solve_fwd, backprop.solve_rev, [U, P, d, W, Y], [X], [Z, F, G]
     )
