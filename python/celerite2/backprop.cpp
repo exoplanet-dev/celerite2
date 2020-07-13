@@ -108,7 +108,7 @@ auto solve_fwd(py::array_t<double, py::array::c_style> U, py::array_t<double, py
       celerite2::core::solve(U_, P_, d_, W_, Y_, X_, Z_, F_, G_);                                                                                    \
     }                                                                                                                                                \
   }
-  UNWRAP_CASES;
+  UNWRAP_CASES_FEW;
 #undef FIXED_SIZE_MAP
   return std::make_tuple(X, Z, F, G);
 }
@@ -171,7 +171,7 @@ auto solve_rev(py::array_t<double, py::array::c_style> U, py::array_t<double, py
       celerite2::core::solve_rev(U_, P_, d_, W_, Y_, X_, Z_, F_, G_, bX_, bU_, bP_, bd_, bW_, bY_);                                                  \
     }                                                                                                                                                \
   }
-  UNWRAP_CASES;
+  UNWRAP_CASES_FEW;
 #undef FIXED_SIZE_MAP
   return std::make_tuple(bU, bP, bd, bW, bY);
 } // namespace driver

@@ -49,7 +49,7 @@ auto solve(py::array_t<double, py::array::c_style> U, py::array_t<double, py::ar
       celerite2::core::solve(U_, P_, d_, W_, Z_, Z_);                                                                                                \
     }                                                                                                                                                \
   }
-  UNWRAP_CASES
+  UNWRAP_CASES_FEW
 #undef FIXED_SIZE_MAP
   return Z;
 }
@@ -97,7 +97,7 @@ auto matmul(py::array_t<double, py::array::c_style> d, py::array_t<double, py::a
       celerite2::core::matmul(d_, U_, W_, P_, Y_, Z_);                                                                                               \
     }                                                                                                                                                \
   }
-  UNWRAP_CASES
+  UNWRAP_CASES_FEW
 #undef FIXED_SIZE_MAP
   return Z;
 }
@@ -121,7 +121,7 @@ auto dot_tril(py::array_t<double, py::array::c_style> U, py::array_t<double, py:
       celerite2::core::dot_tril(U_, P_, d_, W_, Z_, Z_);                                                                                             \
     }                                                                                                                                                \
   }
-  UNWRAP_CASES
+  UNWRAP_CASES_FEW
 #undef FIXED_SIZE_MAP
   return Z;
 }
