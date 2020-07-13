@@ -7,15 +7,17 @@ on:
 
 jobs:
   build:
-    name: "py${{ matrix.python-version }} on ${{ matrix.os }} with env: ${{ matrix.env }}"
+    name: "${{ matrix.name }}"
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         python-version: [3.7, 3.8]
         os: [ubuntu-latest, windows-latest, macos-latest]
         env: [[]]
+        name: ["py${{ matrix.python-version }} on ${{ matrix.os }}"]
         include:
-          - os: ubuntu-latest
+          - name: "Fast run"
+            os: ubuntu-latest
             python-version: 3.8
             env:
               CFLAGS: "-DCELERITE2_FAST_RUN ${CFLAGS}"
