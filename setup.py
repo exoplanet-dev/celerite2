@@ -29,6 +29,7 @@ INSTALL_REQUIRES = [
     "pybind11>=2.4",
     "setuptools>=40.6.0",
     "setuptools_scm",
+    "wheel",
 ]
 EXTRA_REQUIRE = {
     "test": [
@@ -41,7 +42,7 @@ EXTRA_REQUIRE = {
         "black",
         "black_nbconvert",
     ],
-    "release": ["pep517", "twine", "wheel"],
+    "release": ["pep517", "twine"],
 }
 EXTRA_REQUIRE["dev"] = (
     EXTRA_REQUIRE["test"]
