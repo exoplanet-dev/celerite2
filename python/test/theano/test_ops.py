@@ -119,3 +119,51 @@ def test_solve_rev(vector):
         [U, P, d, W, Y],
         1,
     )
+
+
+def test_norm_fwd():
+    a, U, V, P, Y = get_matrices(vector=True)
+    Y = Y[:, 0]
+    d, W = driver.factor(U, P, a, V)
+    check_basic(
+        backprop.norm_fwd,
+        ops.norm,
+        [tt.dmatrix(), tt.dmatrix(), tt.dvector(), tt.dmatrix(), tt.dvector()],
+        [U, P, d, W, Y],
+    )
+
+
+def test_norm_rev():
+    a, U, V, P, Y = get_matrices(vector=True)
+    Y = Y[:, 0]
+    d, W = driver.factor(U, P, a, V)
+    check_grad(
+        ops.norm,
+        [tt.dmatrix(), tt.dmatrix(), tt.dvector(), tt.dmatrix(), tt.dvector()],
+        [U, P, d, W, Y],
+        1,
+    )
+
+
+@pytest.mark.parametrize("vector", [True, False])
+def test_dot_tril_fwd(vector):
+    a, U, V, P, Y = get_matrices(vector=vector)
+    d, W = driver.factor(U, P, a, V)
+    check_basic(
+        backprop.dot_tril_fwd,
+        ops.dot_tril,
+        [tt.dmatrix(), tt.dmatrix(), tt.dvector(), tt.dmatrix(), tt.dmatrix()],
+        [U, P, d, W, Y],
+    )
+
+
+@pytest.mark.parametrize("vector", [True, False])
+def test_dot_tril_rev(vector):
+    a, U, V, P, Y = get_matrices(vector=vector)
+    d, W = driver.factor(U, P, a, V)
+    check_grad(
+        ops.dot_tril,
+        [tt.dmatrix(), tt.dmatrix(), tt.dvector(), tt.dmatrix(), tt.dmatrix()],
+        [U, P, d, W, Y],
+        1,
+    )

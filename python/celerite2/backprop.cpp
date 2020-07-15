@@ -274,7 +274,7 @@ auto norm_fwd(py::array_t<double, py::array::c_style> U, py::array_t<double, py:
   ssize_t nrhs = 0;
   SETUP_RHS_MATRIX(Y);
   if (nrhs != 1) throw std::runtime_error("Y must be a vector");
-  GET_BUF_MAT(X, 1, 1);
+  GET_BUF(X, 1);
   SETUP_RHS_MATRIX(Z);
   GET_BUF_MAT(F, N, nrhs * J);
 
@@ -305,12 +305,11 @@ auto norm_rev(py::array_t<double, py::array::c_style> U, py::array_t<double, py:
   ssize_t nrhs = 0;
   SETUP_RHS_MATRIX(Y);
   if (nrhs != 1) throw std::runtime_error("Y must be a vector");
-  GET_BUF_MAT(X, 1, 1);
+  GET_BUF(X, 1);
   SETUP_RHS_MATRIX(Z);
   GET_BUF_MAT(F, N, nrhs * J);
 
-  GET_BUF_MAT(bX, 1, 1);
-
+  GET_BUF(bX, 1);
   GET_BUF_MAT(bU, N, J);
   GET_BUF_MAT(bP, N - 1, J);
   GET_BUF_VEC(bd, N);

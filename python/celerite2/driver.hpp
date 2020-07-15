@@ -122,6 +122,9 @@ struct order<1> {
 #define CONST_MATRIX(SIZE, NAME, BUF, ROWS, COLS)                                                                                                    \
   Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> NAME((double *)BUF.ptr, ROWS, COLS)
 
+#define GET_BUF(NAME, SIZE)                                                                                                                          \
+  py::buffer_info NAME##buf = NAME.request();                                                                                                        \
+  if (NAME##buf.size != SIZE) throw std::runtime_error("Invalid shape: " #NAME);
 #define GET_BUF_VEC(NAME, ROWS)                                                                                                                      \
   py::buffer_info NAME##buf = NAME.request();                                                                                                        \
   if (NAME##buf.ndim != 1 || NAME##buf.shape[0] != ROWS) throw std::runtime_error("Invalid shape: " #NAME);

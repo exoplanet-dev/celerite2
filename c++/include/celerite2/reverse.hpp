@@ -157,8 +157,16 @@ void dot_tril_rev(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
+  Eigen::Index N = U.rows(), J = U.cols();
   CAST_BASE(RightHandSideOut, bY);
+  CAST_MAT(LowRankOut, bU, N, J);
+  CAST_MAT(LowRankOut, bP, N - 1, J);
   CAST_BASE(DiagOut, bd);
+  CAST_MAT(LowRankOut, bW, N, J);
+
+  bU.setZero();
+  bP.setZero();
+  bW.setZero();
 
   Eigen::Matrix<typename Diag::Scalar, Diag::RowsAtCompileTime, 1> sqrtd = sqrt(d.array());
 
@@ -169,7 +177,7 @@ void dot_tril_rev(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
 
   // Run backprop
   bY = bZ;
-  internal::forward_rev<false>(U, W, P, tmp, Z, F, bZ, bU_out, bW_out, bP_out, bY);
+  internal::forward_rev<false>(U, W, P, tmp, Z, F, bZ, bU, bW, bP, bY);
 
   // Update bY and bd based on tmp op above
   bd = 0.5 * (Y * bY.transpose()).diagonal().array() / sqrtd.array();

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__all__ = ["factor", "solve"]
+__all__ = ["factor", "solve", "norm"]
 from itertools import chain
 
 import numpy as np
@@ -188,3 +188,165 @@ class SolveRevOp(theano.Op):
 
 
 solve = SolveOp()
+
+
+class NormOp(theano.Op):
+    __props__ = ()
+    itypes = [
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dvector,
+        theano.tensor.dmatrix,
+        theano.tensor.dvector,
+    ]
+    otypes = [
+        theano.tensor.dscalar,
+        theano.tensor.dvector,
+        theano.tensor.dmatrix,
+    ]
+
+    def __init__(self):
+        self.rev_op = NormRevOp()
+        super().__init__()
+
+    def infer_shape(self, node, shapes):
+        return [], shapes[4], shapes[0]
+
+    def perform(self, node, inputs, outputs):
+        U, P, d, W, Y = inputs
+        N, J = U.shape
+
+        X = _resize_or_set(outputs, 0, ())
+        Z = _resize_or_set(outputs, 1, (N,))
+        F = _resize_or_set(outputs, 2, (N, J))
+
+        backprop.norm_fwd(U, P, d, W, Y, X, Z, F)
+
+    def grad(self, inputs, gradients):
+        outputs = self(*inputs)
+        bX = gradients[0]
+        if isinstance(bX.type, theano.gradient.DisconnectedType):
+            bX = tt.zeros_like(outputs[0])
+        return self.rev_op(*chain(inputs, outputs, [bX]))
+
+
+class NormRevOp(theano.Op):
+    __props__ = ()
+    itypes = [
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dvector,
+        theano.tensor.dmatrix,
+        theano.tensor.dvector,
+        theano.tensor.dscalar,
+        theano.tensor.dvector,
+        theano.tensor.dmatrix,
+        theano.tensor.dscalar,
+    ]
+    otypes = [
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dvector,
+        theano.tensor.dmatrix,
+        theano.tensor.dvector,
+    ]
+
+    def infer_shape(self, node, shapes):
+        return shapes[:5]
+
+    def perform(self, node, inputs, outputs):
+        U, P, d, W, Y, X, Z, F, bX = inputs
+        N, J = U.shape
+
+        bU = _resize_or_set(outputs, 0, (N, J))
+        bP = _resize_or_set(outputs, 1, (N - 1, J))
+        bd = _resize_or_set(outputs, 2, (N,))
+        bW = _resize_or_set(outputs, 3, (N, J))
+        bY = _resize_or_set(outputs, 4, (N,))
+
+        backprop.norm_rev(U, P, d, W, Y, X, Z, F, bX, bU, bP, bd, bW, bY)
+
+
+norm = NormOp()
+
+
+class DotTrilOp(theano.Op):
+    __props__ = ()
+    itypes = [
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dvector,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+    ]
+    otypes = [
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+    ]
+
+    def __init__(self):
+        self.rev_op = DotTrilRevOp()
+        super().__init__()
+
+    def infer_shape(self, node, shapes):
+        N = shapes[0][0]
+        J = shapes[0][1]
+        nrhs = shapes[4][1]
+        return shapes[4], [N, nrhs * J]
+
+    def perform(self, node, inputs, outputs):
+        U, P, d, W, Y = inputs
+        N, J = U.shape
+        nrhs = Y.shape[1]
+
+        X = _resize_or_set(outputs, 0, (N, nrhs))
+        F = _resize_or_set(outputs, 1, (N, nrhs * J))
+
+        backprop.dot_tril_fwd(U, P, d, W, Y, X, F)
+
+    def grad(self, inputs, gradients):
+        outputs = self(*inputs)
+        bX = gradients[0]
+        if isinstance(bX.type, theano.gradient.DisconnectedType):
+            bX = tt.zeros_like(outputs[0])
+        return self.rev_op(*chain(inputs, outputs, [bX]))
+
+
+class DotTrilRevOp(theano.Op):
+    __props__ = ()
+    itypes = [
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dvector,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+    ]
+    otypes = [
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dvector,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+    ]
+
+    def infer_shape(self, node, shapes):
+        return shapes[:5]
+
+    def perform(self, node, inputs, outputs):
+        U, P, d, W, Y, X, F, bX = inputs
+        N, J = U.shape
+        nrhs = Y.shape[1]
+
+        bU = _resize_or_set(outputs, 0, (N, J))
+        bP = _resize_or_set(outputs, 1, (N - 1, J))
+        bd = _resize_or_set(outputs, 2, (N,))
+        bW = _resize_or_set(outputs, 3, (N, J))
+        bY = _resize_or_set(outputs, 4, (N, nrhs))
+
+        backprop.dot_tril_rev(U, P, d, W, Y, X, F, bX, bU, bP, bd, bW, bY)
+
+
+dot_tril = DotTrilOp()

@@ -44,8 +44,8 @@ def check_grad(fwd, rev, in_args, out_args, extra_args, eps=1.234e-8):
     b_in = [np.zeros_like(a) for a in in_args]
     for k in range(len(out_args)):
         for i in range(out_args[k].size):
-            for b in b_in:
-                b[:] = 0.0
+            # for b in b_in:
+            #     b[:] = 0.0
 
             b_out[k].flat[i] = 1.0
             res = rev(*(in_args + out_args + extra_args + b_out + b_in))
