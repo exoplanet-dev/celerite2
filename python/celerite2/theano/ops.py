@@ -350,3 +350,91 @@ class DotTrilRevOp(theano.Op):
 
 
 dot_tril = DotTrilOp()
+
+
+class MatmulOp(theano.Op):
+    __props__ = ()
+    itypes = [
+        theano.tensor.dvector,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+    ]
+    otypes = [
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+    ]
+
+    def __init__(self):
+        self.rev_op = MatmulRevOp()
+        super().__init__()
+
+    def infer_shape(self, node, shapes):
+        N = shapes[1][0]
+        J = shapes[1][1]
+        nrhs = shapes[4][1]
+        return shapes[4], shapes[4], [N, nrhs * J], [N, nrhs * J]
+
+    def perform(self, node, inputs, outputs):
+        a, U, V, P, Y = inputs
+        N, J = U.shape
+        nrhs = Y.shape[1]
+
+        X = _resize_or_set(outputs, 0, (N, nrhs))
+        Z = _resize_or_set(outputs, 1, (N, nrhs))
+        F = _resize_or_set(outputs, 2, (N, nrhs * J))
+        G = _resize_or_set(outputs, 3, (N, nrhs * J))
+
+        backprop.matmul_fwd(a, U, V, P, Y, X, Z, F, G)
+
+    def grad(self, inputs, gradients):
+        outputs = self(*inputs)
+        bX = gradients[0]
+        if isinstance(bX.type, theano.gradient.DisconnectedType):
+            bX = tt.zeros_like(outputs[0])
+        return self.rev_op(*chain(inputs, outputs, [bX]))
+
+
+class MatmulRevOp(theano.Op):
+    __props__ = ()
+    itypes = [
+        theano.tensor.dvector,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+    ]
+    otypes = [
+        theano.tensor.dvector,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+        theano.tensor.dmatrix,
+    ]
+
+    def infer_shape(self, node, shapes):
+        return shapes[:5]
+
+    def perform(self, node, inputs, outputs):
+        a, U, V, P, Y, X, Z, F, G, bX = inputs
+        N, J = U.shape
+        nrhs = Y.shape[1]
+
+        ba = _resize_or_set(outputs, 0, (N,))
+        bU = _resize_or_set(outputs, 1, (N, J))
+        bV = _resize_or_set(outputs, 2, (N, J))
+        bP = _resize_or_set(outputs, 3, (N - 1, J))
+        bY = _resize_or_set(outputs, 4, (N, nrhs))
+
+        backprop.matmul_rev(a, U, V, P, Y, X, Z, F, G, bX, ba, bU, bV, bP, bY)
+
+
+matmul = MatmulOp()

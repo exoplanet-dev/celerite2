@@ -167,3 +167,25 @@ def test_dot_tril_rev(vector):
         [U, P, d, W, Y],
         1,
     )
+
+
+@pytest.mark.parametrize("vector", [True, False])
+def test_matmul_fwd(vector):
+    a, U, V, P, Y = get_matrices(vector=vector)
+    check_basic(
+        backprop.matmul_fwd,
+        ops.matmul,
+        [tt.dvector(), tt.dmatrix(), tt.dmatrix(), tt.dmatrix(), tt.dmatrix()],
+        [a, U, V, P, Y],
+    )
+
+
+@pytest.mark.parametrize("vector", [True, False])
+def test_matmul_rev(vector):
+    a, U, V, P, Y = get_matrices(vector=vector)
+    check_grad(
+        ops.matmul,
+        [tt.dvector(), tt.dmatrix(), tt.dmatrix(), tt.dmatrix(), tt.dmatrix()],
+        [a, U, V, P, Y],
+        1,
+    )
