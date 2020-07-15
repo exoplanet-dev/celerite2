@@ -6,6 +6,27 @@ on:
     branches: [main]
 
 jobs:
+  style:
+    name: "Check the code format"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          python -m pip install ".[style]"
+      - name: Check the style
+        run: |
+          isort -c python
+          black --check python
+          black_nbconvert --check .
+
   build:
     name: "${{ matrix.python-version }} / ${{ matrix.os }} / ${{ matrix.cflags }}"
     runs-on: ${{ matrix.os }}
@@ -39,10 +60,35 @@ jobs:
           DISTUTILS_USE_SDK: 1
           MSSdk: 1
           CFLAGS: "${{ matrix.cflags }}"
-      - name: Check the style
-        run: |
-          isort -c python
-          black --check python
-          black_nbconvert --check .
       - name: Run the unit tests
-        run: python -m pytest -v python/test
+        run: python -m pytest -v python/test/test_*.py
+
+  theano:
+    name: "Theano: ${{ matrix.python-version }} / ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        python-version: [3.7, 3.8]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          python -m pip install ".[test,theano]"
+        env:
+          DISTUTILS_USE_SDK: 1
+          MSSdk: 1
+      - name: Run the unit tests
+        run: python -m pytest -v python/test/theano
+        env:
+          DISTUTILS_USE_SDK: 1
+          MSSdk: 1

@@ -32,16 +32,9 @@ INSTALL_REQUIRES = [
     "wheel",
 ]
 EXTRA_REQUIRE = {
-    "test": [
-        "wheel",
-        "toml",
-        "pytest",
-        "scipy",
-        "celerite>=0.3.1",
-        "isort",
-        "black",
-        "black_nbconvert",
-    ],
+    "style": ["isort", "black", "black_nbconvert"],
+    "test": ["wheel", "toml", "pytest", "scipy", "celerite>=0.3.1"],
+    "theano": ["theano"],
     "release": ["pep517", "twine"],
 }
 EXTRA_REQUIRE["dev"] = (
