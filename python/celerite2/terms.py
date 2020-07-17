@@ -1,13 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from itertools import chain, product
-
-import numpy as np
-
-from . import driver
-
-# from .solver import get_kernel_value, get_psd_value, check_coefficients
-
 __all__ = [
     "Term",
     "TermSum",
@@ -18,8 +10,16 @@ __all__ = [
     "ComplexTerm",
     "SHOTerm",
     "Matern32Term",
+    "RotationTerm",
     "OriginalCeleriteTerm",
 ]
+
+
+from itertools import chain, product
+
+import numpy as np
+
+from . import driver
 
 
 class Term:
@@ -79,6 +79,11 @@ class Term:
 
         return np.sqrt(2 / np.pi) * psd
 
+    def to_dense(self, x, diag):
+        K = self.get_value(x[:, None] - x[None, :])
+        K[np.diag_indices_from(K)] += diag
+        return K
+
     def get_celerite_matrices(
         self, x, diag, *, a=None, U=None, V=None, P=None
     ):
@@ -116,6 +121,22 @@ class Term:
         return driver.get_celerite_matrices(
             ar, cr, ac, bc, cc, dc, x, diag, a, U, V, P
         )
+
+    def get_conditional_mean_matrices(self, x, t):
+        ar, cr, ac, bc, cc, dc = self.get_coefficients()
+
+        inds = np.searchsorted(x, t)
+        _, U_star, V_star, _ = self.get_celerite_matrices(t, t)
+
+        c = np.concatenate([cr] + list(zip(cc, cc)))
+
+        dx = t - x[np.minimum(inds, x.size - 1)]
+        U_star *= np.exp(-c[None, :] * dx[:, None])
+
+        dx = x[np.maximum(inds - 1, 0)] - t
+        V_star *= np.exp(-c[None, :] * dx[:, None])
+
+        return U_star, V_star, inds
 
     def dot(self, x, diag, y):
         a, U, V, P = self.get_celerite_matrices(x, diag)
@@ -229,7 +250,9 @@ class IntegratedTerm(Term):
         self.term = term
         self.delta = float(delta)
 
-    def get_celerite_matrices(self, x, diag, *, a, U, V, P):
+    def get_celerite_matrices(
+        self, x, diag, *, a=None, U=None, V=None, P=None
+    ):
         dt = self.delta
         ar, cr, a, b, c, d = self.term.get_coefficients()
 
@@ -300,7 +323,7 @@ class IntegratedTerm(Term):
 
     def get_value(self, tau0):
         dt = self.delta
-        ar, cr, a, b, c, d = self.term.coefficients
+        ar, cr, a, b, c, d = self.term.get_coefficients()
 
         # Format the lags correctly
         tau0 = np.abs(np.atleast_1d(tau0))
@@ -357,7 +380,8 @@ class IntegratedTerm(Term):
         K_small += np.sum(2 * (a * c + b * d) * c2pd2 * dmt * norm, axis=-1)
         K_small += np.sum((C1 * cos_term + C2 * sin_term) * norm, axis=-1)
 
-        K_small[tau0 >= dt] = K_large
+        mask = tau0 >= dt
+        K_small[mask] = K_large[mask]
         return K_small
 
 
@@ -467,15 +491,21 @@ class Matern32Term(Term):
 
 class RotationTerm(TermSum):
     def __init__(self, *, amp, Q0, deltaQ, period, mix):
+        self.amp = float(amp)
+        self.Q0 = float(Q0)
+        self.deltaQ = float(deltaQ)
+        self.period = float(period)
+        self.mix = float(mix)
+
         # One term with a period of period
-        Q1 = 0.5 + float(Q0) + float(deltaQ)
-        w1 = 4 * np.pi * Q1 / (float(period) * np.sqrt(4 * Q1 ** 2 - 1))
-        S1 = float(amp) / (w1 * Q1)
+        Q1 = 0.5 + self.Q0 + self.deltaQ
+        w1 = 4 * np.pi * Q1 / (self.period * np.sqrt(4 * Q1 ** 2 - 1))
+        S1 = self.amp / (w1 * Q1)
 
         # Another term at half the period
-        Q2 = 0.5 + float(Q0)
-        w2 = 8 * np.pi * Q2 / (float(period) * np.sqrt(4 * Q2 ** 2 - 1))
-        S2 = float(mix) * float(amp) / (w2 * Q2)
+        Q2 = 0.5 + self.Q0
+        w2 = 8 * np.pi * Q2 / (self.period * np.sqrt(4 * Q2 ** 2 - 1))
+        S2 = self.mix * self.amp / (w2 * Q2)
 
         super().__init__(
             SHOTerm(S0=S1, w0=w1, Q=Q1), SHOTerm(S0=S2, w0=w2, Q=Q2)

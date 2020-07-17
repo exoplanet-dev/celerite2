@@ -12,7 +12,7 @@ def get_matrices(size=100, kernel=None, vector=False):
     np.random.seed(721)
     x = np.sort(np.random.uniform(0, 10, size))
     if vector:
-        Y = np.sin(x)[:, None]
+        Y = np.sin(x)
     else:
         Y = np.ascontiguousarray(
             np.vstack([np.sin(x), np.cos(x), x ** 2]).T, dtype=np.float64
@@ -24,7 +24,44 @@ def get_matrices(size=100, kernel=None, vector=False):
     return a, U, V, P, Y
 
 
-def check_grad(op, inputs, values, num_out, eps=1.234e-8):
+def convert_values_to_types(values):
+    types = []
+    for v in values:
+        if v.ndim == 0:
+            types.append(tt.dscalar())
+        elif v.ndim == 1:
+            types.append(tt.dvector())
+        elif v.ndim == 2:
+            types.append(tt.dmatrix())
+        else:
+            raise ValueError("unknown type")
+    return types
+
+
+def check_shape(op, inputs, values):
+    outputs = op(*inputs)
+    result = theano.function(inputs, outputs)(*values)
+    shapes = theano.function(inputs, [o.shape for o in outputs])(*values)
+    assert all(
+        np.all(v.shape == s) for v, s in zip(result, shapes)
+    ), "Invalid shape inference"
+
+
+def check_basic(ref_func, op, values):
+    inputs = convert_values_to_types(values)
+    check_shape(op, inputs, values)
+    outputs = op(*inputs)
+    result = theano.function(inputs, outputs)(*values)
+
+    expected = ref_func(*(values + [np.copy(r) for r in result]))
+
+    assert len(result) == len(expected)
+    for a, b in zip(result, expected):
+        assert np.allclose(a, b)
+
+
+def check_grad(op, values, num_out, eps=1.234e-8):
+    inputs = convert_values_to_types(values)
     outputs = op(*inputs)
     func = theano.function(inputs, outputs)
     vals0 = func(*values)
@@ -56,44 +93,17 @@ def check_grad(op, inputs, values, num_out, eps=1.234e-8):
                 ), (k, i, n)
 
 
-def check_shape(op, inputs, values):
-    outputs = op(*inputs)
-    result = theano.function(inputs, outputs)(*values)
-    shapes = theano.function(inputs, [o.shape for o in outputs])(*values)
-    assert all(
-        np.all(v.shape == s) for v, s in zip(result, shapes)
-    ), "Invalid shape inference"
-
-
-def check_basic(ref_func, op, inputs, values):
-    check_shape(op, inputs, values)
-    outputs = op(*inputs)
-    result = theano.function(inputs, outputs)(*values)
-
-    expected = ref_func(*(values + [np.copy(r) for r in result]))
-
-    assert len(result) == len(expected)
-    for a, b in zip(result, expected):
-        assert np.allclose(a, b)
-
-
 def test_factor_fwd():
     a, U, V, P, Y = get_matrices()
     check_basic(
-        backprop.factor_fwd,
-        ops.factor,
-        [tt.dvector(), tt.dmatrix(), tt.dmatrix(), tt.dmatrix()],
-        [a, U, V, P],
+        backprop.factor_fwd, ops.factor, [a, U, V, P],
     )
 
 
 def test_factor_rev():
     a, U, V, P, Y = get_matrices()
     check_grad(
-        ops.factor,
-        [tt.dvector(), tt.dmatrix(), tt.dmatrix(), tt.dmatrix()],
-        [a, U, V, P],
-        2,
+        ops.factor, [a, U, V, P], 2,
     )
 
 
@@ -102,10 +112,7 @@ def test_solve_fwd(vector):
     a, U, V, P, Y = get_matrices(vector=vector)
     d, W = driver.factor(U, P, a, V)
     check_basic(
-        backprop.solve_fwd,
-        ops.solve,
-        [tt.dmatrix(), tt.dmatrix(), tt.dvector(), tt.dmatrix(), tt.dmatrix()],
-        [U, P, d, W, Y],
+        backprop.solve_fwd, ops.solve, [U, P, d, W, Y],
     )
 
 
@@ -114,34 +121,23 @@ def test_solve_rev(vector):
     a, U, V, P, Y = get_matrices(vector=vector)
     d, W = driver.factor(U, P, a, V)
     check_grad(
-        ops.solve,
-        [tt.dmatrix(), tt.dmatrix(), tt.dvector(), tt.dmatrix(), tt.dmatrix()],
-        [U, P, d, W, Y],
-        1,
+        ops.solve, [U, P, d, W, Y], 1,
     )
 
 
 def test_norm_fwd():
     a, U, V, P, Y = get_matrices(vector=True)
-    Y = Y[:, 0]
     d, W = driver.factor(U, P, a, V)
     check_basic(
-        backprop.norm_fwd,
-        ops.norm,
-        [tt.dmatrix(), tt.dmatrix(), tt.dvector(), tt.dmatrix(), tt.dvector()],
-        [U, P, d, W, Y],
+        backprop.norm_fwd, ops.norm, [U, P, d, W, Y],
     )
 
 
 def test_norm_rev():
     a, U, V, P, Y = get_matrices(vector=True)
-    Y = Y[:, 0]
     d, W = driver.factor(U, P, a, V)
     check_grad(
-        ops.norm,
-        [tt.dmatrix(), tt.dmatrix(), tt.dvector(), tt.dmatrix(), tt.dvector()],
-        [U, P, d, W, Y],
-        1,
+        ops.norm, [U, P, d, W, Y], 1,
     )
 
 
@@ -150,10 +146,7 @@ def test_dot_tril_fwd(vector):
     a, U, V, P, Y = get_matrices(vector=vector)
     d, W = driver.factor(U, P, a, V)
     check_basic(
-        backprop.dot_tril_fwd,
-        ops.dot_tril,
-        [tt.dmatrix(), tt.dmatrix(), tt.dvector(), tt.dmatrix(), tt.dmatrix()],
-        [U, P, d, W, Y],
+        backprop.dot_tril_fwd, ops.dot_tril, [U, P, d, W, Y],
     )
 
 
@@ -162,10 +155,7 @@ def test_dot_tril_rev(vector):
     a, U, V, P, Y = get_matrices(vector=vector)
     d, W = driver.factor(U, P, a, V)
     check_grad(
-        ops.dot_tril,
-        [tt.dmatrix(), tt.dmatrix(), tt.dvector(), tt.dmatrix(), tt.dmatrix()],
-        [U, P, d, W, Y],
-        1,
+        ops.dot_tril, [U, P, d, W, Y], 1,
     )
 
 
@@ -173,10 +163,7 @@ def test_dot_tril_rev(vector):
 def test_matmul_fwd(vector):
     a, U, V, P, Y = get_matrices(vector=vector)
     check_basic(
-        backprop.matmul_fwd,
-        ops.matmul,
-        [tt.dvector(), tt.dmatrix(), tt.dmatrix(), tt.dmatrix(), tt.dmatrix()],
-        [a, U, V, P, Y],
+        backprop.matmul_fwd, ops.matmul, [a, U, V, P, Y],
     )
 
 
@@ -184,8 +171,5 @@ def test_matmul_fwd(vector):
 def test_matmul_rev(vector):
     a, U, V, P, Y = get_matrices(vector=vector)
     check_grad(
-        ops.matmul,
-        [tt.dvector(), tt.dmatrix(), tt.dmatrix(), tt.dmatrix(), tt.dmatrix()],
-        [a, U, V, P, Y],
-        1,
+        ops.matmul, [a, U, V, P, Y], 1,
     )

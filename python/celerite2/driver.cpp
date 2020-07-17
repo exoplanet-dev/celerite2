@@ -126,6 +126,49 @@ auto dot_tril(py::array_t<double, py::array::c_style> U, py::array_t<double, py:
   return Z;
 }
 
+auto conditional_mean(py::array_t<double, py::array::c_style> U, py::array_t<double, py::array::c_style> V, py::array_t<double, py::array::c_style> P,
+                      py::array_t<double, py::array::c_style> Z, py::array_t<double, py::array::c_style> U_star,
+                      py::array_t<double, py::array::c_style> V_star, py::array_t<ssize_t, py::array::c_style> inds,
+                      py::array_t<double, py::array::c_style> mu) {
+  py::buffer_info Ubuf = U.request();
+  py::buffer_info Vbuf = V.request();
+  py::buffer_info Pbuf = P.request();
+  if (Ubuf.ndim != 2 || Vbuf.ndim != 2 || Pbuf.ndim != 2) throw std::runtime_error("Invalid dimensions");
+  ssize_t N = Ubuf.shape[0], J = Ubuf.shape[1];
+  if (N == 0 || J == 0) throw std::runtime_error("Dimensions can't be zero");
+  if (Vbuf.shape[0] != N || Vbuf.shape[1] != J) throw std::runtime_error("Invalid shape: W");
+  if (Pbuf.shape[0] != N - 1 || Pbuf.shape[1] != J) throw std::runtime_error("Invalid shape: P");
+
+  ssize_t nrhs = 0;
+  SETUP_RHS_MATRIX(Z);
+  if (nrhs != 1) throw std::runtime_error("Z must be a vector");
+
+  py::buffer_info indsbuf = inds.request();
+  if (indsbuf.ndim != 1) throw std::runtime_error("Invalid shape: inds");
+  ssize_t M = indsbuf.shape[0];
+
+  GET_BUF_MAT(U_star, M, J);
+  GET_BUF_MAT(V_star, M, J);
+  GET_BUF_VEC(mu, M);
+
+  CONST_VECTOR(Z_, Zbuf, N);
+  VECTOR(mu_, mubuf, M);
+  Eigen::Map<Eigen::Matrix<ssize_t, Eigen::Dynamic, 1>> inds_((ssize_t *)indsbuf.ptr, M, 1);
+
+#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
+  {                                                                                                                                                  \
+    CONST_MATRIX(SIZE, U_, Ubuf, N, J);                                                                                                              \
+    CONST_MATRIX(SIZE, V_, Vbuf, N, J);                                                                                                              \
+    CONST_MATRIX(SIZE, P_, Pbuf, N - 1, J);                                                                                                          \
+    CONST_MATRIX(SIZE, U_star_, U_starbuf, M, J);                                                                                                    \
+    CONST_MATRIX(SIZE, V_star_, V_starbuf, M, J);                                                                                                    \
+    celerite2::core::conditional_mean(U_, V_, P_, Z_, U_star_, V_star_, inds_, mu_);                                                                 \
+  }
+  UNWRAP_CASES_FEW
+#undef FIXED_SIZE_MAP
+  return mu;
+}
+
 auto get_celerite_matrices(py::array_t<double, py::array::c_style> ar_in, py::array_t<double, py::array::c_style> cr_in,
                            py::array_t<double, py::array::c_style> ac_in, py::array_t<double, py::array::c_style> bc_in,
                            py::array_t<double, py::array::c_style> cc_in, py::array_t<double, py::array::c_style> dc_in,
@@ -212,6 +255,9 @@ PYBIND11_MODULE(driver, m) {
         py::arg("W").noconvert(), py::arg("P").noconvert(), py::arg("Y").noconvert(), py::arg("Z").noconvert());
   m.def("dot_tril", &celerite2::driver::dot_tril, "Dot the Cholesky factor celerite system into a matrix or vector", py::arg("U").noconvert(),
         py::arg("P").noconvert(), py::arg("d").noconvert(), py::arg("W").noconvert(), py::arg("Z").noconvert());
+  m.def("conditional_mean", &celerite2::driver::conditional_mean, "Copmpute the conditional mean", py::arg("U").noconvert(), py::arg("V").noconvert(),
+        py::arg("P").noconvert(), py::arg("Z").noconvert(), py::arg("U_star").noconvert(), py::arg("V_star").noconvert(), py::arg("inds").noconvert(),
+        py::arg("mu").noconvert());
 
   m.def("get_celerite_matrices", &celerite2::driver::get_celerite_matrices, "Get the matrices defined by a celerite system",
         py::arg("ar").noconvert(), py::arg("cr").noconvert(), py::arg("ac").noconvert(), py::arg("bc").noconvert(), py::arg("cc").noconvert(),

@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install -U pip
-          python -m pip install ".[style]"
+          python -m pip install isort black black_nbconvert
       - name: Check the style
         run: |
           isort -c python

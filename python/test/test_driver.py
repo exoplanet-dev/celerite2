@@ -5,7 +5,7 @@ import pytest
 from celerite2 import driver, terms
 
 
-def get_matrices(size=100, kernel=None, vector=False):
+def get_matrices(size=100, kernel=None, vector=False, conditional=False):
     np.random.seed(721)
     x = np.sort(np.random.uniform(0, 10, size))
     if vector:
@@ -21,7 +21,13 @@ def get_matrices(size=100, kernel=None, vector=False):
     K = kernel.get_value(x[:, None] - x[None, :])
     K[np.diag_indices_from(K)] += diag
 
-    return a, U, V, P, K, Y
+    if not conditional:
+        return a, U, V, P, K, Y
+
+    t = np.sort(np.random.uniform(-1, 12, 200))
+    U_star, V_star, inds = kernel.get_conditional_mean_matrices(x, t)
+    K_star = kernel.get_value(t[:, None] - x[None, :])
+    return a, U, V, P, K, Y, U_star, V_star, inds, K_star
 
 
 def test_factor():
@@ -116,6 +122,23 @@ def test_dot_tril(vector):
 
     # Make sure that no copy is made if possible
     assert np.allclose(value, Y)
+
+    # Check that the solution is correct
+    assert np.allclose(value, expect)
+
+
+def test_conditional_mean():
+    a, U, V, P, K, Y, U_star, V_star, inds, K_star = get_matrices(
+        vector=True, conditional=True
+    )
+
+    # First compute the expected value
+    alpha = np.linalg.solve(K, Y)
+    expect = np.dot(K_star, alpha)
+
+    # Then solve using celerite
+    mu = np.empty(len(U_star))
+    value = driver.conditional_mean(U, V, P, alpha, U_star, V_star, inds, mu)
 
     # Check that the solution is correct
     assert np.allclose(value, expect)

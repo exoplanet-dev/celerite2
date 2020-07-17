@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__all__ = ["factor", "solve", "norm"]
+__all__ = ["factor", "solve", "norm", "dot_tril", "matmul"]
 from itertools import chain
 
 import numpy as np
@@ -20,19 +20,60 @@ def _resize_or_set(outputs, n, shape):
     return outputs[n][0]
 
 
-class FactorOp(theano.Op):
+class BaseOp(theano.Op):
     __props__ = ()
-    itypes = [
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-    ]
-    otypes = [
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-    ]
+    idim = ()
+    odim = ()
+    dim_map = {}
+
+    def make_node(self, *inputs):
+        # Check the dtype
+        if any(arg.dtype != "float64" for arg in inputs):
+            raise NotImplementedError("celerite2 requires float64 precision")
+
+        # Check the number of inputs
+        if len(self.idim) != len(inputs):
+            raise ValueError(
+                f"expected {len(self.idim)} inputs; got {len(inputs)}"
+            )
+
+        # Loop over inputs and check the dimensions of each
+        actual_map = {}
+        type_map = {}
+        for n, ip in enumerate(inputs):
+            if ip.ndim == self.idim[n]:
+                continue
+            if self.idim[n] not in self.dim_map:
+                raise ValueError(
+                    f"invalid dimensions for input {n} (zero indexed)"
+                )
+            if self.idim[n] in actual_map:
+                if ip.ndim != actual_map[self.idim[n]]:
+                    raise ValueError(
+                        f"invalid dimensions for input {n} (zero indexed)"
+                    )
+            if ip.ndim in self.dim_map[self.idim[n]]:
+                actual_map[self.idim[n]] = ip.ndim
+                type_map[self.idim[n]] = ip.type
+
+        # Build the output types
+        otypes = []
+        for d in self.odim:
+            if d == 0:
+                otypes.append(tt.dscalar())
+            elif d == 1:
+                otypes.append(tt.dvector())
+            elif d == 2:
+                otypes.append(tt.dmatrix())
+            else:
+                otypes.append(type_map[d]())
+
+        return theano.Apply(self, inputs, otypes)
+
+
+class FactorOp(BaseOp):
+    idim = (1, 2, 2, 2)
+    odim = (1, 2, 2)
 
     def __init__(self):
         self.rev_op = FactorRevOp()
@@ -64,25 +105,9 @@ class FactorOp(theano.Op):
         return self.rev_op(*chain(inputs, outputs, grads))
 
 
-class FactorRevOp(theano.Op):
-    __props__ = ()
-    itypes = [
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-    ]
-    otypes = [
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-    ]
+class FactorRevOp(BaseOp):
+    idim = (1, 2, 2, 2, 1, 2, 2, 1, 2)
+    odim = (1, 2, 2, 2)
 
     def infer_shape(self, node, shapes):
         return shapes[:4]
@@ -102,21 +127,10 @@ class FactorRevOp(theano.Op):
 factor = FactorOp()
 
 
-class SolveOp(theano.Op):
-    __props__ = ()
-    itypes = [
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-    ]
-    otypes = [
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-    ]
+class SolveOp(BaseOp):
+    idim = (2, 2, 1, 2, "rhs")
+    odim = ("rhs", "rhs", 2, 2)
+    dim_map = {"rhs": (1, 2)}
 
     def __init__(self):
         self.rev_op = SolveRevOp()
@@ -125,18 +139,28 @@ class SolveOp(theano.Op):
     def infer_shape(self, node, shapes):
         N = shapes[0][0]
         J = shapes[0][1]
-        nrhs = shapes[4][1]
+        try:
+            nrhs = shapes[4][1]
+        except IndexError:
+            nrhs = 1
         return shapes[4], shapes[4], [N, nrhs * J], [N, nrhs * J]
 
     def perform(self, node, inputs, outputs):
         U, P, d, W, Y = inputs
         N, J = U.shape
-        nrhs = Y.shape[1]
 
-        X = _resize_or_set(outputs, 0, (N, nrhs))
-        Z = _resize_or_set(outputs, 1, (N, nrhs))
-        F = _resize_or_set(outputs, 2, (N, nrhs * J))
-        G = _resize_or_set(outputs, 3, (N, nrhs * J))
+        if Y.ndim == 1:
+            X = _resize_or_set(outputs, 0, (N,))
+            Z = _resize_or_set(outputs, 1, (N,))
+            F = _resize_or_set(outputs, 2, (N, J))
+            G = _resize_or_set(outputs, 3, (N, J))
+
+        else:
+            nrhs = Y.shape[1]
+            X = _resize_or_set(outputs, 0, (N, nrhs))
+            Z = _resize_or_set(outputs, 1, (N, nrhs))
+            F = _resize_or_set(outputs, 2, (N, nrhs * J))
+            G = _resize_or_set(outputs, 3, (N, nrhs * J))
 
         backprop.solve_fwd(U, P, d, W, Y, X, Z, F, G)
 
@@ -148,27 +172,10 @@ class SolveOp(theano.Op):
         return self.rev_op(*chain(inputs, outputs, [bX]))
 
 
-class SolveRevOp(theano.Op):
-    __props__ = ()
-    itypes = [
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-    ]
-    otypes = [
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-    ]
+class SolveRevOp(BaseOp):
+    idim = (2, 2, 1, 2, "rhs", "rhs", "rhs", 2, 2, "rhs")
+    odim = (2, 2, 1, 2, "rhs")
+    dim_map = {"rhs": (1, 2)}
 
     def infer_shape(self, node, shapes):
         return shapes[:5]
@@ -176,13 +183,17 @@ class SolveRevOp(theano.Op):
     def perform(self, node, inputs, outputs):
         U, P, d, W, Y, X, Z, F, G, bX = inputs
         N, J = U.shape
-        nrhs = Y.shape[1]
 
         bU = _resize_or_set(outputs, 0, (N, J))
         bP = _resize_or_set(outputs, 1, (N - 1, J))
         bd = _resize_or_set(outputs, 2, (N,))
         bW = _resize_or_set(outputs, 3, (N, J))
-        bY = _resize_or_set(outputs, 4, (N, nrhs))
+
+        if Y.ndim == 1:
+            bY = _resize_or_set(outputs, 4, (N,))
+        else:
+            nrhs = Y.shape[1]
+            bY = _resize_or_set(outputs, 4, (N, nrhs))
 
         backprop.solve_rev(U, P, d, W, Y, X, Z, F, G, bX, bU, bP, bd, bW, bY)
 
@@ -190,20 +201,9 @@ class SolveRevOp(theano.Op):
 solve = SolveOp()
 
 
-class NormOp(theano.Op):
-    __props__ = ()
-    itypes = [
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-        theano.tensor.dvector,
-    ]
-    otypes = [
-        theano.tensor.dscalar,
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-    ]
+class NormOp(BaseOp):
+    idim = (2, 2, 1, 2, 1)
+    odim = (0, 1, 2)
 
     def __init__(self):
         self.rev_op = NormRevOp()
@@ -230,26 +230,9 @@ class NormOp(theano.Op):
         return self.rev_op(*chain(inputs, outputs, [bX]))
 
 
-class NormRevOp(theano.Op):
-    __props__ = ()
-    itypes = [
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-        theano.tensor.dvector,
-        theano.tensor.dscalar,
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-        theano.tensor.dscalar,
-    ]
-    otypes = [
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-        theano.tensor.dvector,
-    ]
+class NormRevOp(BaseOp):
+    idim = (2, 2, 1, 2, 1, 0, 1, 2, 0)
+    odim = (2, 2, 1, 2, 1)
 
     def infer_shape(self, node, shapes):
         return shapes[:5]
@@ -270,19 +253,10 @@ class NormRevOp(theano.Op):
 norm = NormOp()
 
 
-class DotTrilOp(theano.Op):
-    __props__ = ()
-    itypes = [
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-    ]
-    otypes = [
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-    ]
+class DotTrilOp(BaseOp):
+    idim = (2, 2, 1, 2, "rhs")
+    odim = ("rhs", 2)
+    dim_map = {"rhs": (1, 2)}
 
     def __init__(self):
         self.rev_op = DotTrilRevOp()
@@ -291,16 +265,23 @@ class DotTrilOp(theano.Op):
     def infer_shape(self, node, shapes):
         N = shapes[0][0]
         J = shapes[0][1]
-        nrhs = shapes[4][1]
+        try:
+            nrhs = shapes[4][1]
+        except IndexError:
+            nrhs = 1
         return shapes[4], [N, nrhs * J]
 
     def perform(self, node, inputs, outputs):
         U, P, d, W, Y = inputs
         N, J = U.shape
-        nrhs = Y.shape[1]
 
-        X = _resize_or_set(outputs, 0, (N, nrhs))
-        F = _resize_or_set(outputs, 1, (N, nrhs * J))
+        if Y.ndim == 1:
+            X = _resize_or_set(outputs, 0, (N,))
+            F = _resize_or_set(outputs, 1, (N, J))
+        else:
+            nrhs = Y.shape[1]
+            X = _resize_or_set(outputs, 0, (N, nrhs))
+            F = _resize_or_set(outputs, 1, (N, nrhs * J))
 
         backprop.dot_tril_fwd(U, P, d, W, Y, X, F)
 
@@ -312,25 +293,10 @@ class DotTrilOp(theano.Op):
         return self.rev_op(*chain(inputs, outputs, [bX]))
 
 
-class DotTrilRevOp(theano.Op):
-    __props__ = ()
-    itypes = [
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-    ]
-    otypes = [
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-    ]
+class DotTrilRevOp(BaseOp):
+    idim = (2, 2, 1, 2, "rhs", "rhs", 2, "rhs")
+    odim = (2, 2, 1, 2, "rhs")
+    dim_map = {"rhs": (1, 2)}
 
     def infer_shape(self, node, shapes):
         return shapes[:5]
@@ -338,13 +304,17 @@ class DotTrilRevOp(theano.Op):
     def perform(self, node, inputs, outputs):
         U, P, d, W, Y, X, F, bX = inputs
         N, J = U.shape
-        nrhs = Y.shape[1]
 
         bU = _resize_or_set(outputs, 0, (N, J))
         bP = _resize_or_set(outputs, 1, (N - 1, J))
         bd = _resize_or_set(outputs, 2, (N,))
         bW = _resize_or_set(outputs, 3, (N, J))
-        bY = _resize_or_set(outputs, 4, (N, nrhs))
+
+        if Y.ndim == 1:
+            bY = _resize_or_set(outputs, 4, (N,))
+        else:
+            nrhs = Y.shape[1]
+            bY = _resize_or_set(outputs, 4, (N, nrhs))
 
         backprop.dot_tril_rev(U, P, d, W, Y, X, F, bX, bU, bP, bd, bW, bY)
 
@@ -352,21 +322,10 @@ class DotTrilRevOp(theano.Op):
 dot_tril = DotTrilOp()
 
 
-class MatmulOp(theano.Op):
-    __props__ = ()
-    itypes = [
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-    ]
-    otypes = [
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-    ]
+class MatmulOp(BaseOp):
+    idim = (1, 2, 2, 2, "rhs")
+    odim = ("rhs", "rhs", 2, 2)
+    dim_map = {"rhs": (1, 2)}
 
     def __init__(self):
         self.rev_op = MatmulRevOp()
@@ -375,18 +334,26 @@ class MatmulOp(theano.Op):
     def infer_shape(self, node, shapes):
         N = shapes[1][0]
         J = shapes[1][1]
-        nrhs = shapes[4][1]
+        try:
+            nrhs = shapes[4][1]
+        except IndexError:
+            nrhs = 1
         return shapes[4], shapes[4], [N, nrhs * J], [N, nrhs * J]
 
     def perform(self, node, inputs, outputs):
         a, U, V, P, Y = inputs
         N, J = U.shape
-        nrhs = Y.shape[1]
-
-        X = _resize_or_set(outputs, 0, (N, nrhs))
-        Z = _resize_or_set(outputs, 1, (N, nrhs))
-        F = _resize_or_set(outputs, 2, (N, nrhs * J))
-        G = _resize_or_set(outputs, 3, (N, nrhs * J))
+        if Y.ndim == 1:
+            X = _resize_or_set(outputs, 0, (N,))
+            Z = _resize_or_set(outputs, 1, (N,))
+            F = _resize_or_set(outputs, 2, (N, J))
+            G = _resize_or_set(outputs, 3, (N, J))
+        else:
+            nrhs = Y.shape[1]
+            X = _resize_or_set(outputs, 0, (N, nrhs))
+            Z = _resize_or_set(outputs, 1, (N, nrhs))
+            F = _resize_or_set(outputs, 2, (N, nrhs * J))
+            G = _resize_or_set(outputs, 3, (N, nrhs * J))
 
         backprop.matmul_fwd(a, U, V, P, Y, X, Z, F, G)
 
@@ -398,27 +365,10 @@ class MatmulOp(theano.Op):
         return self.rev_op(*chain(inputs, outputs, [bX]))
 
 
-class MatmulRevOp(theano.Op):
-    __props__ = ()
-    itypes = [
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-    ]
-    otypes = [
-        theano.tensor.dvector,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-        theano.tensor.dmatrix,
-    ]
+class MatmulRevOp(BaseOp):
+    idim = (1, 2, 2, 2, "rhs", "rhs", "rhs", 2, 2, "rhs")
+    odim = (1, 2, 2, 2, "rhs")
+    dim_map = {"rhs": (1, 2)}
 
     def infer_shape(self, node, shapes):
         return shapes[:5]
@@ -426,13 +376,17 @@ class MatmulRevOp(theano.Op):
     def perform(self, node, inputs, outputs):
         a, U, V, P, Y, X, Z, F, G, bX = inputs
         N, J = U.shape
-        nrhs = Y.shape[1]
 
         ba = _resize_or_set(outputs, 0, (N,))
         bU = _resize_or_set(outputs, 1, (N, J))
         bV = _resize_or_set(outputs, 2, (N, J))
         bP = _resize_or_set(outputs, 3, (N - 1, J))
-        bY = _resize_or_set(outputs, 4, (N, nrhs))
+
+        if Y.ndim == 1:
+            bY = _resize_or_set(outputs, 4, (N,))
+        else:
+            nrhs = Y.shape[1]
+            bY = _resize_or_set(outputs, 4, (N, nrhs))
 
         backprop.matmul_rev(a, U, V, P, Y, X, Z, F, G, bX, ba, bU, bV, bP, bY)
 
