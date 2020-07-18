@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 
-__all__ = ["factor", "solve", "norm", "dot_tril", "matmul"]
+__all__ = ["factor", "solve", "norm", "dot_tril", "matmul", "conditional_mean"]
 from itertools import chain
 
 import numpy as np
 import theano
 from theano import tensor as tt
 
-from .. import backprop
+from .. import backprop, driver
 
 
 def _resize_or_set(outputs, n, shape):
@@ -25,11 +25,21 @@ class BaseOp(theano.Op):
     idim = ()
     odim = ()
     dim_map = {}
+    dtypes = ()
 
     def make_node(self, *inputs):
+        if self.dtypes:
+            dtypes = self.dtypes
+        else:
+            dtypes = ("float64" for _ in self.idim)
+
         # Check the dtype
-        if any(arg.dtype != "float64" for arg in inputs):
-            raise NotImplementedError("celerite2 requires float64 precision")
+        if any(arg.dtype != dtype for arg, dtype in zip(inputs, dtypes)):
+            raise NotImplementedError(
+                "invalid dtype\n"
+                f"expected {dtypes}\n"
+                f"got {[arg.dtype for arg in inputs]}"
+            )
 
         # Check the number of inputs
         if len(self.idim) != len(inputs):
@@ -392,3 +402,28 @@ class MatmulRevOp(BaseOp):
 
 
 matmul = MatmulOp()
+
+
+class ConditionalMeanOp(BaseOp):
+    idim = (2, 2, 2, 1, 2, 2, 1)
+    odim = (1,)
+    dtypes = (
+        "float64",
+        "float64",
+        "float64",
+        "float64",
+        "float64",
+        "float64",
+        "int64",
+    )
+
+    def infer_shape(self, node, shapes):
+        return (shapes[6],)
+
+    def perform(self, node, inputs, outputs):
+        U, V, P, z, U_star, V_star, inds = inputs
+        mu = _resize_or_set(outputs, 0, inds.shape)
+        driver.conditional_mean(U, V, P, z, U_star, V_star, inds, mu)
+
+
+conditional_mean = ConditionalMeanOp()

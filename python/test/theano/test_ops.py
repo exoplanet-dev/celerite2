@@ -8,7 +8,7 @@ from celerite2 import backprop, driver, terms
 from celerite2.theano import ops
 
 
-def get_matrices(size=100, kernel=None, vector=False):
+def get_matrices(size=100, kernel=None, vector=False, conditional=False):
     np.random.seed(721)
     x = np.sort(np.random.uniform(0, 10, size))
     if vector:
@@ -21,13 +21,20 @@ def get_matrices(size=100, kernel=None, vector=False):
     kernel = kernel if kernel else terms.SHOTerm(S0=5.0, w0=0.1, Q=3.45)
     a, U, V, P = kernel.get_celerite_matrices(x, diag)
 
-    return a, U, V, P, Y
+    if not conditional:
+        return a, U, V, P, Y
+
+    t = np.sort(np.random.uniform(-1, 12, 200))
+    U_star, V_star, inds = kernel.get_conditional_mean_matrices(x, t)
+    return a, U, V, P, Y, U_star, V_star, inds
 
 
 def convert_values_to_types(values):
     types = []
     for v in values:
-        if v.ndim == 0:
+        if v.dtype == "int64":
+            types.append(tt.lvector())
+        elif v.ndim == 0:
             types.append(tt.dscalar())
         elif v.ndim == 1:
             types.append(tt.dvector())
@@ -38,23 +45,35 @@ def convert_values_to_types(values):
     return types
 
 
-def check_shape(op, inputs, values):
-    outputs = op(*inputs)
-    result = theano.function(inputs, outputs)(*values)
-    shapes = theano.function(inputs, [o.shape for o in outputs])(*values)
-    assert all(
-        np.all(v.shape == s) for v, s in zip(result, shapes)
-    ), "Invalid shape inference"
+def check_shape(op, inputs, outputs, values, result, multi):
+    if multi:
+        shapes = theano.function(inputs, [o.shape for o in outputs])(*values)
+        assert all(
+            np.all(v.shape == s) for v, s in zip(result, shapes)
+        ), "Invalid shape inference"
+
+    else:
+        shape = theano.function(inputs, outputs.shape)(*values)
+        assert result.shape == shape
 
 
 def check_basic(ref_func, op, values):
     inputs = convert_values_to_types(values)
-    check_shape(op, inputs, values)
     outputs = op(*inputs)
     result = theano.function(inputs, outputs)(*values)
 
-    expected = ref_func(*(values + [np.copy(r) for r in result]))
+    try:
+        result.shape
+    except AttributeError:
+        multi = True
+        expected = ref_func(*(values + [np.copy(r) for r in result]))
 
+    else:
+        # We get here if there is only one output
+        multi = False
+        expected = ref_func(*(values + [np.copy(result)]))
+
+    check_shape(op, inputs, outputs, values, result, multi)
     assert len(result) == len(expected)
     for a, b in zip(result, expected):
         assert np.allclose(a, b)
@@ -172,4 +191,17 @@ def test_matmul_rev(vector):
     a, U, V, P, Y = get_matrices(vector=vector)
     check_grad(
         ops.matmul, [a, U, V, P, Y], 1,
+    )
+
+
+def test_conditional_mean_fwd():
+    a, U, V, P, Y, U_star, V_star, inds = get_matrices(
+        vector=True, conditional=True
+    )
+    d, W = driver.factor(U, P, a, np.copy(V))
+    z = driver.solve(U, P, d, W, Y)
+    check_basic(
+        driver.conditional_mean,
+        ops.conditional_mean,
+        [U, V, P, z, U_star, V_star, inds],
     )
