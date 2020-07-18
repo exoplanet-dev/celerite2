@@ -52,7 +52,7 @@ def test_consistency(oterm):
 
     # Setup the new GP
     term = terms.OriginalCeleriteTerm(oterm)
-    gp = celerite2.GP(term)
+    gp = celerite2.GaussianProcess(term)
     gp.compute(x, diag=diag)
     print(gp._W)
     print(gp._log_det)
