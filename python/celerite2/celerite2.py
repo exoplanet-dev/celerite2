@@ -126,9 +126,9 @@ class GaussianProcess:
         return loglike
 
     def predict(self, y, t=None, *, return_cov=False, return_var=False):
-        y = self._process_input(y, inplace=False, require_vector=True)
+        y = self._process_input(y, inplace=True, require_vector=True)
 
-        alpha = driver.solve(self._U, self._P, self._d, self._W, y)
+        alpha = driver.solve(self._U, self._P, self._d, self._W, np.copy(y))
 
         if t is None:
             xs = self._t
@@ -157,11 +157,11 @@ class GaussianProcess:
             var = -np.sum(
                 KxsT * self.apply_inverse(KxsT, inplace=False), axis=0
             )
-            var += self.kernel.get_value(0.0)
+            var += self._kernel.get_value(0.0)
             return mu, var
 
         # Predictive covariance
-        cov = self.kernel.get_value(xs[:, None] - xs[None, :])
+        cov = self._kernel.get_value(xs[:, None] - xs[None, :])
         cov -= np.dot(Kxs, self.apply_inverse(KxsT, inplace=False))
         return mu, cov
 
@@ -175,3 +175,32 @@ class GaussianProcess:
             n = np.random.randn(len(self._t), size)
 
         return driver.dot_tril(self._U, self._P, self._d, self._W, n).T
+
+    def sample_conditional(self, y, t=None, size=None, regularize=None):
+        """
+        Sample from the conditional (predictive) distribution
+
+        Note: this method scales as ``O(M^3)`` for large ``M``, where
+        ``M == len(t)``.
+
+        Args:
+            y (array[n]): The observations at coordinates ``x`` from
+                :func:`GP.compute`.
+            t (Optional[array[ntest]]): The independent coordinates where the
+                prediction should be made. If this is omitted the coordinates
+                will be assumed to be ``x`` from :func:`GP.compute` and an
+                efficient method will be used to compute the prediction.
+            size (Optional[int]): The number of samples to draw.
+            regularize (Optional[float]): For poorly conditioned systems, you
+                can provide a small number here to regularize the predictive
+                covariance. This number will be added to the diagonal.
+
+        Returns:
+            array[n] or array[size, n]: The samples from the conditional
+            distribution over datasets.
+
+        """
+        mu, cov = self.predict(y, t, return_cov=True)
+        if regularize is not None:
+            cov[np.diag_indices_from(cov)] += regularize
+        return np.random.multivariate_normal(mu, cov, size=size)
