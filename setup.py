@@ -33,7 +33,14 @@ INSTALL_REQUIRES = [
 ]
 EXTRA_REQUIRE = {
     "style": ["isort", "black", "black_nbconvert"],
-    "test": ["wheel", "toml", "pytest", "scipy", "celerite>=0.3.1"],
+    "test": [
+        "wheel",
+        "coverage[toml]",
+        "pytest",
+        "pytest-cov",
+        "scipy",
+        "celerite>=0.3.1",
+    ],
     "theano": ["theano"],
     "release": ["pep517", "twine"],
 }
