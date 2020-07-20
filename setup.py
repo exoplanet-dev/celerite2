@@ -43,6 +43,7 @@ EXTRA_REQUIRE = {
     ],
     "theano": ["theano"],
     "release": ["pep517", "twine"],
+    "docs": ["sphinx", "sphinx-material", "sphinx_copybutton"],
 }
 EXTRA_REQUIRE["dev"] = (
     EXTRA_REQUIRE["test"]
