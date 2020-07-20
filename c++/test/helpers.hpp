@@ -94,6 +94,14 @@ struct save_jacobian {
 
       // Recursively apply this function to the next output
       save_jacobian<OutputNumber + 1, NumberOfOutputs>()(input_number, size_of_input, index_in_input, eps, value0, value, jacobian);
+    } else {
+      UNUSED(input_number);
+      UNUSED(size_of_input);
+      UNUSED(index_in_input);
+      UNUSED(eps);
+      UNUSED(value0);
+      UNUSED(value);
+      UNUSED(jacobian);
     }
   }
 };
