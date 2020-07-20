@@ -34,7 +34,7 @@ class Term {
   Term(){};
 
   void set_coefficients(const Vector &ar, const Vector &cr, const Vector &ac, const Vector &bc, const Vector &cc, const Vector &dc) {
-    int nr = ar.rows(), nc = ac.rows();
+    Eigen::Index nr = ar.rows(), nc = ac.rows();
 
     ar_.resize(nr);
     cr_.resize(nr);
@@ -54,12 +54,12 @@ class Term {
   Coeffs get_coefficients() const { return std::make_tuple(ar_, cr_, ac_, bc_, cc_, dc_); }
 
   Matrices get_celerite_matrices(const Vector &x, const Vector &diag) const {
-    int N = x.rows();
+    Eigen::Index N = x.rows();
     if (diag.rows() != N) throw dimension_mismatch();
 
-    int nr = ar_.rows();
-    int nc = ac_.rows();
-    int J  = nr + 2 * nc;
+    Eigen::Index nr = ar_.rows();
+    Eigen::Index nc = ac_.rows();
+    Eigen::Index J  = nr + 2 * nc;
     if (Width != Eigen::Dynamic && Width != J) throw dimension_mismatch();
 
     Vector a = diag.array() + (ar_.sum() + ac_.sum());
@@ -90,8 +90,8 @@ class Term {
 
     auto coeffs = other.get_coefficients();
 
-    int nr = ar_.rows() + std::get<0>(coeffs).rows();
-    int nc = ac_.rows() + std::get<2>(coeffs).rows();
+    Eigen::Index nr = ar_.rows() + std::get<0>(coeffs).rows();
+    Eigen::Index nc = ac_.rows() + std::get<2>(coeffs).rows();
 
     Eigen::Matrix<NewScalar, Eigen::Dynamic, 1> ar(nr), cr(nr), ac(nc), bc(nc), cc(nc), dc(nc);
 
