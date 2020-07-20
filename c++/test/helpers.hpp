@@ -132,6 +132,12 @@ struct compute_jacobian {
 
       // Recursively apply this function for the next input
       compute_jacobian<InputNumber + 1, NumberOfInputs>()(eps, func, args, value0, jacobian);
+    } else {
+      UNUSED(eps);
+      UNUSED(func);
+      UNUSED(args);
+      UNUSED(value0);
+      UNUSED(jacobian);
     }
   }
 };
@@ -172,6 +178,7 @@ struct check_rev {
     } else {
       UNUSED(tol);
       UNUSED(output_number);
+      UNUSED(index_in_output);
       UNUSED(rev_out);
       UNUSED(jacobian);
     }
