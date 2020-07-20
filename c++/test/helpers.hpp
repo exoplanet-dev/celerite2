@@ -78,8 +78,8 @@ using TestKernels =
 template <int OutputNumber, int NumberOfOutputs>
 struct save_jacobian {
   template <typename Value>
-  void operator()(ssize_t input_number, ssize_t size_of_input, ssize_t index_in_input, double eps, const Value value0, const Value value,
-                  std::vector<std::vector<Eigen::MatrixXd>> &jacobian) const {
+  void operator()(Eigen::Index input_number, Eigen::Index size_of_input, Eigen::Index index_in_input, double eps, const Value value0,
+                  const Value value, std::vector<std::vector<Eigen::MatrixXd>> &jacobian) const {
     if constexpr (OutputNumber < NumberOfOutputs) {
       // Compute the numerical derivative and a flat view
       typedef typename std::tuple_element<OutputNumber, Value>::type MatType;
@@ -119,7 +119,7 @@ struct compute_jacobian {
 
       // Loop over elements of the input and compute the first difference
       jacobian[InputNumber].resize(std::tuple_size<Value>::value);
-      for (ssize_t n = 0; n < arg.size(); ++n) {
+      for (Eigen::Index n = 0; n < arg.size(); ++n) {
         arg_map(n) += eps;
         std::get<InputNumber>(args) = arg;
         auto value                  = std::apply(func, args);
@@ -159,7 +159,7 @@ struct zero_args {
 template <int InputNumber, int NumberOfInputs>
 struct check_rev {
   template <typename RevOut>
-  bool operator()(double tol, ssize_t output_number, ssize_t index_in_output, const RevOut rev_out,
+  bool operator()(double tol, Eigen::Index output_number, Eigen::Index index_in_output, const RevOut rev_out,
                   const std::vector<std::vector<Eigen::MatrixXd>> &jacobian) const {
     if constexpr (InputNumber < NumberOfInputs) {
       auto arg = std::get<InputNumber>(rev_out);
@@ -202,7 +202,7 @@ struct compute_and_check_rev {
       Eigen::Map<Eigen::VectorXd> arg_map(arg.data(), arg.size());
 
       // Loop over elements of the output
-      for (ssize_t n = 0; n < arg.size(); ++n) {
+      for (Eigen::Index n = 0; n < arg.size(); ++n) {
         arg_map(n)                     = 1.0;
         std::get<OutputNumber>(rev_in) = arg;
         auto value                     = std::apply(rev, std::tuple_cat(args, rev_in, rev_out));
