@@ -49,9 +49,9 @@ class Term {
     bc_ << bc;
     cc_ << cc;
     dc_ << dc;
-  };
+  }
 
-  Coeffs get_coefficients() const { return std::make_tuple(ar_, cr_, ac_, bc_, cc_, dc_); };
+  Coeffs get_coefficients() const { return std::make_tuple(ar_, cr_, ac_, bc_, cc_, dc_); }
 
   Matrices get_celerite_matrices(const Vector &x, const Vector &diag) const {
     int N = x.rows();
@@ -71,9 +71,9 @@ class Term {
     V.block(0, 0, N, nr).setConstant(Scalar(1));
     P.block(0, 0, N - 1, nr) = exp(-(dx * cr_.transpose()).array());
 
-    auto arg = (x * dc_.transpose()).array().eval();
-    auto ca  = cos(arg).eval();
-    auto sa  = sin(arg).eval();
+    auto arg                   = (x * dc_.transpose()).array().eval();
+    auto ca                    = cos(arg).eval();
+    auto sa                    = sin(arg).eval();
     U.block(0, nr, N, nc)      = ca.array().rowwise() * ac_.transpose().array() + sa.array().rowwise() * bc_.transpose().array();
     U.block(0, nr + nc, N, nc) = sa.array().rowwise() * ac_.transpose().array() - ca.array().rowwise() * bc_.transpose().array();
     V.block(0, nr, N, nc)      = ca;
@@ -81,7 +81,7 @@ class Term {
     P.block(0, nr, N - 1, nc) = P.block(0, nr + nc, N - 1, nc) = exp(-(dx * cc_.transpose()).array());
 
     return std::make_tuple(a, U, V, P);
-  };
+  }
 
   template <typename Other>
   Term<typename std::common_type<Scalar, typename Other::Scalar>::type, sum_width<Width, Other::Width>::value> operator+(const Other &other) const {
@@ -106,7 +106,7 @@ class Term {
     new_term.set_coefficients(ar, cr, ac, bc, cc, dc);
 
     return new_term;
-  };
+  }
 
   private:
   Vector ar_, cr_, ac_, bc_, cc_, dc_;

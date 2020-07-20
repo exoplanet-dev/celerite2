@@ -58,8 +58,8 @@ struct TestKernelSum4 {
   static auto get_kernel() { return TestKernelSHO1::get_kernel() + TestKernelSHO2::get_kernel(); }
 };
 
-using TestKernels = std::tuple<TestKernelReal>;
-//  std::tuple<TestKernelReal, TestKernelComplex, TestKernelSHO1, TestKernelSHO2, TestKernelSum1, TestKernelSum2, TestKernelSum3, TestKernelSum4>;
+using TestKernels =
+   std::tuple<TestKernelReal, TestKernelComplex, TestKernelSHO1, TestKernelSHO2, TestKernelSum1, TestKernelSum2, TestKernelSum3, TestKernelSum4>;
 
 //
 // UNIT TESTING FOR GRADIENTS
