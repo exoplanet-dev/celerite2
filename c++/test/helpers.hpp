@@ -1,8 +1,8 @@
 #include <tuple>
 #include <vector>
 #include <Eigen/Core>
-
 #include <celerite2/terms.hpp>
+#include <celerite2/internal.hpp>
 
 namespace celerite2 {
 namespace test {
@@ -136,6 +136,8 @@ struct zero_args {
     if constexpr (Current < End) {
       std::get<Current>(args).setZero();
       zero_args<Current + 1, End>()(args);
+    } else {
+      UNUSED(args);
     }
   }
 };
@@ -159,6 +161,11 @@ struct check_rev {
       }
 
       return check_rev<InputNumber + 1, NumberOfInputs>()(tol, output_number, index_in_output, rev_out, jacobian);
+    } else {
+      UNUSED(tol);
+      UNUSED(output_number);
+      UNUSED(rev_out);
+      UNUSED(jacobian);
     }
     return true;
   }
@@ -193,6 +200,13 @@ struct compute_and_check_rev {
 
       // Move on to the next output
       return compute_and_check_rev<OutputNumber + 1, NumberOfOutputs>()(tol, rev, args, rev_in, rev_out, jacobian);
+    } else {
+      UNUSED(tol);
+      UNUSED(rev);
+      UNUSED(args);
+      UNUSED(rev_in);
+      UNUSED(rev_out);
+      UNUSED(jacobian);
     }
     return true;
   }
