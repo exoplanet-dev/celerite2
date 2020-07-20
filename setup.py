@@ -146,20 +146,23 @@ include_dirs = [
     get_pybind_include(),
     get_pybind_include(user=True),
 ]
-ext_modules = [
-    Extension(
-        "celerite2.driver",
-        ["python/celerite2/driver.cpp"],
-        include_dirs=include_dirs,
-        language="c++",
-    ),
-    Extension(
-        "celerite2.backprop",
-        ["python/celerite2/backprop.cpp"],
-        include_dirs=include_dirs,
-        language="c++",
-    ),
-]
+if "READTHEDOCS" in os.environ:
+    ext_modules = []
+else:
+    ext_modules = [
+        Extension(
+            "celerite2.driver",
+            ["python/celerite2/driver.cpp"],
+            include_dirs=include_dirs,
+            language="c++",
+        ),
+        Extension(
+            "celerite2.backprop",
+            ["python/celerite2/backprop.cpp"],
+            include_dirs=include_dirs,
+            language="c++",
+        ),
+    ]
 
 # END PYBIND11
 

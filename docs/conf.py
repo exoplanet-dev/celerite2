@@ -21,6 +21,8 @@ extensions = [
 autodoc_mock_imports = [
     "numpy",
     "theano",
+    "celerite2.driver",
+    "celerite2.backprop",
 ]
 
 intersphinx_mapping = {
