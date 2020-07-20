@@ -214,9 +214,6 @@ bool check_grad(Func &&func, Rev &&rev, ArgsIn args_in, ArgsExtra args_extra, Re
   return compute_and_check_rev<0, std::tuple_size<RevIn>::value>()(tol, rev, std::tuple_cat(args_in, args_extra), rev_in, rev_out, jacobian);
 }
 
-#define UNUSED(expr)                                                                                                                                 \
-  do { (void)(expr); } while (0)
-
 #define SETUP_TEST(NUM)                                                                                                                              \
   auto kernel = TestType::get_kernel();                                                                                                              \
   typedef typename decltype(kernel)::LowRank LowRank;                                                                                                \

@@ -6,6 +6,8 @@
 namespace celerite2 {
 namespace core {
 
+#define UNUSED(x) (void)(x)
+
 #define CAST_BASE(TYPE, VAR) Eigen::MatrixBase<TYPE> &VAR = const_cast<Eigen::MatrixBase<TYPE> &>(VAR##_out)
 
 #define CAST_VEC(TYPE, VAR, ROWS)                                                                                                                    \
@@ -15,9 +17,6 @@ namespace core {
 #define CAST_MAT(TYPE, VAR, ROWS, COLS)                                                                                                              \
   CAST_BASE(TYPE, VAR);                                                                                                                              \
   VAR.derived().resize(ROWS, COLS)
-
-// #define GET_MACRO(_1, _2, _3, _4, NAME, ...) NAME
-// #define CAST(...) GET_MACRO(__VA_ARGS__, CAST_MAT, CAST_VEC, CAST_BASE)(__VA_ARGS__)
 
 const int THE_WORKSPACE_VARIABLE_MUST_BE_ROW_MAJOR = 0;
 #define ASSERT_ROW_MAJOR(TYPE) EIGEN_STATIC_ASSERT((TYPE::ColsAtCompileTime == 1) || TYPE::IsRowMajor, THE_WORKSPACE_VARIABLE_MUST_BE_ROW_MAJOR)
@@ -36,7 +35,11 @@ struct update_workspace {
 template <>
 struct update_workspace<false> {
   template <typename A, typename B>
-  static void apply(Eigen::Index n, const Eigen::MatrixBase<A> &a, Eigen::MatrixBase<B> const &b_out) {}
+  static void apply(Eigen::Index n, const Eigen::MatrixBase<A> &a, Eigen::MatrixBase<B> const &b_out) {
+    UNUSED(n);
+    UNUSED(a);
+    UNUSED(b_out);
+  }
 };
 
 template <bool is_solve = false>
@@ -45,6 +48,7 @@ struct update_f {
   static void apply(const Eigen::MatrixBase<A> &a, const Eigen::MatrixBase<B> &b, const Eigen::MatrixBase<C> &c, Eigen::MatrixBase<D> const &d_out) {
     CAST_BASE(D, d);
     d.noalias() += a * b;
+    UNUSED(c);
   }
 
   template <typename A, typename B, typename C, typename D, typename E, typename F, typename G>
@@ -54,6 +58,8 @@ struct update_f {
     CAST_BASE(F, f);
     e.noalias() += b * d.transpose();
     f.noalias() += a * d;
+    UNUSED(c);
+    UNUSED(g_out);
   }
 };
 
@@ -63,6 +69,7 @@ struct update_f<true> {
   static void apply(const Eigen::MatrixBase<A> &a, const Eigen::MatrixBase<B> &b, const Eigen::MatrixBase<C> &c, Eigen::MatrixBase<D> const &d_out) {
     CAST_BASE(D, d);
     d.noalias() += a * c;
+    UNUSED(b);
   }
 
   template <typename A, typename B, typename C, typename D, typename E, typename F, typename G>
@@ -72,6 +79,8 @@ struct update_f<true> {
     CAST_BASE(G, g);
     e.noalias() += c * d.transpose();
     g.noalias() += a * d;
+    UNUSED(b);
+    UNUSED(f_out);
   }
 };
 

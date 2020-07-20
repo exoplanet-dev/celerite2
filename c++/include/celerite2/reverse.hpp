@@ -23,6 +23,9 @@ void factor_rev(const Eigen::MatrixBase<Diag> &a,            // (N,)
                 Eigen::MatrixBase<LowRankOut> const &bP_out  // (N-1, J)
 
 ) {
+  UNUSED(a);
+  UNUSED(V);
+
   ASSERT_ROW_MAJOR(Work);
 
   typedef typename Diag::Scalar Scalar;
@@ -121,6 +124,8 @@ void norm_rev(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
               Eigen::MatrixBase<LowRankOut> const &bW_out,      // (N, J)
               Eigen::MatrixBase<RightHandSideOut> const &bY_out // (N, nrhs)
 ) {
+  UNUSED(X);
+
   ASSERT_ROW_MAJOR(Work);
 
   Eigen::Index N = U.rows(), J = U.cols();
