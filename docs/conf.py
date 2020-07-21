@@ -39,7 +39,6 @@ master_doc = "index"
 project = "celerite2"
 author = "Dan Foreman-Mackey"
 copyright = "2020, " + author
-
 version = __version__
 release = __version__
 
@@ -74,6 +73,11 @@ html_theme_options = {
     "globaltoc_depth": 1,
     "globaltoc_collapse": False,
     "globaltoc_includehidden": False,
-    "heroes": {"index": "Fast & scalable Gaussian Processes in one dimension"},
+    "heroes": {
+        "index": r"<strong>celerite</strong> &nbsp; &nbsp; \se.le.ʁi.te\ "
+        r"&nbsp; &nbsp; <i>noun, archaic literary</i><br>"
+        r"A scalable method for Gaussian Process regression in one dimension. "
+        r"From French <i>célérité</i>."
+    },
     "nav_links": [],
 }
