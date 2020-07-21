@@ -1,0 +1,11 @@
+{# Import the theme's layout. #}
+{% extends '!layout.html' %}
+
+{%- block extrafooter %}
+{{ super() }}
+<div class="md-footer-copyright" style="float:right;text-align:right">
+  Built &amp; hosted on <a href="https://readthedocs.org">ReadTheDocs</a>
+  <br>
+  Icon by <a href='https://www.flaticon.com/authors/monkik'>monkik</a> from <a href='https://www.flaticon.com'>flaticon.com</a>
+</div>
+{%- endblock %}
