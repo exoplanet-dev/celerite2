@@ -44,12 +44,34 @@ class GaussianProcess:
     def compute(
         self, t, *, yerr=None, diag=None, check_sorted=True, quiet=False
     ):
+        """Compute the Cholesky factorization of the GP covariance matrix
+
+        Args:
+            t (shape[N]): The independent coordinates of the observations.
+                This must be sorted in increasing order.
+            yerr (shape[N], optional): If provided, the diagonal standard
+                deviation of the observation model.
+            diag (shape[N], optional): If provided, the diagonal variance of
+                the observation model.
+            check_sorted (bool, optional): If ``True``, a check is performed to
+                make sure that ``t`` is correctly sorted. A ``ValueError`` will
+                be thrown when this check fails.
+            quiet (bool, optional): If ``True``, when the matrix cannot be
+                factorized (because of numerics or otherwise) the solver's
+                ``LinAlgError`` will be silenced and the determiniant will be
+                set to zero. Otherwise, the exception will be propagated.
+
+        Raises:
+            ValueError: [description]
+            LinAlgError: When the matrix is not numerically positive definite.
+
+        """
         # Check the input coordinates
         t = np.atleast_1d(t)
         if check_sorted and np.any(np.diff(t) < 0.0):
             raise ValueError("the input coordinates must be sorted")
         if len(t.shape) != 1:
-            raise ValueError("dimension mismatch")
+            raise ValueError("the input coordinates must be one dimensional")
 
         # Save the diagonal
         self._t = np.ascontiguousarray(t, dtype=np.float64)
@@ -155,7 +177,9 @@ class GaussianProcess:
     ):
         y = self._process_input(y, inplace=True, require_vector=True)
 
-        alpha = driver.solve(self._U, self._P, self._d, self._W, np.copy(y))
+        alpha = driver.solve(
+            self._U, self._P, self._d, self._W, y - self._mean(self._t)
+        )
 
         if t is None:
             xs = self._t
@@ -174,8 +198,8 @@ class GaussianProcess:
                 self._U, self._V, self._P, alpha, U_star, V_star, inds, mu
             )
 
-        if include_mean:
-            mu += self._mean(self._t)
+            if include_mean:
+                mu += self._mean(self._t)
 
         if not (return_var or return_cov):
             return mu

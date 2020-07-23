@@ -39,7 +39,8 @@ test_terms = [
 
 
 @pytest.mark.parametrize("oterm", test_terms)
-def test_consistency(oterm):
+@pytest.mark.parametrize("mean", [0.0, 10.5])
+def test_consistency(oterm, mean):
     # Generate fake data
     np.random.seed(40582)
     x = np.sort(np.random.uniform(0, 10, 50))
@@ -48,12 +49,12 @@ def test_consistency(oterm):
     y = np.sin(x)
 
     # Setup the original GP
-    original_gp = original_celerite.GP(oterm)
+    original_gp = original_celerite.GP(oterm, mean=mean)
     original_gp.compute(x, np.sqrt(diag))
 
     # Setup the new GP
     term = terms.OriginalCeleriteTerm(oterm)
-    gp = celerite2.GaussianProcess(term)
+    gp = celerite2.GaussianProcess(term, mean=mean)
     gp.compute(x, diag=diag)
 
     # "log_likelihood" method
@@ -68,13 +69,14 @@ def test_consistency(oterm):
         assert all(
             np.allclose(a, b)
             for a, b in zip(
-                original_gp.predict(y, **args), gp.predict(y, **args)
+                original_gp.predict(y, **args), gp.predict(y, **args),
             )
         )
         assert all(
             np.allclose(a, b)
             for a, b in zip(
-                original_gp.predict(y, t=t, **args), gp.predict(y, t=t, **args)
+                original_gp.predict(y, t=t, **args),
+                gp.predict(y, t=t, **args),
             )
         )
 
@@ -101,3 +103,60 @@ def test_consistency(oterm):
     a = original_gp.sample_conditional(y, size=10)
     b = gp.sample_conditional(y, size=10)
     assert a.shape == b.shape
+
+
+def test_errors():
+    # Generate fake data
+    np.random.seed(40582)
+    x = np.sort(np.random.uniform(0, 10, 50))
+    t = np.sort(np.random.uniform(-1, 12, 100))
+    diag = np.random.uniform(0.1, 0.3, len(x))
+    y = np.sin(x)
+
+    term = terms.SHOTerm(S0=1.0, w0=0.5, Q=3.0)
+    gp = celerite2.GaussianProcess(term)
+
+    # Need to call compute first
+    with pytest.raises(RuntimeError):
+        gp.recompute()
+
+    with pytest.raises(RuntimeError):
+        gp.log_likelihood(y)
+
+    with pytest.raises(RuntimeError):
+        gp.sample()
+
+    # Sorted
+    with pytest.raises(ValueError):
+        gp.compute(x[::-1], diag=diag)
+
+    # 1D
+    with pytest.raises(ValueError):
+        gp.compute(np.tile(x[:, None], (1, 5)), diag=diag)
+
+    # Only one of diag and yerr
+    with pytest.raises(ValueError):
+        gp.compute(x, diag=diag, yerr=np.sqrt(diag))
+
+    # Not positive definite
+    with pytest.raises(celerite2.driver.LinAlgError):
+        gp.compute(x, diag=-10 * diag)
+
+    # Not positive definite with `quiet`
+    gp.compute(x, diag=-10 * diag, quiet=True)
+    assert np.isinf(gp._log_det)
+    assert gp._log_det < 0
+
+    # Compute correctly
+    gp.compute(x, diag=diag)
+    gp.log_likelihood(y)
+
+    # Dimension mismatch
+    with pytest.raises(ValueError):
+        gp.log_likelihood(y[:-1])
+
+    with pytest.raises(ValueError):
+        gp.log_likelihood(np.tile(y[:, None], (1, 5)))
+
+    with pytest.raises(ValueError):
+        gp.predict(y, t=np.tile(t[:, None], (1, 5)))

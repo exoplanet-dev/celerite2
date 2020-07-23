@@ -5,10 +5,11 @@ import numpy as np
 from theano import tensor as tt
 
 from ..celerite2 import ConstantMean
+from ..celerite2 import GaussianProcess as SuperGaussianProcess
 from . import ops
 
 
-class GaussianProcess:
+class GaussianProcess(SuperGaussianProcess):
     def __init__(self, kernel, t=None, *, mean=0.0, **kwargs):
         self._kernel = kernel
         if callable(mean):
@@ -25,7 +26,9 @@ class GaussianProcess:
         if t is not None:
             self.compute(t, **kwargs)
 
-    def compute(self, t, *, yerr=None, diag=None, check_sorted=True):
+    def compute(
+        self, t, *, yerr=None, diag=None, check_sorted=True, quiet=False
+    ):
         t = tt.as_tensor_variable(t)
         if t.ndim != 1:
             raise ValueError("dimension mismatch")
@@ -51,8 +54,18 @@ class GaussianProcess:
         )
 
         # Compute the Cholesky factorization
-        self._d, self._W, _ = ops.factor(a, self._U, self._V, self._P)
-        self._log_det = tt.sum(tt.log(self._d))
+        if quiet:
+            self._d, self._W, _ = ops.factor_quiet(
+                a, self._U, self._V, self._P
+            )
+            self._log_det = tt.switch(
+                tt.any(self._d < 0.0), -np.inf, tt.sum(tt.log(self._d))
+            )
+
+        else:
+            self._d, self._W, _ = ops.factor(a, self._U, self._V, self._P)
+            self._log_det = tt.sum(tt.log(self._d))
+
         self._norm = -0.5 * (
             self._log_det + self._t.shape[0] * np.log(2 * np.pi)
         )
@@ -93,7 +106,9 @@ class GaussianProcess:
         include_mean=True
     ):
         y = self._process_input(y, require_vector=True)
-        alpha = ops.solve(self._U, self._P, self._d, self._W, y)[0]
+        alpha = ops.solve(
+            self._U, self._P, self._d, self._W, y - self._mean(self._t)
+        )[0]
 
         if t is None:
             xs = self._t
@@ -111,8 +126,8 @@ class GaussianProcess:
                 self._U, self._V, self._P, alpha, U_star, V_star, inds
             )
 
-        if include_mean:
-            mu += self._mean(self._t)
+            if include_mean:
+                mu += self._mean(self._t)
 
         if not (return_var or return_cov):
             return mu
@@ -134,3 +149,11 @@ class GaussianProcess:
         import pymc3
 
         return pymc3.DensityDist(name, self.log_likelihood, **kwargs)
+
+    def sample(self, *args, **kwargs):
+        raise NotImplementedError("'sample' is not implemented in Theano")
+
+    def sample_conditional(self, *args, **kwargs):
+        raise NotImplementedError(
+            "'sample_conditional' is not implemented in Theano"
+        )

@@ -59,7 +59,7 @@ auto norm(py::array_t<double, py::array::c_style> U, py::array_t<double, py::arr
   SETUP_BASE_MATRICES;
   ssize_t nrhs = 0;
   SETUP_RHS_MATRIX(Z);
-  if (nrhs != 1) throw std::runtime_error("Z must be a vector");
+  if (nrhs != 1) throw std::invalid_argument("Z must be a vector");
   Eigen::Matrix<double, 1, 1> norm_;
 #define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
   {                                                                                                                                                  \
@@ -133,18 +133,18 @@ auto conditional_mean(py::array_t<double, py::array::c_style> U, py::array_t<dou
   py::buffer_info Ubuf = U.request();
   py::buffer_info Vbuf = V.request();
   py::buffer_info Pbuf = P.request();
-  if (Ubuf.ndim != 2 || Vbuf.ndim != 2 || Pbuf.ndim != 2) throw std::runtime_error("Invalid dimensions");
+  if (Ubuf.ndim != 2 || Vbuf.ndim != 2 || Pbuf.ndim != 2) throw std::invalid_argument("Invalid dimensions");
   ssize_t N = Ubuf.shape[0], J = Ubuf.shape[1];
-  if (N == 0 || J == 0) throw std::runtime_error("Dimensions can't be zero");
-  if (Vbuf.shape[0] != N || Vbuf.shape[1] != J) throw std::runtime_error("Invalid shape: W");
-  if (Pbuf.shape[0] != N - 1 || Pbuf.shape[1] != J) throw std::runtime_error("Invalid shape: P");
+  if (N == 0 || J == 0) throw std::invalid_argument("Dimensions can't be zero");
+  if (Vbuf.shape[0] != N || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
+  if (Pbuf.shape[0] != N - 1 || Pbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: P");
 
   ssize_t nrhs = 0;
   SETUP_RHS_MATRIX(Z);
-  if (nrhs != 1) throw std::runtime_error("Z must be a vector");
+  if (nrhs != 1) throw std::invalid_argument("Z must be a vector");
 
   py::buffer_info indsbuf = inds.request();
-  if (indsbuf.ndim != 1) throw std::runtime_error("Invalid shape: inds");
+  if (indsbuf.ndim != 1) throw std::invalid_argument("Invalid shape: inds");
   ssize_t M = indsbuf.shape[0];
 
   GET_BUF_MAT(U_star, M, J);
@@ -192,17 +192,17 @@ auto get_celerite_matrices(py::array_t<double, py::array::c_style> ar_in, py::ar
 
   ssize_t N = x.shape(0), Jr = ar.shape(0), Jc = ac.shape(0), J = Jr + 2 * Jc;
 
-  if (cr.shape(0) != Jr) throw std::runtime_error("dimension mismatch: cr");
-  if (bc.shape(0) != Jc) throw std::runtime_error("dimension mismatch: bc");
-  if (cc.shape(0) != Jc) throw std::runtime_error("dimension mismatch: cc");
-  if (dc.shape(0) != Jc) throw std::runtime_error("dimension mismatch: dc");
+  if (cr.shape(0) != Jr) throw std::invalid_argument("dimension mismatch: cr");
+  if (bc.shape(0) != Jc) throw std::invalid_argument("dimension mismatch: bc");
+  if (cc.shape(0) != Jc) throw std::invalid_argument("dimension mismatch: cc");
+  if (dc.shape(0) != Jc) throw std::invalid_argument("dimension mismatch: dc");
 
-  if (diag.shape(0) != N) throw std::runtime_error("dimension mismatch: diag");
+  if (diag.shape(0) != N) throw std::invalid_argument("dimension mismatch: diag");
 
-  if (a.shape(0) != N) throw std::runtime_error("dimension mismatch: a");
-  if (U.shape(0) != N || U.shape(1) != J) throw std::runtime_error("dimension mismatch: U");
-  if (V.shape(0) != N || V.shape(1) != J) throw std::runtime_error("dimension mismatch: V");
-  if (P.shape(0) != N - 1 || P.shape(1) != J) throw std::runtime_error("dimension mismatch: P");
+  if (a.shape(0) != N) throw std::invalid_argument("dimension mismatch: a");
+  if (U.shape(0) != N || U.shape(1) != J) throw std::invalid_argument("dimension mismatch: U");
+  if (V.shape(0) != N || V.shape(1) != J) throw std::invalid_argument("dimension mismatch: V");
+  if (P.shape(0) != N - 1 || P.shape(1) != J) throw std::invalid_argument("dimension mismatch: P");
 
   double sum = 0.0;
   for (ssize_t j = 0; j < Jr; ++j) sum += ar(j);

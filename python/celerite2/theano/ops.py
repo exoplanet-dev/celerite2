@@ -1,6 +1,14 @@
 # -*- coding: utf-8 -*-
 
-__all__ = ["factor", "solve", "norm", "dot_tril", "matmul", "conditional_mean"]
+__all__ = [
+    "factor",
+    "factor_quiet",
+    "solve",
+    "norm",
+    "dot_tril",
+    "matmul",
+    "conditional_mean",
+]
 from itertools import chain
 
 import numpy as np
@@ -82,10 +90,12 @@ class BaseOp(theano.Op):
 
 
 class FactorOp(BaseOp):
+    __props__ = ("quiet",)
     idim = (1, 2, 2, 2)
     odim = (1, 2, 2)
 
-    def __init__(self):
+    def __init__(self, *, quiet=False):
+        self.quiet = quiet
         self.rev_op = FactorRevOp()
         super().__init__()
 
@@ -102,7 +112,12 @@ class FactorOp(BaseOp):
         W = _resize_or_set(outputs, 1, (N, J))
         S = _resize_or_set(outputs, 2, (N, J * J))
 
-        backprop.factor_fwd(a, U, V, P, d, W, S)
+        try:
+            backprop.factor_fwd(a, U, V, P, d, W, S)
+        except backprop.LinAlgError:
+            if not self.quiet:
+                raise
+            d[:] = -1.0
 
     def grad(self, inputs, gradients):
         outputs = self(*inputs)
@@ -135,6 +150,7 @@ class FactorRevOp(BaseOp):
 
 
 factor = FactorOp()
+factor_quiet = FactorOp(quiet=True)
 
 
 class SolveOp(BaseOp):

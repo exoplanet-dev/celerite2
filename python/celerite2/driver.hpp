@@ -124,23 +124,23 @@ struct order<1> {
 
 #define GET_BUF(NAME, SIZE)                                                                                                                          \
   py::buffer_info NAME##buf = NAME.request();                                                                                                        \
-  if (NAME##buf.size != SIZE) throw std::runtime_error("Invalid shape: " #NAME);
+  if (NAME##buf.size != SIZE) throw std::invalid_argument("Invalid shape: " #NAME);
 #define GET_BUF_VEC(NAME, ROWS)                                                                                                                      \
   py::buffer_info NAME##buf = NAME.request();                                                                                                        \
-  if (NAME##buf.ndim != 1 || NAME##buf.shape[0] != ROWS) throw std::runtime_error("Invalid shape: " #NAME);
+  if (NAME##buf.ndim != 1 || NAME##buf.shape[0] != ROWS) throw std::invalid_argument("Invalid shape: " #NAME);
 #define GET_BUF_MAT(NAME, ROWS, COLS)                                                                                                                \
   py::buffer_info NAME##buf = NAME.request();                                                                                                        \
-  if (NAME##buf.ndim != 2 || NAME##buf.shape[0] != ROWS || NAME##buf.shape[1] != COLS) throw std::runtime_error("Invalid shape: " #NAME);
+  if (NAME##buf.ndim != 2 || NAME##buf.shape[0] != ROWS || NAME##buf.shape[1] != COLS) throw std::invalid_argument("Invalid shape: " #NAME);
 
 // This gets the buffer info for the standard celerite matrix inputs and checks the dimensions
 #define SETUP_BASE_MATRICES                                                                                                                          \
   py::buffer_info Ubuf = U.request(), Pbuf = P.request(), dbuf = d.request(), Wbuf = W.request();                                                    \
-  if (Ubuf.ndim != 2 || Pbuf.ndim != 2 || dbuf.ndim != 1 || Wbuf.ndim != 2) throw std::runtime_error("Invalid dimensions");                          \
+  if (Ubuf.ndim != 2 || Pbuf.ndim != 2 || dbuf.ndim != 1 || Wbuf.ndim != 2) throw std::invalid_argument("Invalid dimensions");                       \
   ssize_t N = Ubuf.shape[0], J = Ubuf.shape[1];                                                                                                      \
-  if (N == 0 || J == 0) throw std::runtime_error("Dimensions can't be zero");                                                                        \
-  if (Pbuf.shape[0] != N - 1 || Pbuf.shape[1] != J) throw std::runtime_error("Invalid shape: P");                                                    \
-  if (dbuf.shape[0] != N) throw std::runtime_error("Invalid shape: d");                                                                              \
-  if (Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::runtime_error("Invalid shape: W");
+  if (N == 0 || J == 0) throw std::invalid_argument("Dimensions can't be zero");                                                                     \
+  if (Pbuf.shape[0] != N - 1 || Pbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: P");                                                 \
+  if (dbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: d");                                                                           \
+  if (Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
 
 // This gets the buffer info for a right hand side input and checks the dimensions
 #define SETUP_RHS_MATRIX(NAME)                                                                                                                       \
@@ -149,10 +149,10 @@ struct order<1> {
   if (NAME##buf.ndim == 2) {                                                                                                                         \
     NAME##_nrhs = NAME##buf.shape[1];                                                                                                                \
   } else if (NAME##buf.ndim != 1)                                                                                                                    \
-    throw std::runtime_error(#NAME " must be a matrix");                                                                                             \
-  if (NAME##buf.shape[0] != N) throw std::runtime_error("Invalid shape: " #NAME);                                                                    \
+    throw std::invalid_argument(#NAME " must be a matrix");                                                                                          \
+  if (NAME##buf.shape[0] != N) throw std::invalid_argument("Invalid shape: " #NAME);                                                                 \
   if (nrhs > 0 && nrhs != NAME##_nrhs) {                                                                                                             \
-    throw std::runtime_error("dimension mismatch: " #NAME);                                                                                          \
+    throw std::invalid_argument("dimension mismatch: " #NAME);                                                                                       \
   } else {                                                                                                                                           \
     nrhs = NAME##_nrhs;                                                                                                                              \
   }
