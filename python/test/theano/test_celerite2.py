@@ -39,7 +39,8 @@ term_mark = pytest.mark.parametrize(
 
 
 @term_mark
-def test_consistency(name, args):
+@pytest.mark.parametrize("mean", [0.0, 10.5])
+def test_consistency(name, args, mean):
     # Generate fake data
     np.random.seed(40582)
     x = np.sort(np.random.uniform(0, 10, 50))
@@ -48,11 +49,11 @@ def test_consistency(name, args):
     y = np.sin(x)
 
     term = getattr(terms, name)(**args)
-    gp = GaussianProcess(term)
+    gp = GaussianProcess(term, mean=mean)
     gp.compute(x, diag=diag)
 
     pyterm = getattr(pyterms, name)(**args)
-    pygp = celerite2.GaussianProcess(pyterm)
+    pygp = celerite2.GaussianProcess(pyterm, mean=mean)
     pygp.compute(x, diag=diag)
 
     # "log_likelihood" method
@@ -79,4 +80,5 @@ def test_consistency(name, args):
             )
         )
 
+    # "dot_tril" method
     assert np.allclose(pygp.dot_tril(y), gp.dot_tril(y).eval())

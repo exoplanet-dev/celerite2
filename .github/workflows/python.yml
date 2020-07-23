@@ -58,6 +58,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
+          fetch-depth: 0
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
@@ -75,9 +76,7 @@ jobs:
       - name: Convert coverage
         run: python -m coverage xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1.0.11
-        with:
-          fail_ci_if_error: true
+        uses: codecov/codecov-action@v1
 
   theano:
     name: "Theano / ${{ matrix.os }}"
@@ -90,6 +89,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
+          fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
@@ -103,9 +103,7 @@ jobs:
       - name: Convert coverage
         run: python -m coverage xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1.0.11
-        with:
-          fail_ci_if_error: true
+        uses: codecov/codecov-action@v1
 
   pytorch:
     name: "PyTorch / ${{ matrix.os }}"
@@ -118,6 +116,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
+          fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
@@ -131,6 +130,4 @@ jobs:
       - name: Convert coverage
         run: python -m coverage xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1.0.11
-        with:
-          fail_ci_if_error: true
+        uses: codecov/codecov-action@v1

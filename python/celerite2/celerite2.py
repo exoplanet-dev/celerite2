@@ -10,9 +10,21 @@ from . import driver
 from .driver import LinAlgError
 
 
+class ConstantMean:
+    def __init__(self, value=0.0):
+        self._value = value
+
+    def __call__(self, x):
+        return self._value
+
+
 class GaussianProcess:
-    def __init__(self, kernel):
+    def __init__(self, kernel, t=None, *, mean=0.0, **kwargs):
         self._kernel = kernel
+        if callable(mean):
+            self._mean = mean
+        else:
+            self._mean = ConstantMean(mean)
 
         # Placeholders for storing data
         self._t = None
@@ -25,6 +37,9 @@ class GaussianProcess:
         self._V = np.empty((0, 0), dtype=np.float64)
         self._P = np.empty((0, 0), dtype=np.float64)
         self._d = np.empty(0, dtype=np.float64)
+
+        if t is not None:
+            self.compute(t, **kwargs)
 
     def compute(
         self, t, *, yerr=None, diag=None, check_sorted=True, quiet=False
@@ -123,13 +138,21 @@ class GaussianProcess:
         if not np.isfinite(self._log_det):
             return -np.inf
         loglike = self._norm - 0.5 * driver.norm(
-            self._U, self._P, self._d, self._W, y
+            self._U, self._P, self._d, self._W, y - self._mean(self._t)
         )
         if not np.isfinite(loglike):
             return -np.inf
         return loglike
 
-    def predict(self, y, t=None, *, return_cov=False, return_var=False):
+    def predict(
+        self,
+        y,
+        t=None,
+        *,
+        return_cov=False,
+        return_var=False,
+        include_mean=True
+    ):
         y = self._process_input(y, inplace=True, require_vector=True)
 
         alpha = driver.solve(self._U, self._P, self._d, self._W, np.copy(y))
@@ -150,6 +173,9 @@ class GaussianProcess:
             mu = driver.conditional_mean(
                 self._U, self._V, self._P, alpha, U_star, V_star, inds, mu
             )
+
+        if include_mean:
+            mu += self._mean(self._t)
 
         if not (return_var or return_cov):
             return mu
@@ -176,9 +202,11 @@ class GaussianProcess:
             n = np.random.randn(len(self._t))
         else:
             n = np.random.randn(len(self._t), size)
-        return self.dot_tril(n, inplace=True).T
+        return self.dot_tril(n, inplace=True).T + self._mean(self._t)
 
-    def sample_conditional(self, y, t=None, size=None, regularize=None):
+    def sample_conditional(
+        self, y, t=None, *, size=None, regularize=None, include_mean=True
+    ):
         """
         Sample from the conditional (predictive) distribution
 
@@ -202,7 +230,9 @@ class GaussianProcess:
             distribution over datasets.
 
         """
-        mu, cov = self.predict(y, t, return_cov=True)
+        mu, cov = self.predict(
+            y, t, return_cov=True, include_mean=include_mean
+        )
         if regularize is not None:
             cov[np.diag_indices_from(cov)] += regularize
         return np.random.multivariate_normal(mu, cov, size=size)

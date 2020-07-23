@@ -4,12 +4,17 @@ __all__ = ["GaussianProcess"]
 import numpy as np
 from theano import tensor as tt
 
+from ..celerite2 import ConstantMean
 from . import ops
 
 
 class GaussianProcess:
-    def __init__(self, kernel, t=None, diag=None):
+    def __init__(self, kernel, t=None, *, mean=0.0, **kwargs):
         self._kernel = kernel
+        if callable(mean):
+            self._mean = mean
+        else:
+            self._mean = ConstantMean(mean)
 
         # Placeholders for storing data
         self._t = None
@@ -18,7 +23,7 @@ class GaussianProcess:
         self._norm = np.inf
 
         if t is not None:
-            self.compute(t, diag=diag)
+            self.compute(t, **kwargs)
 
     def compute(self, t, *, yerr=None, diag=None, check_sorted=True):
         t = tt.as_tensor_variable(t)
@@ -72,10 +77,21 @@ class GaussianProcess:
         y = self._process_input(y, require_vector=True)
         return (
             self._norm
-            - 0.5 * ops.norm(self._U, self._P, self._d, self._W, y)[0]
+            - 0.5
+            * ops.norm(
+                self._U, self._P, self._d, self._W, y - self._mean(self._t)
+            )[0]
         )
 
-    def predict(self, y, t=None, *, return_cov=False, return_var=False):
+    def predict(
+        self,
+        y,
+        t=None,
+        *,
+        return_cov=False,
+        return_var=False,
+        include_mean=True
+    ):
         y = self._process_input(y, require_vector=True)
         alpha = ops.solve(self._U, self._P, self._d, self._W, y)[0]
 
@@ -95,6 +111,9 @@ class GaussianProcess:
                 self._U, self._V, self._P, alpha, U_star, V_star, inds
             )
 
+        if include_mean:
+            mu += self._mean(self._t)
+
         if not (return_var or return_cov):
             return mu
 
@@ -112,6 +131,6 @@ class GaussianProcess:
         return mu, cov
 
     def marginal(self, name, **kwargs):
-        import pymc3 as pm
+        import pymc3
 
-        return pm.DensityDist(name, self.log_likelihood, **kwargs)
+        return pymc3.DensityDist(name, self.log_likelihood, **kwargs)
