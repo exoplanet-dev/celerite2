@@ -5,11 +5,12 @@ import pytest
 from celerite2 import terms as pyterms
 
 try:
-    from celerite2.theano import terms
+    import theano  # noqa
 except ImportError:
     HAS_THEANO = False
 else:
     HAS_THEANO = True
+    from celerite2.theano import terms
 
 
 pytestmark = pytest.mark.skipif(

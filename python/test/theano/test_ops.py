@@ -7,13 +7,13 @@ from celerite2.testing import get_matrices
 
 try:
     import theano
-    from theano import tensor as tt
-
-    from celerite2.theano import ops
 except ImportError:
     HAS_THEANO = False
 else:
     HAS_THEANO = True
+    from theano import tensor as tt
+
+    from celerite2.theano import ops
 
 
 pytestmark = pytest.mark.skipif(

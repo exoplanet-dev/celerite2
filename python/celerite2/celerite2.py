@@ -114,6 +114,10 @@ class GaussianProcess:
         y = self._process_input(y, inplace=inplace)
         return driver.solve(self._U, self._P, self._d, self._W, y)
 
+    def dot_tril(self, y, *, inplace=False):
+        y = self._process_input(y, inplace=inplace)
+        return driver.dot_tril(self._U, self._P, self._d, self._W, y)
+
     def log_likelihood(self, y, *, inplace=False):
         y = self._process_input(y, inplace=inplace, require_vector=True)
         if not np.isfinite(self._log_det):
@@ -151,30 +155,28 @@ class GaussianProcess:
             return mu
 
         # Predictive variance.
-        Kxs = self._kernel.get_value(xs[:, None] - self._t[None, :])
-        KxsT = np.ascontiguousarray(Kxs.T, dtype=np.float64)
+        KxsT = self._kernel.get_value(xs[None, :] - self._t[:, None])
         if return_var:
-            var = -np.sum(
-                KxsT * self.apply_inverse(KxsT, inplace=False), axis=0
+            var = self._kernel.get_value(0.0) - np.einsum(
+                "ij,ij->j", KxsT, self.apply_inverse(KxsT, inplace=False)
             )
-            var += self._kernel.get_value(0.0)
             return mu, var
 
         # Predictive covariance
         cov = self._kernel.get_value(xs[:, None] - xs[None, :])
-        cov -= np.dot(Kxs, self.apply_inverse(KxsT, inplace=False))
+        cov -= np.tensordot(
+            KxsT, self.apply_inverse(KxsT, inplace=False), axes=(0, 0)
+        )
         return mu, cov
 
     def sample(self, size=None):
         if self._t is None:
             raise RuntimeError("you must call 'compute' first")
-
         if size is None:
             n = np.random.randn(len(self._t))
         else:
             n = np.random.randn(len(self._t), size)
-
-        return driver.dot_tril(self._U, self._P, self._d, self._W, n).T
+        return self.dot_tril(n, inplace=True).T
 
     def sample_conditional(self, y, t=None, size=None, regularize=None):
         """
