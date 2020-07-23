@@ -2,23 +2,8 @@
 import numpy as np
 import pytest
 
-from celerite2 import backprop, driver, terms
-
-
-def get_matrices(size=100, kernel=None, vector=False):
-    np.random.seed(721)
-    x = np.sort(np.random.uniform(0, 10, size))
-    if vector:
-        Y = np.sin(x)
-    else:
-        Y = np.ascontiguousarray(
-            np.vstack([np.sin(x), np.cos(x), x ** 2]).T, dtype=np.float64
-        )
-    diag = np.random.uniform(0.1, 0.3, len(x))
-    kernel = kernel if kernel else terms.SHOTerm(S0=5.0, w0=0.1, Q=3.45)
-    a, U, V, P = kernel.get_celerite_matrices(x, diag)
-
-    return a, U, V, P, Y
+from celerite2 import backprop, driver
+from celerite2.testing import get_matrices
 
 
 def check_grad(fwd, rev, in_args, out_args, extra_args, eps=1.234e-8):

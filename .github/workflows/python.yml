@@ -71,7 +71,7 @@ jobs:
           DISTUTILS_USE_SDK: 1
           MSSdk: 1
       - name: Run the unit tests
-        run: python -m pytest --cov celerite2 -v python/test --ignore=python/test/theano --ignore=python/test/torch
+        run: python -m pytest --cov celerite2 python/test
       - name: Convert coverage
         run: python -m coverage xml
       - name: Upload coverage to Codecov
@@ -99,7 +99,7 @@ jobs:
           python -m pip install -U pip
           python -m pip install ".[test,theano]"
       - name: Run the unit tests
-        run: python -m pytest --cov celerite2 -v python/test/theano
+        run: python -m pytest --cov celerite2 python/test/theano
       - name: Convert coverage
         run: python -m coverage xml
       - name: Upload coverage to Codecov
@@ -127,7 +127,7 @@ jobs:
           python -m pip install -U pip
           python -m pip install ".[test,torch]"
       - name: Run the unit tests
-        run: python -m pytest --cov celerite2 -v python/test/torch
+        run: python -m pytest --cov celerite2 python/test/torch
       - name: Convert coverage
         run: python -m coverage xml
       - name: Upload coverage to Codecov

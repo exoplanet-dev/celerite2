@@ -3,35 +3,11 @@ import numpy as np
 import pytest
 
 from celerite2 import driver, terms
-
-
-def get_matrices(size=100, kernel=None, vector=False, conditional=False):
-    np.random.seed(721)
-    x = np.sort(np.random.uniform(0, 10, size))
-    if vector:
-        Y = np.sin(x)
-    else:
-        Y = np.ascontiguousarray(
-            np.vstack([np.sin(x), np.cos(x), x ** 2]).T, dtype=np.float64
-        )
-    diag = np.random.uniform(0.1, 0.3, len(x))
-    kernel = kernel if kernel else terms.SHOTerm(S0=5.0, w0=0.1, Q=3.45)
-    a, U, V, P = kernel.get_celerite_matrices(x, diag)
-
-    K = kernel.get_value(x[:, None] - x[None, :])
-    K[np.diag_indices_from(K)] += diag
-
-    if not conditional:
-        return a, U, V, P, K, Y
-
-    t = np.sort(np.random.uniform(-1, 12, 200))
-    U_star, V_star, inds = kernel.get_conditional_mean_matrices(x, t)
-    K_star = kernel.get_value(t[:, None] - x[None, :])
-    return a, U, V, P, K, Y, U_star, V_star, inds, K_star
+from celerite2.testing import get_matrices
 
 
 def test_factor():
-    a, U, V, P, K, Y = get_matrices()
+    a, U, V, P, K, Y = get_matrices(include_dense=True)
     d, W = driver.factor(U, P, a, V)
 
     # Make sure that no copy is made if possible
@@ -41,7 +17,7 @@ def test_factor():
 
 @pytest.mark.parametrize("vector", [True, False])
 def test_solve(vector):
-    a, U, V, P, K, Y = get_matrices(vector=vector)
+    a, U, V, P, K, Y = get_matrices(vector=vector, include_dense=True)
 
     # First compute the expected value
     expect = np.linalg.solve(K, Y)
@@ -58,7 +34,7 @@ def test_solve(vector):
 
 
 def test_norm():
-    a, U, V, P, K, Y = get_matrices(vector=True)
+    a, U, V, P, K, Y = get_matrices(vector=True, include_dense=True)
 
     # First compute the expected value
     expect = np.dot(Y, np.linalg.solve(K, Y))
@@ -73,7 +49,7 @@ def test_norm():
 
 @pytest.mark.parametrize("vector", [True, False])
 def test_matmul(vector):
-    a, U, V, P, K, Y = get_matrices(vector=vector)
+    a, U, V, P, K, Y = get_matrices(vector=vector, include_dense=True)
 
     # First compute the expected value
     expect = np.dot(K, Y)
@@ -92,7 +68,7 @@ def test_matmul(vector):
 @pytest.mark.parametrize("vector", [True, False])
 def test_matmul_order(vector):
     a, U, V, P, K, Y = get_matrices(
-        kernel=terms.RealTerm(a=1.0, c=0.5), vector=vector
+        kernel=terms.RealTerm(a=1.0, c=0.5), vector=vector, include_dense=True
     )
 
     # First compute the expected value
@@ -111,7 +87,7 @@ def test_matmul_order(vector):
 
 @pytest.mark.parametrize("vector", [True, False])
 def test_dot_tril(vector):
-    a, U, V, P, K, Y = get_matrices(vector=vector)
+    a, U, V, P, K, Y = get_matrices(vector=vector, include_dense=True)
 
     # First compute the expected value
     expect = np.dot(np.linalg.cholesky(K), Y)
@@ -129,7 +105,7 @@ def test_dot_tril(vector):
 
 def test_conditional_mean():
     a, U, V, P, K, Y, U_star, V_star, inds, K_star = get_matrices(
-        vector=True, conditional=True
+        vector=True, conditional=True, include_dense=True
     )
 
     # First compute the expected value
