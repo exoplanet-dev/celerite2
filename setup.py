@@ -42,6 +42,7 @@ EXTRA_REQUIRE = {
         "celerite>=0.3.1",
     ],
     "theano": ["theano"],
+    "torch": ["torch"],
     "release": ["pep517", "twine"],
     "docs": ["sphinx", "sphinx-material", "sphinx_copybutton"],
 }

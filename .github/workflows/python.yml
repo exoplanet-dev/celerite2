@@ -71,7 +71,7 @@ jobs:
           DISTUTILS_USE_SDK: 1
           MSSdk: 1
       - name: Run the unit tests
-        run: python -m pytest --cov celerite2 -v python/test --ignore=python/test/theano
+        run: python -m pytest --cov celerite2 -v python/test
       - name: Convert coverage
         run: python -m coverage xml
       - name: Upload coverage to Codecov
@@ -100,6 +100,34 @@ jobs:
           python -m pip install ".[test,theano]"
       - name: Run the unit tests
         run: python -m pytest --cov celerite2 -v python/test/theano
+      - name: Convert coverage
+        run: python -m coverage xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1.0.11
+        with:
+          fail_ci_if_error: true
+
+  pytorch:
+    name: "PyTorch / ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          python -m pip install ".[test,torch]"
+      - name: Run the unit tests
+        run: python -m pytest --cov celerite2 -v python/test/torch
       - name: Convert coverage
         run: python -m coverage xml
       - name: Upload coverage to Codecov

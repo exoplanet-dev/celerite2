@@ -1,11 +1,23 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import pytest
-import theano
-from theano import tensor as tt
 
 from celerite2 import backprop, driver, terms
-from celerite2.theano import ops
+
+try:
+    import theano
+    from theano import tensor as tt
+
+    from celerite2.theano import ops
+except ImportError:
+    HAS_THEANO = False
+else:
+    HAS_THEANO = True
+
+
+pytestmark = pytest.mark.skipif(
+    not HAS_THEANO, reason="Theano is not installed"
+)
 
 
 def get_matrices(size=100, kernel=None, vector=False, conditional=False):

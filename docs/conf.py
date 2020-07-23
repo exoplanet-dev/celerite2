@@ -65,7 +65,6 @@ html_favicon = "_static/logo.png"
 html_logo = "_static/logo-inv.png"
 html_theme_options = {
     "nav_title": "celerite2",
-    # "base_url": "https://project.github.io/project",
     "color_primary": "blue",
     "color_accent": "light-blue",
     "repo_url": "https://github.com/dfm/celerite2",

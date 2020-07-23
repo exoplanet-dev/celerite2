@@ -92,24 +92,23 @@ class Term:
         diag = tt.as_tensor_variable(diag)
         ar, cr, ac, bc, cc, dc = self.coefficients
         a = diag + tt.sum(ar) + tt.sum(ac)
+
+        arg = dc[None, :] * x[:, None]
+        cos = tt.cos(arg)
+        sin = tt.sin(arg)
+        z = tt.zeros_like(x)
+
         U = tt.concatenate(
             (
-                ar[None, :] + tt.zeros_like(x)[:, None],
-                ac[None, :] * tt.cos(dc[None, :] * x[:, None])
-                + bc[None, :] * tt.sin(dc[None, :] * x[:, None]),
-                ac[None, :] * tt.sin(dc[None, :] * x[:, None])
-                - bc[None, :] * tt.cos(dc[None, :] * x[:, None]),
+                ar[None, :] + z[:, None],
+                ac[None, :] * cos + bc[None, :] * sin,
+                ac[None, :] * sin - bc[None, :] * cos,
             ),
             axis=1,
         )
 
         V = tt.concatenate(
-            (
-                tt.zeros_like(ar)[None, :] + tt.ones_like(x)[:, None],
-                tt.cos(dc[None, :] * x[:, None]),
-                tt.sin(dc[None, :] * x[:, None]),
-            ),
-            axis=1,
+            (tt.ones_like(ar)[None, :] + z[:, None], cos, sin), axis=1,
         )
 
         dx = x[1:] - x[:-1]

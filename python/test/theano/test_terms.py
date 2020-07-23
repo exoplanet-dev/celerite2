@@ -3,7 +3,18 @@ import numpy as np
 import pytest
 
 from celerite2 import terms as pyterms
-from celerite2.theano import terms
+
+try:
+    from celerite2.theano import terms
+except ImportError:
+    HAS_THEANO = False
+else:
+    HAS_THEANO = True
+
+
+pytestmark = pytest.mark.skipif(
+    not HAS_THEANO, reason="Theano is not installed"
+)
 
 
 def compare(tensor, array, text):
