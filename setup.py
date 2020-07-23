@@ -36,7 +36,7 @@ EXTRA_REQUIRE = {
     "test": [
         "wheel",
         "coverage[toml]",
-        "pytest",
+        "pytest==6.0.0rc1",
         "pytest-cov",
         "scipy",
         "celerite>=0.3.1",
