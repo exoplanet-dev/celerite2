@@ -26,14 +26,8 @@ class Term:
     def __add__(self, b):
         return TermSum(self, b)
 
-    def __radd__(self, b):
-        return TermSum(b, self)
-
     def __mul__(self, b):
         return TermProduct(self, b)
-
-    def __rmul__(self, b):
-        return TermProduct(b, self)
 
     @property
     def terms(self):
