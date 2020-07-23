@@ -1,7 +1,10 @@
 def pytest_configure(config):
-    import platform
+    try:
+        import theano
+    except ImportError:
+        return
 
-    import theano
+    import platform
 
     theano.config.floatX = "float64"
     if platform.system() == "Darwin":
