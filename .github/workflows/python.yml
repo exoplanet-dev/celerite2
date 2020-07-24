@@ -79,12 +79,8 @@ jobs:
         uses: codecov/codecov-action@v1
 
   theano:
-    name: "Theano / ${{ matrix.os }}"
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-
+    name: "Theano"
+    runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v2
         with:
@@ -110,12 +106,8 @@ jobs:
         uses: codecov/codecov-action@v1
 
   pytorch:
-    name: "PyTorch / ${{ matrix.os }}"
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-
+    name: "PyTorch"
+    runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v2
         with:
@@ -141,12 +133,8 @@ jobs:
         uses: codecov/codecov-action@v1
 
   jax:
-    name: "jax / ${{ matrix.os }}"
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-
+    name: "jax"
+    runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v2
         with:
