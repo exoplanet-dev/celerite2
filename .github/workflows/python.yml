@@ -92,21 +92,20 @@ jobs:
           fetch-depth: 0
       - name: Set up Python
         uses: goanpeca/setup-miniconda@v1
+        with:
+          python-version: 3.8
       - name: Install dependencies
+        shell: bash -l {0}
         run: |
-          conda create -n celerite2 python=3.8 -q
-          conda activate celerite2
           conda install -q numpy scipy theano mkl-service
           python -m pip install -U pip
           python -m pip install ".[test,theano]"
       - name: Run the unit tests
-        run: |
-          conda activate celerite2
-          python -m pytest --cov celerite2 python/test/theano
+        shell: bash -l {0}
+        run: python -m pytest --cov celerite2 python/test/theano
       - name: Convert coverage
-        run: |
-          conda activate celerite2
-          python -m coverage xml
+        shell: bash -l {0}
+        run: python -m coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
 
