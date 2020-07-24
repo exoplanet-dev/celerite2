@@ -78,15 +78,6 @@ class GaussianProcess(nn.Module, SuperGaussianProcess):
                 self._log_det + self._t.shape[0] * np.log(2 * np.pi)
             )
 
-    def recompute(self, *, quiet=False):
-        if self._t is None:
-            raise RuntimeError(
-                "you must call 'compute' directly  at least once"
-            )
-        return self.compute(
-            self._t, diag=self._diag, check_sorted=False, quiet=quiet
-        )
-
     def _process_input(self, y, *, require_vector=False):
         y = as_tensor(y)
         if self._t is None:

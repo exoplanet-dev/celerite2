@@ -6,40 +6,33 @@ from celerite2 import driver
 from celerite2.testing import get_matrices
 
 try:
-    import torch
+    from jax.config import config
 except ImportError:
-    HAS_TORCH = False
+    HAS_JAX = False
 else:
-    HAS_TORCH = True
-    from torch.autograd import gradcheck
+    HAS_JAX = True
 
-    from celerite2.torch import ops
+    config.update("jax_enable_x64", True)
 
+    from jax import numpy as jnp
+    from jax.test_util import check_grads
 
-pytestmark = pytest.mark.skipif(
-    not HAS_TORCH, reason="PyTorch is not installed"
-)
+    from celerite2.jax import ops
+
+pytestmark = pytest.mark.skipif(not HAS_JAX, reason="jax is not installed")
 
 
 def check_op(op, input_arrays, expected_outputs, grad=True):
-    input_tensors = tuple(
-        torch.tensor(x, dtype=torch.int64, requires_grad=grad)
-        if x.dtype == np.int64
-        else torch.tensor(x, dtype=torch.float64, requires_grad=grad)
-        for x in input_arrays
-    )
-    output_tensors = op(*input_tensors)
+    output_tensors = op(*input_arrays)
 
     if len(expected_outputs) > 1:
         for array, tensor in zip(expected_outputs, output_tensors):
-            assert np.allclose(array, tensor.detach().numpy())
+            assert np.allclose(array, jnp.asarray(tensor))
     else:
-        assert np.allclose(
-            expected_outputs[0], output_tensors.detach().numpy()
-        )
+        assert np.allclose(expected_outputs[0], jnp.asarray(output_tensors))
 
     if grad:
-        assert gradcheck(lambda *args: op(*args), input_tensors)
+        check_grads(op, input_arrays, 1, modes=["rev"], eps=1e-6)
 
 
 def test_factor():
@@ -94,14 +87,4 @@ def test_conditional_mean():
         [U, V, P, z, U_star, V_star, inds],
         [mu],
         grad=False,
-    )
-
-
-def test_searchsorted():
-    np.random.seed(5086823)
-    x = np.sort(np.random.uniform(0, 5, 50))
-    t = np.random.uniform(-1, 6, 200)
-    inds = np.searchsorted(x, t)
-    check_op(
-        ops.searchsorted, [x, t], [inds], grad=False,
     )

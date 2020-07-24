@@ -92,10 +92,10 @@ def test_errors():
         gp.compute(x, diag=-10 * diag)
 
     # Not positive definite with `quiet`
-    # gp.compute(x, diag=-10 * diag, quiet=True)
-    # ld = gp._log_det
-    # assert np.isinf(ld)
-    # assert ld < 0
+    gp.compute(x, diag=-10 * diag, quiet=True)
+    ld = gp._log_det
+    assert np.isinf(ld)
+    assert ld < 0
 
     # Compute correctly
     gp.compute(x, diag=diag)

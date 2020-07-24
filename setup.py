@@ -43,6 +43,7 @@ EXTRA_REQUIRE = {
     ],
     "theano": ["theano"],
     "torch": ["torch"],
+    "jax": ["jax", "jaxlib"],
     "release": ["pep517", "twine"],
     "docs": ["sphinx", "sphinx-material", "sphinx_copybutton"],
 }
