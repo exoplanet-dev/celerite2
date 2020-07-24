@@ -154,10 +154,8 @@ class TermSum(Term):
         return self._terms
 
     def get_coefficients(self):
-        coeffs = []
-        for t in self.terms:
-            coeffs.append(t.coefficients)
-        return [tt.concatenate(a, axis=0) for a in zip(*coeffs)]
+        coeffs = (t.coefficients for t in self.terms)
+        return tuple(tt.concatenate(a, axis=0) for a in zip(*coeffs))
 
 
 class TermProduct(Term):
@@ -299,8 +297,6 @@ class IntegratedTerm(Term):
         )
 
         new_diag = diag + delta_diag
-
-        # new_diag = diag
         return super().get_celerite_matrices(x, new_diag)
 
     def get_coefficients(self):
@@ -343,9 +339,7 @@ class IntegratedTerm(Term):
 
         # Format the lags correctly
         tau0 = tt.abs_(tau0)
-        tau = tt.reshape(
-            tau0, tt.concatenate([tau0.shape, [1]]), ndim=tau0.ndim + 1
-        )
+        tau = tau0[..., None]
 
         # Precompute some factors
         dpt = dt + tau

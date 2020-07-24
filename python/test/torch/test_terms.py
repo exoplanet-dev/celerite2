@@ -1,26 +1,32 @@
 # -*- coding: utf-8 -*-
 from functools import partial
 
+import numpy as np
 import pytest
 
 from celerite2 import terms as pyterms
 from celerite2.testing import check_tensor_term
 
 try:
-    import theano  # noqa
+    import torch  # noqa
 except ImportError:
-    HAS_THEANO = False
+    HAS_TORCH = False
 else:
-    HAS_THEANO = True
-    from celerite2.theano import terms
+    HAS_TORCH = True
+    from celerite2.torch import terms
 
 
 pytestmark = pytest.mark.skipif(
-    not HAS_THEANO, reason="Theano is not installed"
+    not HAS_TORCH, reason="PyTorch is not installed"
 )
 
 
-compare_terms = partial(check_tensor_term, lambda x: x.eval())
+def evaluate(x):
+    assert x.dtype == torch.float64 or x.dtype == torch.int64
+    return x.detach().numpy()
+
+
+compare_terms = partial(check_tensor_term, evaluate)
 
 
 @pytest.mark.parametrize(
@@ -29,7 +35,10 @@ compare_terms = partial(check_tensor_term, lambda x: x.eval())
         ("RealTerm", dict(a=1.5, c=0.3)),
         ("ComplexTerm", dict(a=1.5, b=0.7, c=0.3, d=0.1)),
         ("SHOTerm", dict(S0=1.5, w0=2.456, Q=0.1)),
-        ("SHOTerm", dict(S0=1.5, w0=2.456, Q=3.4)),
+        (
+            "SHOTerm",
+            dict(S0=np.float64(1.5), w0=np.float64(2.456), Q=np.float64(3.4)),
+        ),
         ("SHOTerm", dict(Sw4=1.5, w0=2.456, Q=3.4)),
         ("SHOTerm", dict(S_tot=1.5, w0=2.456, Q=3.4)),
         ("Matern32Term", dict(sigma=1.5, rho=3.5)),

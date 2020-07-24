@@ -21,9 +21,11 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def check_op(op, input_arrays, expected_outputs):
+def check_op(op, input_arrays, expected_outputs, grad=True):
     input_tensors = tuple(
-        torch.tensor(x, dtype=torch.float64, requires_grad=True)
+        torch.tensor(x, dtype=torch.int64, requires_grad=grad)
+        if x.dtype == np.int64
+        else torch.tensor(x, dtype=torch.float64, requires_grad=grad)
         for x in input_arrays
     )
     output_tensors = op(*input_tensors)
@@ -36,7 +38,8 @@ def check_op(op, input_arrays, expected_outputs):
             expected_outputs[0], output_tensors.detach().numpy()
         )
 
-    assert gradcheck(lambda *args: op(*args), input_tensors)
+    if grad:
+        assert gradcheck(lambda *args: op(*args), input_tensors)
 
 
 def test_factor():
@@ -73,3 +76,32 @@ def test_matmul(vector):
     a, U, V, P, Y = get_matrices(vector=vector)
     X = driver.matmul(a, U, V, P, Y, np.copy(Y))
     check_op(ops.matmul, [a, U, V, P, Y], [X])
+
+
+def test_conditional_mean():
+    a, U, V, P, Y, U_star, V_star, inds = get_matrices(
+        vector=True, conditional=True
+    )
+    d, W = driver.factor(U, P, a, np.copy(V))
+    z = driver.solve(U, P, d, W, Y)
+
+    mu = driver.conditional_mean(
+        U, V, P, z, U_star, V_star, inds, np.empty(len(inds), dtype=np.float64)
+    )
+
+    check_op(
+        ops.conditional_mean,
+        [U, V, P, z, U_star, V_star, inds],
+        [mu],
+        grad=False,
+    )
+
+
+def test_searchsorted():
+    np.random.seed(5086823)
+    x = np.sort(np.random.uniform(0, 5, 50))
+    t = np.random.uniform(-1, 6, 200)
+    inds = np.searchsorted(x, t)
+    check_op(
+        ops.searchsorted, [x, t], [inds], grad=False,
+    )

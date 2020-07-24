@@ -7,17 +7,17 @@ from celerite2 import terms as pyterms
 from celerite2.testing import check_gp_models
 
 try:
-    import theano
+    import torch  # noqa
 except ImportError:
-    HAS_THEANO = False
+    HAS_TORCH = False
 else:
-    from celerite2.theano import GaussianProcess, terms
+    from celerite2.torch import GaussianProcess, terms
 
-    HAS_THEANO = True
+    HAS_TORCH = True
 
 
 pytestmark = pytest.mark.skipif(
-    not HAS_THEANO, reason="Theano is not installed"
+    not HAS_TORCH, reason="PyTorch is not installed"
 )
 
 
@@ -57,34 +57,7 @@ def test_consistency(name, args, mean):
     pygp = celerite2.GaussianProcess(pyterm, mean=mean)
     pygp.compute(x, diag=diag)
 
-    check_gp_models(lambda x: x.eval(), gp, pygp, y, t)
-
-    # # "log_likelihood" method
-    # assert np.allclose(pygp.log_likelihood(y), gp.log_likelihood(y).eval())
-
-    # # "predict" method
-    # for args in [
-    #     dict(return_cov=False, return_var=False),
-    #     dict(return_cov=False, return_var=True),
-    #     dict(return_cov=True, return_var=False),
-    # ]:
-    #     assert all(
-    #         np.allclose(a, b)
-    #         for a, b in zip(
-    #             pygp.predict(y, **args),
-    #             theano.function([], gp.predict(y, **args))(),
-    #         )
-    #     )
-    #     assert all(
-    #         np.allclose(a, b)
-    #         for a, b in zip(
-    #             pygp.predict(y, t=t, **args),
-    #             theano.function([], gp.predict(y, t=t, **args))(),
-    #         )
-    #     )
-
-    # # "dot_tril" method
-    # assert np.allclose(pygp.dot_tril(y), gp.dot_tril(y).eval())
+    check_gp_models(lambda x: x.detach().numpy(), gp, pygp, y, t)
 
 
 def test_errors():
@@ -103,9 +76,8 @@ def test_errors():
         gp.log_likelihood(y)
 
     # Sorted
-    gp.compute(x[::-1], diag=diag)
-    with pytest.raises(AssertionError):
-        gp._d.eval()
+    with pytest.raises(ValueError):
+        gp.compute(np.copy(x[::-1]), diag=diag)
 
     # 1D
     with pytest.raises(ValueError):
@@ -116,23 +88,22 @@ def test_errors():
         gp.compute(x, diag=diag, yerr=np.sqrt(diag))
 
     # Not positive definite
-    gp.compute(x, diag=-10 * diag)
     with pytest.raises(celerite2.backprop.LinAlgError):
-        gp._d.eval()
+        gp.compute(x, diag=-10 * diag)
 
     # Not positive definite with `quiet`
-    gp.compute(x, diag=-10 * diag, quiet=True)
-    ld = gp._log_det.eval()
-    assert np.isinf(ld)
-    assert ld < 0
+    # gp.compute(x, diag=-10 * diag, quiet=True)
+    # ld = gp._log_det
+    # assert np.isinf(ld)
+    # assert ld < 0
 
     # Compute correctly
     gp.compute(x, diag=diag)
-    gp.log_likelihood(y).eval()
+    gp.log_likelihood(y)
 
     # Dimension mismatch
     with pytest.raises(ValueError):
-        gp.log_likelihood(y[:-1]).eval()
+        gp.log_likelihood(y[:-1])
 
     with pytest.raises(ValueError):
         gp.log_likelihood(np.tile(y[:, None], (1, 5)))

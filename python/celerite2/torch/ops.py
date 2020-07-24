@@ -1,13 +1,21 @@
 # -*- coding: utf-8 -*-
 
-__all__ = ["factor", "solve", "norm", "dot_tril", "matmul"]
+__all__ = [
+    "factor",
+    "solve",
+    "norm",
+    "dot_tril",
+    "matmul",
+    "conditional_mean",
+    "searchsorted",
+]
 from functools import wraps
 
 import numpy as np
 import torch
 from torch.autograd import Function
 
-from celerite2 import backprop
+from celerite2 import backprop, driver
 
 
 def wrap_forward(func):
@@ -197,6 +205,39 @@ class Matmul(Function):
         return apply(ctx, bX)
 
 
+class ConditionalMean(Function):
+    @staticmethod
+    def forward(ctx, U, V, P, alpha, U_star, V_star, inds):
+        inds_ = inds.detach().numpy()
+        mu_ = np.empty(inds_.shape, dtype=np.float64)
+        mu_ = driver.conditional_mean(
+            U.detach().numpy(),
+            V.detach().numpy(),
+            P.detach().numpy(),
+            alpha.detach().numpy(),
+            U_star.detach().numpy(),
+            V_star.detach().numpy(),
+            inds_,
+            mu_,
+        )
+        return torch.as_tensor(mu_, dtype=torch.double)
+
+
+class Searchsorted(Function):
+    @staticmethod
+    def forward(ctx, x, t):
+        ctx.save_for_backward(x, t)
+        x_ = x.detach().numpy()
+        t_ = t.detach().numpy()
+        inds = np.searchsorted(x_, t_)
+        return torch.as_tensor(inds, dtype=torch.int64)
+
+    @staticmethod
+    def backward(ctx, grad):
+        x, t = ctx.saved_tensors
+        return torch.zeros_like(x), torch.zeros_like(t)
+
+
 def factor(*args):
     return Factor.apply(*args)
 
@@ -215,3 +256,11 @@ def dot_tril(*args):
 
 def matmul(*args):
     return Matmul.apply(*args)
+
+
+def conditional_mean(*args):
+    return ConditionalMean.apply(*args)
+
+
+def searchsorted(*args):
+    return Searchsorted.apply(*args)
