@@ -26,7 +26,7 @@ auto factor(py::array_t<double, py::array::c_style> U, py::array_t<double, py::a
   }
   UNWRAP_CASES_MOST;
 #undef FIXED_SIZE_MAP
-  if (flag) throw linalg_exception();
+  if (flag) throw driver_linalg_exception();
   return std::make_tuple(d, W);
 }
 
@@ -243,7 +243,7 @@ PYBIND11_MODULE(driver, m) {
     These functions are low level and you shouldn't generally need or want to call them as a user.
 )doc";
 
-  py::register_exception<celerite2::driver::linalg_exception>(m, "LinAlgError");
+  py::register_exception<celerite2::driver::driver_linalg_exception>(m, "LinAlgError");
 
   m.def("factor", &celerite2::driver::factor, "Compute the Cholesky factor of a celerite system", py::arg("U").noconvert(), py::arg("P").noconvert(),
         py::arg("d").noconvert(), py::arg("W").noconvert());

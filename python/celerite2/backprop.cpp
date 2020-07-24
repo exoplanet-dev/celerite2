@@ -30,7 +30,7 @@ auto factor_fwd(py::array_t<double, py::array::c_style> a, py::array_t<double, p
   }
   UNWRAP_CASES;
 #undef FIXED_SIZE_MAP
-  if (flag) throw linalg_exception();
+  if (flag) throw backprop_linalg_exception();
   return std::make_tuple(d, W, S);
 }
 
@@ -448,7 +448,7 @@ auto matmul_rev(py::array_t<double, py::array::c_style> d, py::array_t<double, p
 
 PYBIND11_MODULE(backprop, m) {
 
-  py::register_exception<celerite2::driver::linalg_exception>(m, "LinAlgError");
+  py::register_exception<celerite2::driver::backprop_linalg_exception>(m, "LinAlgError");
 
   m.def("factor_fwd", &celerite2::driver::factor_fwd, py::arg("a").noconvert(), py::arg("U").noconvert(), py::arg("V").noconvert(),
         py::arg("P").noconvert(), py::arg("d").noconvert(), py::arg("W").noconvert(), py::arg("S").noconvert());

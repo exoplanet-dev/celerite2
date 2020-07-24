@@ -12,7 +12,11 @@ namespace driver {
 
 namespace py = pybind11;
 
-struct linalg_exception : public std::exception {
+struct driver_linalg_exception : public std::exception {
+  const char *what() const throw() { return "failed to factorize or solve matrix"; }
+};
+
+struct backprop_linalg_exception : public std::exception {
   const char *what() const throw() { return "failed to factorize or solve matrix"; }
 };
 
