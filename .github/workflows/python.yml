@@ -91,11 +91,13 @@ jobs:
           submodules: true
           fetch-depth: 0
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: goanpeca/setup-miniconda@v1
         with:
+          auto-update-conda: true
           python-version: 3.8
       - name: Install dependencies
         run: |
+          conda install numpy scipy theano mkl-service
           python -m pip install -U pip
           python -m pip install ".[test,theano]"
       - name: Run the unit tests

@@ -62,7 +62,7 @@ class GaussianProcess:
                 set to zero. Otherwise, the exception will be propagated.
 
         Raises:
-            ValueError: [description]
+            ValueError: When the inputs are not valid (shape, number, etc.).
             LinAlgError: When the matrix is not numerically positive definite.
 
         """
