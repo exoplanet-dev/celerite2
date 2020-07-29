@@ -46,7 +46,14 @@ EXTRA_REQUIRE = {
     "jax": ["jax", "jaxlib"],
     "release": ["pep517", "twine"],
     "docs": ["sphinx", "sphinx-material", "sphinx_copybutton", "rtds_action"],
-    "tutorials": ["jupytext", "jupyter", "nbconvert", "matplotlib"],
+    "tutorials": [
+        "jupytext",
+        "jupyter",
+        "nbconvert",
+        "matplotlib",
+        "jax",
+        "jaxlib",
+    ],
 }
 EXTRA_REQUIRE["dev"] = (
     EXTRA_REQUIRE["test"]
