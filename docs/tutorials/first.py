@@ -75,25 +75,25 @@ def grad_nll(*args):
     return jnp.stack(grad(*args))
 
 
-# -
+# +
+from scipy.optimize import minimize
 
 soln = minimize(nll, [0.5, 3.0, 0.1, 0.5, 1.0], jac=grad_nll)
 print(soln)
+# -
 
 x = np.linspace(0, 10, 5000)
 pred_mean, pred_var = get_gp(soln.x).predict(y, x, return_var=True)
 pred_std = np.sqrt(pred_var)
 
-pred_mean.shape
-
 color = "#ff7f0e"
 plt.plot(true_t, true_y, "k", lw=1.5, alpha=0.3)
 plt.errorbar(t, y, yerr=yerr, fmt=".k", capsize=0)
-plt.plot(x, pred_mean[0], color=color)
+plt.plot(x, pred_mean, color=color)
 plt.fill_between(
     x,
-    pred_mean[0] + pred_std,
-    pred_mean[0] - pred_std,
+    pred_mean + pred_std,
+    pred_mean - pred_std,
     color=color,
     alpha=0.3,
     edgecolor="none",
