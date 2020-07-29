@@ -53,6 +53,7 @@ EXTRA_REQUIRE = {
         "matplotlib",
         "jax",
         "jaxlib",
+        "scipy",
     ],
 }
 EXTRA_REQUIRE["dev"] = (
