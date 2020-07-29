@@ -416,8 +416,7 @@ class IntegratedTerm(Term):
         K_small += torch.sum((C1 * cos_term + C2 * sin_term) * norm, axis=-1)
 
         mask = tau0 >= dt
-        K_small[mask] = K_large[mask]
-        return K_small
+        return K_large * mask + K_small * (~mask)
 
 
 class RealTerm(Term):

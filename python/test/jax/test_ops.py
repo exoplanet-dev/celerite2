@@ -14,7 +14,6 @@ else:
 
     config.update("jax_enable_x64", True)
 
-    from jax import numpy as jnp
     from jax.test_util import check_grads
 
     from celerite2.jax import ops
@@ -27,9 +26,9 @@ def check_op(op, input_arrays, expected_outputs, grad=True):
 
     if len(expected_outputs) > 1:
         for array, tensor in zip(expected_outputs, output_tensors):
-            assert np.allclose(array, jnp.asarray(tensor))
+            assert np.allclose(array, np.asarray(tensor))
     else:
-        assert np.allclose(expected_outputs[0], jnp.asarray(output_tensors))
+        assert np.allclose(expected_outputs[0], np.asarray(output_tensors))
 
     if grad:
         check_grads(op, input_arrays, 1, modes=["rev"], eps=1e-6)
