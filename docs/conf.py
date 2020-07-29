@@ -18,6 +18,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx_copybutton",
     "rtds_action",
+    "nbsphinx",
 ]
 
 autodoc_mock_imports = [

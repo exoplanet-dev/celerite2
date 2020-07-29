@@ -33,7 +33,7 @@ be a good choice.
    :maxdepth: 2
    :caption: Tutorials
 
-   install
+   tutorials/first.ipynb
 
 License & attribution
 ---------------------

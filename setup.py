@@ -45,7 +45,13 @@ EXTRA_REQUIRE = {
     "torch": ["torch"],
     "jax": ["jax", "jaxlib"],
     "release": ["pep517", "twine"],
-    "docs": ["sphinx", "sphinx-material", "sphinx_copybutton", "rtds_action"],
+    "docs": [
+        "sphinx",
+        "sphinx-material",
+        "sphinx_copybutton",
+        "rtds_action",
+        "nbsphinx",
+    ],
     "tutorials": [
         "jupytext",
         "jupyter",
