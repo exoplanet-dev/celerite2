@@ -168,4 +168,4 @@ matmul.defvjp(wrap_fwd(1)(ext.matmul_fwd), wrap_rev(1)(ext.matmul_rev))
 @wrap_impl(1)
 def conditional_mean(U, V, P, z, U_star, V_star, inds):
     mu = np.empty(len(inds), dtype=np.float64)
-    return (driver.conditional_mean(U, V, P, z, U_star, V_star, inds, mu),)
+    return driver.conditional_mean(U, V, P, z, U_star, V_star, inds, mu)

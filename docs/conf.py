@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import os
 
 import sphinx_material
 from pkg_resources import DistributionNotFound, get_distribution
@@ -16,6 +17,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.mathjax",
     "sphinx_copybutton",
+    "rtds_action",
 ]
 
 autodoc_mock_imports = [
@@ -43,6 +45,12 @@ version = __version__
 release = __version__
 
 exclude_patterns = ["_build"]
+
+# RTDs-action
+rtds_action_github_repo = "dfm/celerite2"
+rtds_action_path = "tutorials"
+rtds_action_artifact_prefix = "notebooks-for-"
+rtds_action_github_token = os.environ["GITHUB_TOKEN"]
 
 # HTML theme
 html_show_sourcelink = False

@@ -103,9 +103,17 @@ class GaussianProcess(nn.Module, SuperGaussianProcess):
         loglike = self._norm - 0.5 * ops.norm(
             self._U, self._P, self._d, self._W, y - self._mean(self._t)
         )
-        if not np.isfinite(loglike):
+        if not torch.isfinite(loglike):
             return -np.inf
         return loglike
+
+    def forward(
+        self, t, y, *, yerr=None, diag=None, check_sorted=True, quiet=False
+    ):
+        self.compute(
+            t, yerr=yerr, diag=diag, check_sorted=check_sorted, quiet=quiet
+        )
+        return self.log_likelihood(y)
 
     def predict(
         self,
@@ -158,9 +166,9 @@ class GaussianProcess(nn.Module, SuperGaussianProcess):
         return mu, cov
 
     def sample(self, *args, **kwargs):
-        raise NotImplementedError("'sample' is not implemented in Theano")
+        raise NotImplementedError("'sample' is not implemented in PyTorch")
 
     def sample_conditional(self, *args, **kwargs):
         raise NotImplementedError(
-            "'sample_conditional' is not implemented in Theano"
+            "'sample_conditional' is not implemented in PyTorch"
         )

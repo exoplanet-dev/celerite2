@@ -34,3 +34,4 @@ build
 dist
 .envrc
 .coverage
+*.ipynb

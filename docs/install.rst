@@ -43,8 +43,15 @@ and then execute:
 
 .. code-block:: bash
 
-    python -m pytest -v python/tests
+    python -m pytest -v python/test
 
 All of the tests should (of course) pass.
 If any of the tests don't pass and if you can't sort out why, `open an issue
 on GitHub <https://github.com/dfm/celerite2/issues>`_.
+
+To test the interfaces (for example, the Theano interface), run:
+
+.. code-block:: bash
+
+    python -m pip install ".[test,theano]"
+    python -m pytest -v python/test/theano

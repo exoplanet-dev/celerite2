@@ -45,7 +45,8 @@ EXTRA_REQUIRE = {
     "torch": ["torch"],
     "jax": ["jax", "jaxlib"],
     "release": ["pep517", "twine"],
-    "docs": ["sphinx", "sphinx-material", "sphinx_copybutton"],
+    "docs": ["sphinx", "sphinx-material", "sphinx_copybutton", "rtds_action"],
+    "tutorials": ["jupytext", "jupyter", "nbconvert", "matplotlib"],
 }
 EXTRA_REQUIRE["dev"] = (
     EXTRA_REQUIRE["test"]

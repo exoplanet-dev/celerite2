@@ -40,6 +40,10 @@ def get_matrices(
     return a, U, V, P, Y, U_star, V_star, inds
 
 
+def allclose(a, b, **kwargs):
+    return a.shape == b.shape and np.allclose(a, b, **kwargs)
+
+
 def _compare_tensor(eval_func, tensor, array, text, atol=1e-8):
     value = eval_func(tensor)
     if array.size == 0:
@@ -47,7 +51,7 @@ def _compare_tensor(eval_func, tensor, array, text, atol=1e-8):
         return
     resid = np.abs(array - value)
     coords = np.unravel_index(np.argmax(resid), array.shape)
-    assert np.allclose(
+    assert allclose(
         value, array, atol=atol
     ), f"resid: {resid.max()}; coords: {coords}; message: {text}"
 
@@ -155,7 +159,7 @@ def check_tensor_term(eval_func, term, pyterm, atol=1e-8):
 
 def check_gp_models(eval_func, gp, pygp, y, t):
     # "log_likelihood" method
-    assert np.allclose(pygp.log_likelihood(y), eval_func(gp.log_likelihood(y)))
+    assert allclose(pygp.log_likelihood(y), eval_func(gp.log_likelihood(y)))
 
     # "predict" method
     for flag, args in [
@@ -165,25 +169,25 @@ def check_gp_models(eval_func, gp, pygp, y, t):
     ]:
         if flag:
             assert all(
-                np.allclose(a, eval_func(b))
+                allclose(a, eval_func(b))
                 for a, b in zip(
                     pygp.predict(y, **args), gp.predict(y, **args),
                 )
             )
             assert all(
-                np.allclose(a, eval_func(b))
+                allclose(a, eval_func(b))
                 for a, b in zip(
                     pygp.predict(y, t=t, **args), gp.predict(y, t=t, **args),
                 )
             )
         else:
-            assert np.allclose(
+            assert allclose(
                 pygp.predict(y, **args), eval_func(gp.predict(y, **args))
             )
-            assert np.allclose(
+            assert allclose(
                 pygp.predict(y, t=t, **args),
                 eval_func(gp.predict(y, t=t, **args)),
             )
 
     # "dot_tril" method
-    assert np.allclose(pygp.dot_tril(y), eval_func(gp.dot_tril(y)))
+    assert allclose(pygp.dot_tril(y), eval_func(gp.dot_tril(y)))
