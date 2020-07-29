@@ -16,7 +16,7 @@
 
 # +
 import numpy as np
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 
 np.random.seed(42)
 
@@ -44,10 +44,10 @@ plt.ylim(-2.5, 2.5)
 from jax.config import config
 
 config.update("jax_enable_x64", True)
-import jax
-from jax import numpy as jnp
 
-from celerite2 import jax as cl2
+import jax
+import jax.numpy as jnp
+import celerite2.jax as cl2
 
 
 # +

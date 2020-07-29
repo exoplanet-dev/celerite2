@@ -12,6 +12,7 @@ repos:
       - id: isort
         args: []
         additional_dependencies: [toml]
+        exclude: docs/tutorials
 
   - repo: https://github.com/psf/black
     rev: 19.10b0
