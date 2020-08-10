@@ -38,6 +38,7 @@ class GaussianProcess(SuperGaussianProcess):
 
         # Save the diagonal
         self._t = np.asarray(t, dtype=np.float64)
+        self._mean_value = self._mean(self._t)
         self._diag = np.zeros_like(self._t)
         if yerr is None and diag is None:
             pass
@@ -106,7 +107,7 @@ class GaussianProcess(SuperGaussianProcess):
         if not np.isfinite(self._log_det):
             return -np.inf
         loglike = self._norm - 0.5 * ops.norm(
-            self._U, self._P, self._d, self._W, y - self._mean(self._t)
+            self._U, self._P, self._d, self._W, y - self._mean_value
         )
         if not np.isfinite(loglike):
             return -np.inf
@@ -119,13 +120,13 @@ class GaussianProcess(SuperGaussianProcess):
         *,
         return_cov=False,
         return_var=False,
-        include_mean=True
+        include_mean=True,
+        kernel=None,
     ):
         y = self._process_input(y, require_vector=True)
 
-        alpha = ops.solve(
-            self._U, self._P, self._d, self._W, y - self._mean(self._t)
-        )
+        resid = y - self._mean(self._t)
+        alpha = ops.solve(self._U, self._P, self._d, self._W, resid)
 
         if t is None:
             xs = self._t
