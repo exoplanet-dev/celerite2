@@ -24,13 +24,7 @@ CLASSIFIERS = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
 ]
-INSTALL_REQUIRES = [
-    "numpy>=1.13.0",
-    "pybind11>=2.4",
-    "setuptools>=40.6.0",
-    "setuptools_scm",
-    "wheel",
-]
+INSTALL_REQUIRES = ["numpy>=1.13.0"]
 EXTRA_REQUIRE = {
     "style": ["isort", "black", "black_nbconvert"],
     "test": [
