@@ -75,14 +75,6 @@ BibTeX:
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}
     }
 
-These docs were made using `Sphinx <https://www.sphinx-doc.org>`_ and the
-`sphinx-material theme <bashtage/sphinx-material>`_. They are built and hosted
-on `Read the Docs <https://readthedocs.org>`_.
-
-Icons made by `monkik <https://www.flaticon.com/authors/monkik>`_ from
-`flaticon.com <https://www.flaticon.com>`_.
-
-
 Changelog
 ---------
 

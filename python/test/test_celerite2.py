@@ -7,6 +7,18 @@ from celerite import terms as cterms
 import celerite2
 from celerite2 import terms
 
+
+@pytest.fixture
+def data():
+    # Generate fake data
+    np.random.seed(40582)
+    x = np.sort(np.random.uniform(0, 10, 50))
+    t = np.sort(np.random.uniform(-1, 12, 100))
+    diag = np.random.uniform(0.1, 0.3, len(x))
+    y = np.sin(x)
+    return x, diag, y, t
+
+
 test_terms = [
     cterms.RealTerm(log_a=np.log(2.5), log_c=np.log(1.1123)),
     cterms.RealTerm(log_a=np.log(12.345), log_c=np.log(1.5))
@@ -40,13 +52,8 @@ test_terms = [
 
 @pytest.mark.parametrize("oterm", test_terms)
 @pytest.mark.parametrize("mean", [0.0, 10.5])
-def test_consistency(oterm, mean):
-    # Generate fake data
-    np.random.seed(40582)
-    x = np.sort(np.random.uniform(0, 10, 50))
-    t = np.sort(np.random.uniform(-1, 12, 100))
-    diag = np.random.uniform(0.1, 0.3, len(x))
-    y = np.sin(x)
+def test_consistency(oterm, mean, data):
+    x, diag, y, t = data
 
     # Setup the original GP
     original_gp = original_celerite.GP(oterm, mean=mean)
@@ -103,6 +110,74 @@ def test_consistency(oterm, mean):
     a = original_gp.sample_conditional(y, size=10)
     b = gp.sample_conditional(y, size=10)
     assert a.shape == b.shape
+
+
+def test_diag(data):
+    x, diag, y, t = data
+
+    term = terms.SHOTerm(S0=1.0, w0=0.5, Q=3.0)
+    gp1 = celerite2.GaussianProcess(term, t=x, diag=diag)
+    gp2 = celerite2.GaussianProcess(term, t=x, yerr=np.sqrt(diag))
+    assert np.allclose(gp1.log_likelihood(y), gp2.log_likelihood(y))
+
+    gp1 = celerite2.GaussianProcess(term, t=x, diag=np.zeros_like(x))
+    gp2 = celerite2.GaussianProcess(term, t=x)
+    assert np.allclose(gp1.log_likelihood(y), gp2.log_likelihood(y))
+
+
+def test_mean(data):
+    x, diag, y, t = data
+
+    term = terms.SHOTerm(S0=1.0, w0=0.5, Q=3.0)
+    gp = celerite2.GaussianProcess(term, t=x, diag=diag, mean=lambda x: 2 * x)
+
+    mu1 = gp.predict(y, include_mean=True)
+    mu2 = gp.predict(y, x, include_mean=True)
+    assert np.allclose(mu1, mu2)
+
+    mu1 = gp.predict(y, include_mean=False)
+    mu2 = gp.predict(y, x, include_mean=False)
+    assert np.allclose(mu1, mu2)
+
+    mu_mean = gp.predict(y, include_mean=True)
+    mu_no_mean = gp.predict(y, include_mean=False)
+    assert np.allclose(mu_mean, mu_no_mean + 2 * x)
+
+    mu_mean = gp.predict(y, t, include_mean=True)
+    mu_no_mean = gp.predict(y, t, include_mean=False)
+    assert np.allclose(mu_mean, mu_no_mean + 2 * t)
+
+    np.random.seed(42)
+    s1 = gp.sample(size=5, include_mean=True)
+    np.random.seed(42)
+    s2 = gp.sample(size=5, include_mean=False)
+    assert np.allclose(s1, s2 + 2 * x)
+
+
+def test_predict_kernel(data):
+    x, diag, y, t = data
+
+    term1 = terms.SHOTerm(S0=1.0, w0=0.5, Q=3.0)
+    term2 = terms.SHOTerm(S0=0.3, w0=0.1, Q=0.1)
+    term = term1 + term2
+    gp = celerite2.GaussianProcess(term, t=x, diag=diag)
+
+    mu0 = gp.predict(y)
+    mu1 = gp.predict(y, kernel=term)
+    assert np.allclose(mu0, mu1)
+
+    mu0 = gp.predict(y, t)
+    mu1 = gp.predict(y, t, kernel=term)
+    assert np.allclose(mu0, mu1)
+
+    mu0 = gp.predict(y, t)
+    mu1 = gp.predict(y, t, kernel=term1)
+    mu2 = gp.predict(y, t, kernel=term2)
+    assert np.allclose(mu0, mu1 + mu2)
+
+    mu1 = gp.predict(y, kernel=term1)
+    mu2 = term1.dot(x, np.zeros_like(x), gp.apply_inverse(y))
+    assert np.allclose(mu1, mu2)
 
 
 def test_errors():
