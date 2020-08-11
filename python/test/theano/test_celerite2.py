@@ -7,7 +7,7 @@ from celerite2 import terms as pyterms
 from celerite2.testing import check_gp_models
 
 try:
-    import theano
+    import theano  # noqa
 except ImportError:
     HAS_THEANO = False
 else:
@@ -28,13 +28,9 @@ term_mark = pytest.mark.parametrize(
         ("ComplexTerm", dict(a=1.5, b=0.7, c=0.3, d=0.1)),
         ("SHOTerm", dict(S0=1.5, w0=2.456, Q=0.1)),
         ("SHOTerm", dict(S0=1.5, w0=2.456, Q=3.4)),
-        ("SHOTerm", dict(Sw4=1.5, w0=2.456, Q=3.4)),
-        ("SHOTerm", dict(S_tot=1.5, w0=2.456, Q=3.4)),
+        ("SHOTerm", dict(sigma=1.5, w0=2.456, Q=3.4)),
         ("Matern32Term", dict(sigma=1.5, rho=3.5)),
-        (
-            "RotationTerm",
-            dict(amp=1.5, Q0=2.1, deltaQ=0.5, period=1.3, mix=0.7),
-        ),
+        ("RotationTerm", dict(sigma=1.5, Q0=2.1, dQ=0.5, period=1.3, f=0.7)),
     ],
 )
 
