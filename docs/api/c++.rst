@@ -1,7 +1,7 @@
 .. _cpp-api:
 
-C++
-===
+C++ interface
+=============
 
 Basic interface
 ---------------

@@ -27,8 +27,7 @@ class GaussianProcess:
             be a callable (it will be evaluated with a single argument, a
             vector of ``x`` values) or a scalar. (default: ``0.0``)
         **kwargs: Other arguments will be passed directly to
-            :func:`GaussianPorcess.compute` if the argument ``t`` is specified.
-
+            :func:`GaussianProcess.compute` if the argument ``t`` is specified.
     """
 
     def __init__(self, kernel, t=None, *, mean=0.0, **kwargs):
@@ -76,7 +75,6 @@ class GaussianProcess:
         Raises:
             ValueError: When the inputs are not valid (shape, number, etc.).
             LinAlgError: When the matrix is not numerically positive definite.
-
         """
         # Check the input coordinates
         t = np.atleast_1d(t)
@@ -141,7 +139,6 @@ class GaussianProcess:
             RuntimeError: If :func:`GaussianProcess.compute` is not called
                 first.
             ValueError: When the inputs are not valid (shape, number, etc.).
-
         """
         if self._t is None:
             raise RuntimeError(
@@ -180,7 +177,7 @@ class GaussianProcess:
         Solve ``K.x = y`` for ``x`` where ``K`` is the covariance matrix of
         the GP.
 
-        .. note: The mean function is not applied in this method.
+        .. note:: The mean function is not applied in this method.
 
         Args:
             y (shape[N] or shape[N, M]): The vector or matrix ``y`` described
@@ -192,7 +189,6 @@ class GaussianProcess:
             RuntimeError: If :func:`GaussianProcess.compute` is not called
                 first.
             ValueError: When the inputs are not valid (shape, number, etc.).
-
         """
         y = self._process_input(y, inplace=inplace)
         return driver.solve(self._U, self._P, self._d, self._W, y)
@@ -203,7 +199,7 @@ class GaussianProcess:
         Compute ``x = L.y`` where ``K = L.L^T`` and ``K`` is the covariance
         matrix of the GP.
 
-        .. note: The mean function is not applied in this method.
+        .. note:: The mean function is not applied in this method.
 
         Args:
             y (shape[N] or shape[N, M]): The vector or matrix ``y`` described
@@ -215,7 +211,6 @@ class GaussianProcess:
             RuntimeError: If :func:`GaussianProcess.compute` is not called
                 first.
             ValueError: When the inputs are not valid (shape, number, etc.).
-
         """
         y = self._process_input(y, inplace=inplace)
         return driver.dot_tril(self._U, self._P, self._d, self._W, y)
@@ -239,7 +234,6 @@ class GaussianProcess:
             RuntimeError: If :func:`GaussianProcess.compute` is not called
                 first.
             ValueError: When the inputs are not valid (shape, number, etc.).
-
         """
         y = self._process_input(y, inplace=inplace, require_vector=True)
         if not np.isfinite(self._log_det):
@@ -284,13 +278,12 @@ class GaussianProcess:
                 distribution using a different kernel. This is generally used
                 to separate the contributions from different model components.
                 Note that the computational cost and scaling will be worse
-                when using this parameter
+                when using this parameter.
 
         Raises:
             RuntimeError: If :func:`GaussianProcess.compute` is not called
                 first.
             ValueError: When the inputs are not valid (shape, number, etc.).
-
         """
         y = self._process_input(y, inplace=True, require_vector=True)
         alpha = driver.solve(
@@ -370,7 +363,6 @@ class GaussianProcess:
             RuntimeError: If :func:`GaussianProcess.compute` is not called
                 first.
             ValueError: When the inputs are not valid (shape, number, etc.).
-
         """
 
         if self._t is None:
@@ -396,8 +388,8 @@ class GaussianProcess:
     ):
         """Sample from the conditional (predictive) distribution
 
-        Note: this method scales as ``O(M^3)`` for large ``M``, where
-        ``M == len(t)``.
+        .. note:: this method scales as ``O(M^3)`` for large ``M``, where
+            ``M == len(t)``.
 
         Args:
             y (array[n]): The observations at coordinates ``x`` from
@@ -418,8 +410,7 @@ class GaussianProcess:
                 distribution using a different kernel. This is generally used
                 to separate the contributions from different model components.
                 Note that the computational cost and scaling will be worse
-                when using this parameter
-
+                when using this parameter.
         """
         mu, cov = self.predict(
             y, t, return_cov=True, include_mean=include_mean, kernel=kernel

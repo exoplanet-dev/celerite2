@@ -458,28 +458,23 @@ class ComplexTerm(Term):
 
 
 class SHOTerm(Term):
-    def __init__(self, *, w0, Q, S0=None, Sw4=None, S_tot=None, eps=1e-5):
+    def __init__(self, *, w0, Q, S0=None, sigma=None, eps=1e-5):
         super().__init__()
         self.eps = as_tensor(eps)
         self.w0 = as_tensor(w0)
         self.Q = as_tensor(Q)
 
         self.S0 = None if S0 is None else as_tensor(S0)
-        self.Sw4 = None if Sw4 is None else as_tensor(Sw4)
-        self.S_tot = None if S_tot is None else as_tensor(S_tot)
+        self.sigma = None if sigma is None else as_tensor(sigma)
 
     def _get_S0(self):
         if self.S0 is not None:
-            if self.Sw4 is not None or self.S_tot is not None:
-                raise ValueError("only one of S0, Sw4, and S_tot can be given")
+            if self.sigma is not None:
+                raise ValueError("only one of S0 and sigma can be given")
             return self.S0
-        elif self.Sw4 is not None:
-            if self.S_tot is not None:
-                raise ValueError("only one of S0, Sw4, and S_tot can be given")
-            return self.Sw4 / self.w0 ** 4
-        elif self.S_tot is not None:
-            return self.S_tot / (self.w0 * self.Q)
-        raise ValueError("one of S0, Sw4, and S_tot must be given")
+        elif self.sigma is not None:
+            return self.sigma ** 2 / (self.w0 * self.Q)
+        raise ValueError("either S0 or sigma must be given")
 
     def overdamped(self):
         Q = self.Q
@@ -539,29 +534,30 @@ class Matern32Term(Term):
 
 
 class RotationTerm(TermSum):
-    def __init__(self, *, amp, Q0, deltaQ, period, mix, **kwargs):
-        amp = as_tensor(amp)
-        Q0 = as_tensor(Q0)
-        deltaQ = as_tensor(deltaQ)
+    def __init__(self, *, sigma, period, Q0, dQ, f, **kwargs):
+        sigma = as_tensor(sigma)
         period = as_tensor(period)
-        mix = as_tensor(mix)
+        Q0 = as_tensor(Q0)
+        dQ = as_tensor(dQ)
+        f = as_tensor(f)
+        amp = sigma ** 2 / (1 + f)
 
         # One term with a period of period
-        Q1 = 0.5 + Q0 + deltaQ
+        Q1 = 0.5 + Q0 + dQ
         w1 = 4 * np.pi * Q1 / (period * torch.sqrt(4 * Q1 ** 2 - 1))
         S1 = amp / (w1 * Q1)
 
         # Another term at half the period
         Q2 = 0.5 + Q0
         w2 = 8 * np.pi * Q2 / (period * torch.sqrt(4 * Q2 ** 2 - 1))
-        S2 = mix * amp / (w2 * Q2)
+        S2 = f * amp / (w2 * Q2)
 
         super().__init__(
             SHOTerm(S0=S1, w0=w1, Q=Q1), SHOTerm(S0=S2, w0=w2, Q=Q2)
         )
 
-        self.amp = amp
-        self.Q0 = Q0
-        self.deltaQ = deltaQ
+        self.sigma = sigma
         self.period = period
-        self.mix = mix
+        self.Q0 = Q0
+        self.dQ = dQ
+        self.f = f

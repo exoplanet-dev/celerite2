@@ -25,6 +25,12 @@ CLASSIFIERS = [
     "Programming Language :: Python :: 3",
 ]
 INSTALL_REQUIRES = ["numpy>=1.13.0"]
+SETUP_REQUIRES = INSTALL_REQUIRES + [
+    "pybind11>=2.4",
+    "setuptools>=40.6.0",
+    "setuptools_scm",
+    "wheel",
+]
 EXTRA_REQUIRE = {
     "style": ["isort", "black", "black_nbconvert"],
     "test": [
@@ -218,7 +224,7 @@ if __name__ == "__main__":
         package_dir={"": "python"},
         include_package_data=True,
         install_requires=INSTALL_REQUIRES,
-        setup_requires=INSTALL_REQUIRES,
+        setup_requires=SETUP_REQUIRES,
         extras_require=EXTRA_REQUIRE,
         classifiers=CLASSIFIERS,
         zip_safe=False,

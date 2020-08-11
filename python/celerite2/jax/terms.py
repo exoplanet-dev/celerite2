@@ -11,7 +11,6 @@ __all__ = [
     "SHOTerm",
     "Matern32Term",
     "RotationTerm",
-    "OriginalCeleriteTerm",
 ]
 from itertools import chain, product
 
@@ -401,23 +400,19 @@ class ComplexTerm(Term):
 
 
 class SHOTerm(Term):
-    def __init__(self, *, w0, Q, S0=None, Sw4=None, S_tot=None, eps=1e-5):
+    def __init__(self, *, w0, Q, S0=None, sigma=None, eps=1e-5):
         self.eps = np.float64(eps)
         self.w0 = np.float64(w0)
         self.Q = np.float64(Q)
 
         if S0 is not None:
-            if Sw4 is not None or S_tot is not None:
-                raise ValueError("only one of S0, Sw4, and S_tot can be given")
+            if sigma is not None:
+                raise ValueError("only one of S0 and sigma can be given")
             self.S0 = np.float64(S0)
-        elif Sw4 is not None:
-            if S_tot is not None:
-                raise ValueError("only one of S0, Sw4, and S_tot can be given")
-            self.S0 = np.float64(Sw4) / self.w0 ** 4
-        elif S_tot is not None:
-            self.S0 = np.float64(S_tot) / (self.w0 * self.Q)
+        elif sigma is not None:
+            self.S0 = np.float64(sigma) ** 2 / (self.w0 * self.Q)
         else:
-            raise ValueError("one of S0, Sw4, and S_tot must be given")
+            raise ValueError("either S0 or sigma must be given")
 
     def overdamped(self):
         Q = self.Q
@@ -476,31 +471,25 @@ class Matern32Term(Term):
 
 
 class RotationTerm(TermSum):
-    def __init__(self, *, amp, Q0, deltaQ, period, mix):
-        self.amp = np.float64(amp)
-        self.Q0 = np.float64(Q0)
-        self.deltaQ = np.float64(deltaQ)
+    def __init__(self, *, sigma, period, Q0, dQ, f):
+        self.sigma = np.float64(sigma)
         self.period = np.float64(period)
-        self.mix = np.float64(mix)
+        self.Q0 = np.float64(Q0)
+        self.dQ = np.float64(dQ)
+        self.f = np.float64(f)
+
+        self.amp = self.sigma ** 2 / (1 + self.f)
 
         # One term with a period of period
-        Q1 = 0.5 + self.Q0 + self.deltaQ
+        Q1 = 0.5 + self.Q0 + self.dQ
         w1 = 4 * np.pi * Q1 / (self.period * np.sqrt(4 * Q1 ** 2 - 1))
         S1 = self.amp / (w1 * Q1)
 
         # Another term at half the period
         Q2 = 0.5 + self.Q0
         w2 = 8 * np.pi * Q2 / (self.period * np.sqrt(4 * Q2 ** 2 - 1))
-        S2 = self.mix * self.amp / (w2 * Q2)
+        S2 = self.f * self.amp / (w2 * Q2)
 
         super().__init__(
             SHOTerm(S0=S1, w0=w1, Q=Q1), SHOTerm(S0=S2, w0=w2, Q=Q2)
         )
-
-
-class OriginalCeleriteTerm(Term):
-    def __init__(self, term):
-        self.term = term
-
-    def get_coefficients(self):
-        return self.term.get_all_coefficients()

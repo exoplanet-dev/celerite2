@@ -17,16 +17,12 @@ import theano
 from theano import tensor as tt
 from theano.ifelse import ifelse
 
+from .. import terms as base_terms
 from . import ops
 
 
-class Term:
-    """The abstract base "term" that is the superclass of all other terms
-
-    Subclasses should overload the :func:`terms.Term.get_real_coefficients`
-    and :func:`terms.Term.get_complex_coefficients` methods.
-
-    """
+class Term(base_terms.Term):
+    __doc__ = base_terms.Term.__doc__
 
     def __init__(self, *, dtype="float64"):
         self.dtype = dtype
@@ -58,9 +54,7 @@ class Term:
     def get_value(self, tau):
         ar, cr, ac, bc, cc, dc = self.coefficients
         tau = tt.abs_(tau)
-        tau = tt.reshape(
-            tau, tt.concatenate([tau.shape, [1]]), ndim=tau.ndim + 1
-        )
+        tau = tt.shape_padright(tau)
         K = tt.sum(ar * tt.exp(-cr * tau), axis=-1)
         factor = tt.exp(-cc * tau)
         K += tt.sum(ac * factor * tt.cos(dc * tau), axis=-1)
@@ -69,9 +63,7 @@ class Term:
 
     def get_psd(self, omega):
         ar, cr, ac, bc, cc, dc = self.coefficients
-        omega = tt.reshape(
-            omega, tt.concatenate([omega.shape, [1]]), ndim=omega.ndim + 1
-        )
+        omega = tt.shape_padright(omega)
         w2 = omega ** 2
         w02 = cc ** 2 + dc ** 2
         power = tt.sum(ar * cr / (cr ** 2 + w2), axis=-1)
@@ -139,6 +131,8 @@ class Term:
 
 
 class TermSum(Term):
+    __doc__ = base_terms.TermSum.__doc__
+
     def __init__(self, *terms, **kwargs):
         if any(isinstance(term, IntegratedTerm) for term in terms):
             raise TypeError(
@@ -159,6 +153,8 @@ class TermSum(Term):
 
 
 class TermProduct(Term):
+    __doc__ = base_terms.TermProduct.__doc__
+
     def __init__(self, term1, term2, **kwargs):
         int1 = isinstance(term1, IntegratedTerm)
         int2 = isinstance(term2, IntegratedTerm)
@@ -238,6 +234,8 @@ class TermProduct(Term):
 
 
 class TermDiff(Term):
+    __doc__ = base_terms.TermDiff.__doc__
+
     def __init__(self, term, **kwargs):
         if isinstance(term, IntegratedTerm):
             raise TypeError(
@@ -263,6 +261,8 @@ class TermDiff(Term):
 
 
 class IntegratedTerm(Term):
+    __doc__ = base_terms.IntegratedTerm.__doc__
+
     def __init__(self, term, delta, **kwargs):
         self.term = term
         self.delta = tt.as_tensor_variable(delta).astype("float64")
@@ -396,27 +396,7 @@ class IntegratedTerm(Term):
 
 
 class RealTerm(Term):
-    r"""The simplest celerite term
-
-    This term has the form
-
-    .. math::
-
-        k(\tau) = a_j\,e^{-c_j\,\tau}
-
-    with the parameters ``a`` and ``c``.
-
-    Strictly speaking, for a sum of terms, the parameter ``a`` could be
-    allowed to go negative but since it is somewhat subtle to ensure positive
-    definiteness, we recommend keeping both parameters strictly positive.
-    Advanced users can build a custom term that has negative coefficients but
-    care should be taken to ensure positivity.
-
-    Args:
-        tensor a: The amplitude of the term.
-        tensor c: The exponent of the term.
-
-    """
+    __doc__ = base_terms.RealTerm.__doc__
 
     def __init__(self, *, a, c, **kwargs):
         self.a = tt.as_tensor_variable(a).astype("float64")
@@ -425,38 +405,20 @@ class RealTerm(Term):
 
     def get_coefficients(self):
         empty = tt.zeros(0, dtype=self.dtype)
-        return (
-            tt.reshape(self.a, (self.a.size,)),
-            tt.reshape(self.c, (self.c.size,)),
-            empty,
-            empty,
-            empty,
-            empty,
-        )
+        if self.a.ndim == 0:
+            return (
+                self.a[None],
+                self.c[None],
+                empty,
+                empty,
+                empty,
+                empty,
+            )
+        return (self.a, self.c, empty, empty, empty, empty)
 
 
 class ComplexTerm(Term):
-    r"""A general celerite term
-
-    This term has the form
-
-    .. math::
-
-        k(\tau) = \frac{1}{2}\,\left[(a_j + b_j)\,e^{-(c_j+d_j)\,\tau}
-         + (a_j - b_j)\,e^{-(c_j-d_j)\,\tau}\right]
-
-    with the parameters ``a``, ``b``, ``c``, and ``d``.
-
-    This term will only correspond to a positive definite kernel (on its own)
-    if :math:`a_j\,c_j \ge b_j\,d_j`.
-
-    Args:
-        tensor a: The real part of amplitude.
-        tensor b: The imaginary part of amplitude.
-        tensor c: The real part of the exponent.
-        tensor d: The imaginary part of exponent.
-
-    """
+    __doc__ = base_terms.ComplexTerm.__doc__
 
     def __init__(self, *, a, b, c, d, **kwargs):
         self.a = tt.as_tensor_variable(a).astype("float64")
@@ -467,65 +429,36 @@ class ComplexTerm(Term):
 
     def get_coefficients(self):
         empty = tt.zeros(0, dtype=self.dtype)
-        return (
-            empty,
-            empty,
-            tt.reshape(self.a, (self.a.size,)),
-            tt.reshape(self.b, (self.b.size,)),
-            tt.reshape(self.c, (self.c.size,)),
-            tt.reshape(self.d, (self.d.size,)),
-        )
+        if self.a.ndim == 0:
+            return (
+                empty,
+                empty,
+                self.a[None],
+                self.b[None],
+                self.c[None],
+                self.d[None],
+            )
+        return (empty, empty, self.a, self.b, self.c, self.d)
 
 
 class SHOTerm(Term):
-    r"""A term representing a stochastically-driven, damped harmonic oscillator
+    __doc__ = base_terms.SHOTerm.__doc__
 
-    The PSD of this term is
-
-    .. math::
-
-        S(\omega) = \sqrt{\frac{2}{\pi}} \frac{S_0\,\omega_0^4}
-        {(\omega^2-{\omega_0}^2)^2 + {\omega_0}^2\,\omega^2/Q^2}
-
-    with the parameters ``S0``, ``Q``, and ``w0``.
-
-    Args:
-        tensor S0: The parameter :math:`S_0`.
-        tensor Q: The parameter :math:`Q`.
-        tensor w0: The parameter :math:`\omega_0`.
-        tensor Sw4: It can sometimes be more efficient to parameterize the
-            amplitude of a SHO kernel using :math:`S_0\,{\omega_0}^4` instead
-            of :math:`S_0` directly since :math:`S_0` and :math:`\omega_0` are
-            strongly correlated. If provided, ``S0`` will be computed from
-            ``Sw4`` and ``w0``.
-        tensor S_tot: Another useful parameterization is :math:`S_tot =
-            S_0\,\omega_0\,Q`.
-
-    """
-
-    def __init__(
-        self, *, w0, Q, S0=None, Sw4=None, S_tot=None, eps=1e-5, **kwargs
-    ):
+    def __init__(self, *, w0, Q, S0=None, sigma=None, eps=1e-5, **kwargs):
         self.eps = tt.as_tensor_variable(eps).astype("float64")
         self.w0 = tt.as_tensor_variable(w0).astype("float64")
         self.Q = tt.as_tensor_variable(Q).astype("float64")
 
         if S0 is not None:
-            if Sw4 is not None or S_tot is not None:
-                raise ValueError("only one of S0, Sw4, and S_tot can be given")
+            if sigma is not None:
+                raise ValueError("only one of S0 and sigma can be given")
             self.S0 = tt.as_tensor_variable(S0).astype("float64")
-        elif Sw4 is not None:
-            if S_tot is not None:
-                raise ValueError("only one of S0, Sw4, and S_tot can be given")
-            self.S0 = (
-                tt.as_tensor_variable(Sw4).astype("float64") / self.w0 ** 4
-            )
-        elif S_tot is not None:
-            self.S0 = tt.as_tensor_variable(S_tot).astype("float64") / (
+        elif sigma is not None:
+            self.S0 = tt.as_tensor_variable(sigma).astype("float64") ** 2 / (
                 self.w0 * self.Q
             )
         else:
-            raise ValueError("one of S0, Sw4, and S_tot must be given")
+            raise ValueError("either S0 or sigma must be given")
 
         super().__init__(**kwargs)
 
@@ -555,10 +488,10 @@ class SHOTerm(Term):
         return (
             empty,
             empty,
-            tt.reshape(a, (a.size,)),
-            tt.reshape(a / f, (a.size,)),
-            tt.reshape(c, (c.size,)),
-            tt.reshape(c * f, (c.size,)),
+            tt.stack([a]),
+            tt.stack([a / f]),
+            tt.stack([c]),
+            tt.stack([c * f]),
         )
 
     def get_coefficients(self):
@@ -570,34 +503,7 @@ class SHOTerm(Term):
 
 
 class Matern32Term(Term):
-    r"""A term that approximates a Matern-3/2 function
-
-    This term is defined as
-
-    .. math::
-
-        k(\tau) = \sigma^2\,\left[
-            \left(1+1/\epsilon\right)\,e^{-(1-\epsilon)\sqrt{3}\,\tau/\rho}
-            \left(1-1/\epsilon\right)\,e^{-(1+\epsilon)\sqrt{3}\,\tau/\rho}
-        \right]
-
-    with the parameters ``sigma`` and ``rho``. The parameter ``eps``
-    controls the quality of the approximation since, in the limit
-    :math:`\epsilon \to 0` this becomes the Matern-3/2 function
-
-    .. math::
-
-        \lim_{\epsilon \to 0} k(\tau) = \sigma^2\,\left(1+
-        \frac{\sqrt{3}\,\tau}{\rho}\right)\,
-        \exp\left(-\frac{\sqrt{3}\,\tau}{\rho}\right)
-
-    Args:
-        tensor sigma: The parameter :math:`\sigma`.
-        tensor rho: The parameter :math:`\rho`.
-        eps (Optional[float]): The value of the parameter :math:`\epsilon`.
-            (default: `0.01`)
-
-    """
+    __doc__ = base_terms.Matern32Term.__doc__
 
     def __init__(self, *, sigma, rho, eps=0.01, **kwargs):
         self.sigma = tt.as_tensor_variable(sigma).astype("float64")
@@ -612,49 +518,34 @@ class Matern32Term(Term):
         return (
             empty,
             empty,
-            tt.reshape(w0 * S0, (w0.size,)),
-            tt.reshape(w0 * w0 * S0 / self.eps, (w0.size,)),
-            tt.reshape(w0, (w0.size,)),
-            tt.reshape(self.eps, (w0.size,)),
+            (w0 * S0)[None],
+            (w0 * w0 * S0 / self.eps)[None],
+            w0[None],
+            self.eps[None],
         )
 
 
 class RotationTerm(TermSum):
-    r"""A mixture of two SHO terms that can be used to model stellar rotation
+    __doc__ = base_terms.RotationTerm.__doc__
 
-    This term has two modes in Fourier space: one at ``period`` and one at
-    ``0.5 * period``. This can be a good descriptive model for a wide range of
-    stochastic variability in stellar time series from rotation to pulsations.
-
-    Args:
-        tensor amp: The amplitude of the variability.
-        tensor period: The primary period of variability.
-        tensor Q0: The quality factor (or really the quality factor minus one
-            half) for the secondary oscillation.
-        tensor deltaQ: The difference between the quality factors of the first
-            and the second modes. This parameterization (if ``deltaQ > 0``)
-            ensures that the primary mode alway has higher quality.
-        mix: The fractional amplitude of the secondary mode compared to the
-            primary. This should probably always be ``0 < mix < 1``.
-
-    """
-
-    def __init__(self, *, amp, Q0, deltaQ, period, mix, **kwargs):
-        self.amp = tt.as_tensor_variable(amp).astype("float64")
-        self.Q0 = tt.as_tensor_variable(Q0).astype("float64")
-        self.deltaQ = tt.as_tensor_variable(deltaQ).astype("float64")
+    def __init__(self, *, sigma, period, Q0, dQ, f, **kwargs):
+        self.sigma = tt.as_tensor_variable(sigma).astype("float64")
         self.period = tt.as_tensor_variable(period).astype("float64")
-        self.mix = tt.as_tensor_variable(mix).astype("float64")
+        self.Q0 = tt.as_tensor_variable(Q0).astype("float64")
+        self.dQ = tt.as_tensor_variable(dQ).astype("float64")
+        self.f = tt.as_tensor_variable(f).astype("float64")
+
+        self.amp = self.sigma ** 2 / (1 + self.f)
 
         # One term with a period of period
-        Q1 = 0.5 + self.Q0 + self.deltaQ
+        Q1 = 0.5 + self.Q0 + self.dQ
         w1 = 4 * np.pi * Q1 / (self.period * tt.sqrt(4 * Q1 ** 2 - 1))
         S1 = self.amp / (w1 * Q1)
 
         # Another term at half the period
         Q2 = 0.5 + self.Q0
         w2 = 8 * np.pi * Q2 / (self.period * tt.sqrt(4 * Q2 ** 2 - 1))
-        S2 = self.mix * self.amp / (w2 * Q2)
+        S2 = self.f * self.amp / (w2 * Q2)
 
         super().__init__(
             SHOTerm(S0=S1, w0=w1, Q=Q1), SHOTerm(S0=S2, w0=w2, Q=Q2), **kwargs

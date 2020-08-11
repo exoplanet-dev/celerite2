@@ -23,6 +23,13 @@ from . import driver
 
 
 class Term:
+    """The abstract base "term" that is the superclass of all other terms
+
+    Subclasses should overload at least the :func:`Term.get_coefficients`
+    method.
+
+    """
+
     def __add__(self, b):
         return TermSum(self, b)
 
@@ -34,9 +41,22 @@ class Term:
         return [self]
 
     def get_coefficients(self):
+        """Compute and return the coefficients for the celerite model
+
+        This should return a 6 element tuple with the following entries:
+
+        .. code-block:: python
+
+            (ar, cr, ac, bc, cc, dc)
+        """
         raise NotImplementedError("subclasses must implement this method")
 
     def get_value(self, tau):
+        """Compute the value of the kernel as a function of lag
+
+        Args:
+            tau (shape[...]): The lags where the kernel should be evaluated.
+        """
         tau = np.abs(np.atleast_1d(tau))
         ar, cr, ac, bc, cc, dc = self.get_coefficients()
         k = np.zeros_like(tau)
@@ -55,6 +75,12 @@ class Term:
         return k
 
     def get_psd(self, omega):
+        """Compute the value of the power spectral density for this process
+
+        Args:
+            omega (shape[...]): The (angular) frequencies where the power
+                should be evaluated.
+        """
         w2 = np.atleast_1d(omega) ** 2
         ar, cr, ac, bc, cc, dc = self.get_coefficients()
         psd = np.zeros_like(w2)
@@ -74,6 +100,12 @@ class Term:
         return np.sqrt(2 / np.pi) * psd
 
     def to_dense(self, x, diag):
+        """Evaluate the dense covariance matrix for this term
+
+        Args:
+            x (shape[N]): The independent coordinates of the data.
+            diag (shape[N]): The diagonal variance of the system.
+        """
         K = self.get_value(x[:, None] - x[None, :])
         K[np.diag_indices_from(K)] += diag
         return K
@@ -81,6 +113,26 @@ class Term:
     def get_celerite_matrices(
         self, x, diag, *, a=None, U=None, V=None, P=None
     ):
+        """Get the matrices needed to solve the celerite system
+
+        Pre-allocated arrays can be provided to the Python interface to be
+        re-used for multiple evaluations.
+
+        .. note:: In-place operations are not supported by the modeling
+            extensions.
+
+        Args:
+            x (shape[N]): The independent coordinates of the data.
+            diag (shape[N]): The diagonal variance of the system.
+            a (shape[N], optional): The diagonal of the A matrix.
+            U (shape[N, J], optional): The first low-rank matrix.
+            V (shape[N, J], optional): The second low-rank matrix.
+            P (shape[N-1, J], optional): The regularization matrix used for
+                numerical stability.
+
+        Raises:
+            ValueError: When the inputs are not valid.
+        """
         x = np.atleast_1d(x)
         diag = np.atleast_1d(diag)
         if len(x.shape) != 1:
@@ -117,6 +169,13 @@ class Term:
         )
 
     def get_conditional_mean_matrices(self, x, t):
+        """Get the matrices needed to compute the conditional mean function
+
+        Args:
+            x (shape[N]): The independent coordinates of the data.
+            t (shape[M]): The independent coordinates where the predictions
+                will be made.
+        """
         ar, cr, ac, bc, cc, dc = self.get_coefficients()
 
         inds = np.searchsorted(x, t)
@@ -133,6 +192,14 @@ class Term:
         return U_star, V_star, inds
 
     def dot(self, x, diag, y):
+        """Apply a matrix-vector or matrix-matrix product
+
+        Args:
+            x (shape[N]): The independent coordinates of the data.
+            diag (shape[N]): The diagonal variance of the system.
+            y (shape[N] or shape[N, K]): The target of vector or matrix for
+                this operation.
+        """
         a, U, V, P = self.get_celerite_matrices(x, diag)
 
         y = np.atleast_1d(y)
@@ -144,6 +211,16 @@ class Term:
 
 
 class TermSum(Term):
+    """A sum of multiple :class:`Term` objects
+
+    The resulting kernel function is the sum of the functions and the width of
+    the resulting low-rank representation will be the sum of widths for each
+    of the terms.
+
+    Args:
+        *terms: Any number of :class:`Term` subclasses to add together.
+    """
+
     def __init__(self, *terms):
         if any(isinstance(term, IntegratedTerm) for term in terms):
             raise TypeError(
@@ -162,6 +239,17 @@ class TermSum(Term):
 
 
 class TermProduct(Term):
+    """A product of two :class:`Term` objects
+
+    The resulting kernel function is the product of the two functions and the
+    resulting low-rank representation will in general be wider than the sum of
+    the two widths.
+
+    Args:
+        term1 (Term): The left term.
+        term2 (Term): The right term.
+    """
+
     def __init__(self, term1, term2):
         int1 = isinstance(term1, IntegratedTerm)
         int2 = isinstance(term2, IntegratedTerm)
@@ -217,6 +305,12 @@ class TermProduct(Term):
 
 
 class TermDiff(Term):
+    """Take the first derivative of a term with respect to the lag
+
+    Args:
+        term (Term): The term to differentiate.
+    """
+
     def __init__(self, term):
         if isinstance(term, IntegratedTerm):
             raise TypeError(
@@ -240,6 +334,18 @@ class TermDiff(Term):
 
 
 class IntegratedTerm(Term):
+    """A term corresponding to the integral of another term over a boxcar
+
+    The process produced by this term is equivalent to the process produced by
+    convolving the base process with a boxcar of length ``delta``. This can be
+    useful, for example, when taking exposure time integration into account.
+
+    Args:
+        term (Term): The term describing the base process.
+        delta (float): The width of the boxcar filter (for example, the
+            exposure time).
+    """
+
     def __init__(self, term, delta):
         self.term = term
         self.delta = float(delta)
@@ -380,6 +486,31 @@ class IntegratedTerm(Term):
 
 
 class RealTerm(Term):
+    r"""The simplest celerite term
+
+    .. warning:: You should only use this term if you really know what you're
+        doing because it will generally behave poorly. Check out
+        :class:`SHOTerm` instead!
+
+    This term has the form
+
+    .. math::
+
+        k(\tau) = a_j\,e^{-c_j\,\tau}
+
+    with the parameters ``a`` and ``c``.
+
+    Strictly speaking, for a sum of terms, the parameter ``a`` could be
+    allowed to go negative but since it is somewhat subtle to ensure positive
+    definiteness, we recommend keeping both parameters strictly positive.
+    Advanced users can build a custom term that has negative coefficients but
+    care should be taken to ensure positivity.
+
+    Args:
+        a: The amplitude of the term.
+        c: The exponent of the term.
+    """
+
     def __init__(self, *, a, c):
         self.a = float(a)
         self.c = float(c)
@@ -390,6 +521,31 @@ class RealTerm(Term):
 
 
 class ComplexTerm(Term):
+    r"""A general celerite term
+
+    .. warning:: You should only use this term if you really know what you're
+        doing because it will generally behave poorly. Check out
+        :class:`SHOTerm` instead!
+
+    This term has the form
+
+    .. math::
+
+        k(\tau) = \frac{1}{2}\,\left[(a_j + b_j)\,e^{-(c_j+d_j)\,\tau}
+         + (a_j - b_j)\,e^{-(c_j-d_j)\,\tau}\right]
+
+    with the parameters ``a``, ``b``, ``c``, and ``d``.
+
+    This term will only correspond to a positive definite kernel (on its own)
+    if :math:`a_j\,c_j \ge b_j\,d_j`.
+
+    Args:
+        a: The real part of amplitude.
+        b: The imaginary part of amplitude.
+        c: The real part of the exponent.
+        d: The imaginary part of exponent.
+    """
+
     def __init__(self, *, a, b, c, d):
         self.a = float(a)
         self.b = float(b)
@@ -409,23 +565,51 @@ class ComplexTerm(Term):
 
 
 class SHOTerm(Term):
-    def __init__(self, *, w0, Q, S0=None, Sw4=None, S_tot=None, eps=1e-5):
+    r"""A term representing a stochastically-driven, damped harmonic oscillator
+
+    The PSD of this term is
+
+    .. math::
+
+        S(\omega) = \sqrt{\frac{2}{\pi}} \frac{S_0\,\omega_0^4}
+        {(\omega^2-{\omega_0}^2)^2 + {\omega_0}^2\,\omega^2/Q^2}
+
+    with the parameters ``S0``, ``Q``, and ``w0``.
+
+    Besides this parameterization, this implementation also supports an
+    alternative for ``S0`` that can often be better behaved:
+
+    .. math::
+
+        \sigma = \sqrt{S_0\,\omega_0\,Q}
+
+    where ``sigma`` is the standard deviation of the process.
+
+    Either ``S0`` or ``sigma`` must be defined.
+
+    Args:
+        Q: The parameter :math:`Q`.
+        w0: The parameter :math:`\omega_0`.
+        S0: The parameter :math:`S_0`.
+        sigma: Alternative parameterization for ``S0`` where ``sigma`` is the
+            standard deviation of the process as described above.
+        eps (optional): A regularization parameter used for numerical stability
+            when computing :math:`\sqrt{1-4\,Q^2}` or :math:`\sqrt{4\,Q^2-1}`.
+    """
+
+    def __init__(self, *, w0, Q, S0=None, sigma=None, eps=1e-5):
         self.eps = float(eps)
         self.w0 = float(w0)
         self.Q = float(Q)
 
         if S0 is not None:
-            if Sw4 is not None or S_tot is not None:
-                raise ValueError("only one of S0, Sw4, and S_tot can be given")
+            if sigma is not None:
+                raise ValueError("only one of S0 and sigma can be given")
             self.S0 = float(S0)
-        elif Sw4 is not None:
-            if S_tot is not None:
-                raise ValueError("only one of S0, Sw4, and S_tot can be given")
-            self.S0 = float(Sw4) / self.w0 ** 4
-        elif S_tot is not None:
-            self.S0 = float(S_tot) / (self.w0 * self.Q)
+        elif sigma is not None:
+            self.S0 = float(sigma) ** 2 / (self.w0 * self.Q)
         else:
-            raise ValueError("one of S0, Sw4, and S_tot must be given")
+            raise ValueError("either S0 or sigma must be given")
 
     def overdamped(self):
         Q = self.Q
@@ -464,6 +648,36 @@ class SHOTerm(Term):
 
 
 class Matern32Term(Term):
+    r"""A term that approximates a Matern-3/2 function
+
+    This term is defined as
+
+    .. math::
+
+        k(\tau) = \sigma^2\,\left[
+            \left(1+1/\epsilon\right)\,e^{-(1-\epsilon)\sqrt{3}\,\tau/\rho}
+            \left(1-1/\epsilon\right)\,e^{-(1+\epsilon)\sqrt{3}\,\tau/\rho}
+        \right]
+
+    with the parameters ``sigma`` and ``rho``. The parameter ``eps``
+    controls the quality of the approximation since, in the limit
+    :math:`\epsilon \to 0` this becomes the Matern-3/2 function
+
+    .. math::
+
+        \lim_{\epsilon \to 0} k(\tau) = \sigma^2\,\left(1+
+        \frac{\sqrt{3}\,\tau}{\rho}\right)\,
+        \exp\left(-\frac{\sqrt{3}\,\tau}{\rho}\right)
+
+    This term should be used with care since there could be numerical issues
+    with this approximation.
+
+    Args:
+        sigma: The parameter :math:`\sigma`.
+        rho: The parameter :math:`\rho`.
+        eps (optional): The value of the parameter :math:`\epsilon`.
+    """
+
     def __init__(self, *, sigma, rho, eps=0.01):
         self.sigma = float(sigma)
         self.rho = float(rho)
@@ -484,22 +698,62 @@ class Matern32Term(Term):
 
 
 class RotationTerm(TermSum):
-    def __init__(self, *, amp, Q0, deltaQ, period, mix):
-        self.amp = float(amp)
-        self.Q0 = float(Q0)
-        self.deltaQ = float(deltaQ)
+    r"""A mixture of two SHO terms that can be used to model stellar rotation
+
+    This term has two modes in Fourier space: one at ``period`` and one at
+    ``0.5 * period``. This can be a good descriptive model for a wide range of
+    stochastic variability in stellar time series from rotation to pulsations.
+
+    More precisely, the parameters of the two :class:`SHOTerm` terms are
+    defined as
+
+    .. math::
+
+        Q_1 = 1/2 + Q_0 + \delta Q \\
+        \omega_1 = \frac{4\,\pi\,Q_1}{P\,\sqrt{4\,Q_1^2 - 1}} \\
+        S_1 = \frac{\sigma^2}{(1 + f)\,\omega_1\,Q_1}
+
+    for the primary term, and
+
+    .. math::
+
+        Q_2 = 1/2 + Q_0 \\
+        \omega_2 = \frac{8\,\pi\,Q_1}{P\,\sqrt{4\,Q_1^2 - 1}} \\
+        S_2 = \frac{f\,\sigma^2}{(1 + f)\,\omega_2\,Q_2}
+
+    for the secondary term.
+
+    Args:
+        sigma: The standard deviation of the process.
+        period: The primary period of variability.
+        Q0: The quality factor (or really the quality factor minus one half;
+            this keeps the system underdamped) for the secondary oscillation.
+        dQ: The difference between the quality factors of the first and the
+            second modes. This parameterization (if ``dQ > 0``) ensures that
+            the primary mode alway has higher quality.
+        f: The fractional amplitude of the secondary mode compared to the
+            primary. This should probably always be ``0 < f < 1``, but that
+            is not enforced.
+    """
+
+    def __init__(self, *, sigma, period, Q0, dQ, f):
+        self.sigma = float(sigma)
         self.period = float(period)
-        self.mix = float(mix)
+        self.Q0 = float(Q0)
+        self.dQ = float(dQ)
+        self.f = float(f)
+
+        self.amp = self.sigma ** 2 / (1 + self.f)
 
         # One term with a period of period
-        Q1 = 0.5 + self.Q0 + self.deltaQ
+        Q1 = 0.5 + self.Q0 + self.dQ
         w1 = 4 * np.pi * Q1 / (self.period * np.sqrt(4 * Q1 ** 2 - 1))
         S1 = self.amp / (w1 * Q1)
 
         # Another term at half the period
         Q2 = 0.5 + self.Q0
         w2 = 8 * np.pi * Q2 / (self.period * np.sqrt(4 * Q2 ** 2 - 1))
-        S2 = self.mix * self.amp / (w2 * Q2)
+        S2 = self.f * self.amp / (w2 * Q2)
 
         super().__init__(
             SHOTerm(S0=S1, w0=w1, Q=Q1), SHOTerm(S0=S2, w0=w2, Q=Q2)

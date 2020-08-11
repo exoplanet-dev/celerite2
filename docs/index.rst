@@ -7,7 +7,7 @@ Regression in one dimension and this library, *celerite2* is a re-write of the
 original `celerite project <https://celerite.readthedocs.io>`_ to improve
 numerical stability and integration with various machine learning frameworks.
 This implementation includes interfaces in Python and C++, with full support for
-Theano/PyMC3 and preliminary interfaces in JAX, PyTorch, and TensorFlow.
+Theano/PyMC3 and experimental interfaces in JAX, PyTorch, and TensorFlow.
 
 This documentation won't teach you the fundamentals of GP modeling but the best
 resource for learning about this is available for free online: `Rasmussen &
@@ -29,7 +29,9 @@ be a good choice.
 
    install
    citation
-   api
+   api/python
+   api/theano
+   api/c++
 
 .. toctree::
    :maxdepth: 2
