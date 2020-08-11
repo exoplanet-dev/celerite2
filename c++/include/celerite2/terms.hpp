@@ -30,6 +30,10 @@ class Term {
   static constexpr int Order = (Width != 1) ? Eigen::RowMajor : Eigen::ColMajor;
 
   public:
+  /**
+   * \typedef Scalar
+   * The underlying scalar type of this `Term` (should probably always be `double`)
+   */
   typedef T Scalar;
   typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> Vector;
   typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Width, Order> LowRank;

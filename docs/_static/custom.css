@@ -1,9 +1,7 @@
-.function dt,
-.class dt {
+.function dt .api-docs-inner,
+.class dt .api-docs-inner {
   display: table;
   margin: 6px 0;
-  margin-top: 6px;
-  margin-bottom: 6px;
   font-size: 90%;
   line-height: normal;
   background: #e7f2fa;
@@ -13,8 +11,8 @@
   position: relative;
 }
 
-.function dl dt,
-.class dl dt {
+.function dl dt .api-docs-inner,
+.class dl dt .api-docs-inner {
   margin-bottom: 6px;
   border: none;
   border-left: solid 3px #ccc;
@@ -28,4 +26,31 @@
 .class dl dt code {
   background-color: transparent;
   font-weight: bold;
+}
+
+.md-footer-meta__inner {
+  padding-bottom: 50px;
+}
+
+.function dt[id]:before,
+.class dt[id]:before {
+  display: block;
+  margin-top: -8px;
+  height: 8px;
+  padding-top: 8px;
+  content: "";
+}
+
+.function dt[id]:target:before,
+.class dt[id]:target:before {
+  margin-top: -3.4rem;
+  padding-top: 3.4rem;
+  height: 3.4rem;
+}
+
+.function .headerlink,
+.class .headerlink {
+  color: rgba(0, 0, 0, 0.87);
+  opacity: 1;
+  transform: none;
 }

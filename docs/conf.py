@@ -77,6 +77,7 @@ html_title = html_short_title = "celerite2"
 
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
+html_js_files = ["custom.js"]
 
 html_favicon = "_static/logo.png"
 html_logo = "_static/logo-inv.png"
