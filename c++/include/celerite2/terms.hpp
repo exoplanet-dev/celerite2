@@ -26,15 +26,16 @@ struct sum_width {
 template <typename T, int J_ = Eigen::Dynamic>
 class Term {
   protected:
-  typedef T Scalar;
-  typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> Vector;
   constexpr static int Width = ((0 < J_) && (J_ <= CELERITE_MAX_WIDTH)) ? J_ : Eigen::Dynamic;
   static constexpr int Order = (Width != 1) ? Eigen::RowMajor : Eigen::ColMajor;
+
+  public:
+  typedef T Scalar;
+  typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> Vector;
   typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Width, Order> LowRank;
   typedef std::tuple<Vector, LowRank, LowRank, LowRank> Matrices;
   typedef std::tuple<Vector, Vector, Vector, Vector, Vector, Vector> Coeffs;
 
-  public:
   Term(){};
 
   int get_width() const { return Width; }
