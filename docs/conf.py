@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
+import subprocess
 
 import sphinx_material
 from pkg_resources import DistributionNotFound, get_distribution
@@ -11,6 +12,8 @@ except DistributionNotFound:
     __version__ = "unknown version"
 
 
+subprocess.call("doxygen Doxyfile.in", shell=True)
+
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
@@ -19,6 +22,7 @@ extensions = [
     "sphinx_copybutton",
     "rtds_action",
     "nbsphinx",
+    "breathe",
 ]
 
 autodoc_mock_imports = [
@@ -32,6 +36,7 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
     "numpy": ("https://docs.scipy.org/doc/numpy/", None),
     "scipy": ("https://docs.scipy.org/doc/scipy/reference/", None),
+    "pymc3": ("https://docs.pymc.io/", None),
 }
 
 templates_path = ["_templates"]
@@ -70,6 +75,9 @@ html_context = sphinx_material.get_html_context()
 html_theme = "sphinx_material"
 html_title = html_short_title = "celerite2"
 
+html_static_path = ["_static"]
+html_css_files = ["custom.css"]
+
 html_favicon = "_static/logo.png"
 html_logo = "_static/logo-inv.png"
 html_theme_options = {
@@ -89,3 +97,8 @@ html_theme_options = {
     },
     "nav_links": [],
 }
+
+# Breathe for C++
+breathe_projects = {"celerite2": "c++/xml/"}
+breathe_default_project = "celerite2"
+breathe_default_members = ("members", "undoc-members")

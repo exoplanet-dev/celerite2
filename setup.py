@@ -45,6 +45,7 @@ EXTRA_REQUIRE = {
         "sphinx_copybutton",
         "rtds_action",
         "nbsphinx",
+        "breathe",
     ],
     "tutorials": [
         "jupytext",

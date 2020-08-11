@@ -28,6 +28,7 @@ be a good choice.
    :caption: User Guide
 
    install
+   api
 
 .. toctree::
    :maxdepth: 2

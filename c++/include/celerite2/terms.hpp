@@ -20,9 +20,12 @@ struct sum_width {
   constexpr static int value = (J1 == Eigen::Dynamic || J2 == Eigen::Dynamic) ? Eigen::Dynamic : (J1 + J2);
 };
 
+/**
+ * The abstract base class from which terms should inherit
+ */
 template <typename T, int J_ = Eigen::Dynamic>
 class Term {
-  public:
+  protected:
   typedef T Scalar;
   typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> Vector;
   constexpr static int Width = ((0 < J_) && (J_ <= CELERITE_MAX_WIDTH)) ? J_ : Eigen::Dynamic;
@@ -31,8 +34,19 @@ class Term {
   typedef std::tuple<Vector, LowRank, LowRank, LowRank> Matrices;
   typedef std::tuple<Vector, Vector, Vector, Vector, Vector, Vector> Coeffs;
 
+  public:
   Term(){};
 
+  /**
+   * Set the coefficients of the term
+   *
+   * @param ar     (J_real,): The real amplitudes
+   * @param cr     (J_real,): The real exponential
+   * @param ac     (J_comp,): The complex even amplitude
+   * @param bc     (J_comp,): The complex odd amplitude
+   * @param cc     (J_comp,): The complex exponential
+   * @param dc     (J_comp,): The complex frequency
+   */
   void set_coefficients(const Vector &ar, const Vector &cr, const Vector &ac, const Vector &bc, const Vector &cc, const Vector &dc) {
     Eigen::Index nr = ar.rows(), nc = ac.rows();
 
@@ -51,6 +65,9 @@ class Term {
     dc_ << dc;
   }
 
+  /**
+   * Get the coefficients of the term as a tuple
+   */
   Coeffs get_coefficients() const { return std::make_tuple(ar_, cr_, ac_, bc_, cc_, dc_); }
 
   Matrices get_celerite_matrices(const Vector &x, const Vector &diag) const {
@@ -83,10 +100,12 @@ class Term {
     return std::make_tuple(a, U, V, P);
   }
 
+  /**
+   * Adding two terms builds a new term where the coefficients have been concatenated
+   */
   template <typename Other>
   Term<typename std::common_type<Scalar, typename Other::Scalar>::type, sum_width<Width, Other::Width>::value> operator+(const Other &other) const {
     typedef typename std::common_type<Scalar, typename Other::Scalar>::type NewScalar;
-    // constexpr int NewWidth = sum_width<Width, Other::Width>;
 
     auto coeffs = other.get_coefficients();
 

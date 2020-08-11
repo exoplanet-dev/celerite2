@@ -171,7 +171,6 @@ void dot_tril(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
  * @param M_out  (N, Nrhs): The intermediate state of the system
  * @param F_out  (N, J * Nrhs): The workspace for the forward pass
  * @param G_out  (N, J * Nrhs): The workspace for the backward pass
- *
  */
 template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename RightHandSideOut, typename Work>
 void matmul(const Eigen::MatrixBase<Diag> &a,                 // (N,)

@@ -1,0 +1,31 @@
+.function dt,
+.class dt {
+  display: table;
+  margin: 6px 0;
+  margin-top: 6px;
+  margin-bottom: 6px;
+  font-size: 90%;
+  line-height: normal;
+  background: #e7f2fa;
+  color: #2980b9;
+  border-top: solid 3px #6ab0de;
+  padding: 6px;
+  position: relative;
+}
+
+.function dl dt,
+.class dl dt {
+  margin-bottom: 6px;
+  border: none;
+  border-left: solid 3px #ccc;
+  background: #f0f0f0;
+  color: #555;
+}
+
+.function dt code,
+.class dt code,
+.function dl dt code,
+.class dl dt code {
+  background-color: transparent;
+  font-weight: bold;
+}
