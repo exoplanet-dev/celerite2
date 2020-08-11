@@ -156,8 +156,6 @@ void dot_tril(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
 }
 
 /**
- * Matrix multiply
- *
  * This computes `X = [diag(a) + tril(U*V^T) + triu(V*U^T)] * Y` with `O(N*J^2)` scaling
  * with the `P` matrix from Foreman-Mackey et al. for numerical stability. Note that this
  * operation *cannot* be applied in-place.

@@ -37,6 +37,8 @@ class Term {
   public:
   Term(){};
 
+  int get_width() const { return Width; }
+
   /**
    * Set the coefficients of the term
    *

@@ -7,7 +7,7 @@
 TEST_CASE("check the coefficients for RealTerm", "[terms]") {
   double a = 1.3, c = 0.1;
   celerite2::RealTerm<double> kernel(a, c);
-  int width   = kernel.Width;
+  int width   = kernel.get_width();
   auto coeffs = kernel.get_coefficients();
   auto ar     = std::get<0>(coeffs);
   auto cr     = std::get<1>(coeffs);
@@ -21,7 +21,7 @@ TEST_CASE("check the coefficients for RealTerm", "[terms]") {
 TEST_CASE("check the coefficients for ComplexTerm", "[terms]") {
   double a = 1.3, b = 0.5, c = 0.1, d = 0.05;
   celerite2::ComplexTerm<double> kernel(a, b, c, d);
-  int width   = kernel.Width;
+  int width   = kernel.get_width();
   auto coeffs = kernel.get_coefficients();
   auto ac     = std::get<2>(coeffs);
   auto bc     = std::get<3>(coeffs);
@@ -41,7 +41,7 @@ TEST_CASE("check the coefficients for ComplexTerm", "[terms]") {
 TEST_CASE("check the coefficients for SHOTerm", "[terms]") {
   double S0 = 1.5, w0 = 0.1, Q = 2.3;
   celerite2::SHOTerm<double> kernel(S0, w0, Q);
-  int width   = kernel.Width;
+  int width   = kernel.get_width();
   auto coeffs = kernel.get_coefficients();
   auto ac     = std::get<2>(coeffs);
   auto bc     = std::get<3>(coeffs);
@@ -59,7 +59,7 @@ TEST_CASE("check the coefficients for a sum of terms", "[terms]") {
   celerite2::RealTerm<double> term1(a0, c0);
   celerite2::ComplexTerm<double> term2(a, b, c, d);
   auto kernel = term1 + term2;
-  int width   = kernel.Width;
+  int width   = kernel.get_width();
   auto coeffs = kernel.get_coefficients();
   auto ar     = std::get<0>(coeffs);
   auto cr     = std::get<1>(coeffs);
