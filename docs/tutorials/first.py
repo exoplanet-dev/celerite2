@@ -158,4 +158,3 @@ plot_psd(opt_gp)
 plt.figure()
 plt.title("maximum likelihood prediction")
 plot_prediction(opt_gp)
-# -

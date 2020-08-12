@@ -6,7 +6,6 @@ import torch
 from torch import nn
 
 from ..backprop import LinAlgError
-from ..celerite2 import ConstantMean
 from ..ext import BaseGaussianProcess
 from . import ops
 from .terms import as_tensor
@@ -15,11 +14,8 @@ from .terms import as_tensor
 class GaussianProcess(nn.Module, BaseGaussianProcess):
     def __init__(self, kernel, t=None, *, mean=0.0, **kwargs):
         super().__init__()
-        self._kernel = kernel
-        if callable(mean):
-            self._mean = mean
-        else:
-            self._mean = ConstantMean(mean)
+        self.kernel = kernel
+        self.mean = mean
 
         # Placeholders for storing data
         self._t = None
