@@ -91,7 +91,7 @@ void solve(const Eigen::MatrixBase<LowRank> &U,             // (N, J)
  * @param W     (N, J): The second low rank component of the Cholesky factor
  * @param Y     (N, Nrhs): The right hand side vector or matrix
  * @param norm_out (Nrhs, Nrhs): The norm of `Y`
- * @param Z_out (N, Nrhs): An intermediate result of the operation
+ * @param X_out (N, Nrhs): An intermediate result of the operation
  */
 template <typename Diag, typename LowRank, typename RightHandSide, typename Norm, typename RightHandSideOut>
 void norm(const Eigen::MatrixBase<LowRank> &U,             // (N, J)

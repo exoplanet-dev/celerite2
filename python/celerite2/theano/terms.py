@@ -443,23 +443,13 @@ class ComplexTerm(Term):
 
 class SHOTerm(Term):
     __doc__ = base_terms.SHOTerm.__doc__
+    __parameter_spec__ = base_terms.SHOTerm.__parameter_spec__
 
-    def __init__(self, *, w0, Q, S0=None, sigma=None, eps=1e-5, **kwargs):
+    @base_terms.handle_parameter_spec(
+        lambda x: tt.as_tensor_variable(x).astype("float64")
+    )
+    def __init__(self, *, eps=1e-5, **kwargs):
         self.eps = tt.as_tensor_variable(eps).astype("float64")
-        self.w0 = tt.as_tensor_variable(w0).astype("float64")
-        self.Q = tt.as_tensor_variable(Q).astype("float64")
-
-        if S0 is not None:
-            if sigma is not None:
-                raise ValueError("only one of S0 and sigma can be given")
-            self.S0 = tt.as_tensor_variable(S0).astype("float64")
-        elif sigma is not None:
-            self.S0 = tt.as_tensor_variable(sigma).astype("float64") ** 2 / (
-                self.w0 * self.Q
-            )
-        else:
-            raise ValueError("either S0 or sigma must be given")
-
         super().__init__(**kwargs)
 
     def overdamped(self):

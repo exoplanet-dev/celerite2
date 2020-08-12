@@ -12,10 +12,10 @@ from .driver import LinAlgError
 
 class ConstantMean:
     def __init__(self, value=0.0):
-        self._value = value
+        self.value = value
 
     def __call__(self, x):
-        return self._value
+        return self.value
 
 
 class GaussianProcess:
@@ -31,11 +31,8 @@ class GaussianProcess:
     """
 
     def __init__(self, kernel, t=None, *, mean=0.0, **kwargs):
-        self._kernel = kernel
-        if callable(mean):
-            self._mean = mean
-        else:
-            self._mean = ConstantMean(mean)
+        self.kernel = kernel
+        self.mean = mean
 
         # Placeholders for storing data
         self._t = None
@@ -51,6 +48,17 @@ class GaussianProcess:
 
         if t is not None:
             self.compute(t, **kwargs)
+
+    @property
+    def mean(self):
+        return self._mean
+
+    @mean.setter
+    def mean(self, mean):
+        if callable(mean):
+            self._mean = mean
+        else:
+            self._mean = ConstantMean(mean)
 
     def compute(
         self, t, *, yerr=None, diag=None, check_sorted=True, quiet=False
@@ -85,7 +93,6 @@ class GaussianProcess:
 
         # Save the diagonal
         self._t = np.ascontiguousarray(t, dtype=np.float64)
-        self._mean_value = self._mean(self._t)
         self._diag = np.empty_like(self._t)
         if yerr is None and diag is None:
             self._diag[:] = 0.0
@@ -106,7 +113,7 @@ class GaussianProcess:
             self._U,
             self._V,
             self._P,
-        ) = self._kernel.get_celerite_matrices(
+        ) = self.kernel.get_celerite_matrices(
             self._t, self._diag, a=self._d, U=self._U, V=self._V, P=self._P
         )
 
@@ -239,7 +246,7 @@ class GaussianProcess:
         if not np.isfinite(self._log_det):
             return -np.inf
         loglike = self._norm - 0.5 * driver.norm(
-            self._U, self._P, self._d, self._W, y - self._mean_value
+            self._U, self._P, self._d, self._W, y - self._mean(self._t)
         )
         if not np.isfinite(loglike):
             return -np.inf
@@ -286,8 +293,9 @@ class GaussianProcess:
             ValueError: When the inputs are not valid (shape, number, etc.).
         """
         y = self._process_input(y, inplace=True, require_vector=True)
+        mean_value = self._mean(self._t)
         alpha = driver.solve(
-            self._U, self._P, self._d, self._W, y - self._mean_value
+            self._U, self._P, self._d, self._W, y - mean_value
         )
 
         if t is None:
@@ -300,19 +308,19 @@ class GaussianProcess:
 
         KxsT = None
         if kernel is None:
-            kernel = self._kernel
+            kernel = self.kernel
 
             if t is None:
                 mu = y - self._diag * alpha
                 if not include_mean:
-                    mu -= self._mean_value
+                    mu -= mean_value
             else:
 
                 (
                     U_star,
                     V_star,
                     inds,
-                ) = self._kernel.get_conditional_mean_matrices(self._t, xs)
+                ) = self.kernel.get_conditional_mean_matrices(self._t, xs)
                 mu = np.empty_like(xs)
                 mu = driver.conditional_mean(
                     self._U, self._V, self._P, alpha, U_star, V_star, inds, mu

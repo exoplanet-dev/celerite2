@@ -31,6 +31,8 @@ compare_terms = partial(check_tensor_term, lambda x: x.eval())
         ("SHOTerm", dict(S0=1.5, w0=2.456, Q=0.1)),
         ("SHOTerm", dict(S0=1.5, w0=2.456, Q=3.4)),
         ("SHOTerm", dict(sigma=1.5, w0=2.456, Q=3.4)),
+        ("SHOTerm", dict(sigma=1.5, rho=2.456, Q=3.4)),
+        ("SHOTerm", dict(S0=1.5, rho=2.456, tau=0.5)),
         ("Matern32Term", dict(sigma=1.5, rho=3.5)),
         ("RotationTerm", dict(sigma=1.5, Q0=2.1, dQ=0.5, period=1.3, f=0.7)),
     ],
@@ -40,17 +42,17 @@ def test_base_terms(name, args):
     pyterm = getattr(pyterms, name)(**args)
     compare_terms(term, pyterm)
 
-    # compare_terms(terms.TermDiff(term), pyterms.TermDiff(pyterm))
-    # compare_terms(
-    #     terms.IntegratedTerm(term, 0.5), pyterms.IntegratedTerm(pyterm, 0.5)
-    # )
+    compare_terms(terms.TermDiff(term), pyterms.TermDiff(pyterm))
+    compare_terms(
+        terms.IntegratedTerm(term, 0.5), pyterms.IntegratedTerm(pyterm, 0.5)
+    )
 
-    # term0 = terms.SHOTerm(S0=1.0, w0=0.5, Q=1.5)
-    # pyterm0 = pyterms.SHOTerm(S0=1.0, w0=0.5, Q=1.5)
-    # compare_terms(term + term0, pyterm + pyterm0)
-    # compare_terms(term * term0, pyterm * pyterm0)
+    term0 = terms.SHOTerm(S0=1.0, w0=0.5, Q=1.5)
+    pyterm0 = pyterms.SHOTerm(S0=1.0, w0=0.5, Q=1.5)
+    compare_terms(term + term0, pyterm + pyterm0)
+    compare_terms(term * term0, pyterm * pyterm0)
 
-    # term0 = terms.SHOTerm(S0=1.0, w0=0.5, Q=0.2)
-    # pyterm0 = pyterms.SHOTerm(S0=1.0, w0=0.5, Q=0.2)
-    # compare_terms(term + term0, pyterm + pyterm0)
-    # compare_terms(term * term0, pyterm * pyterm0)
+    term0 = terms.SHOTerm(S0=1.0, w0=0.5, Q=0.2)
+    pyterm0 = pyterms.SHOTerm(S0=1.0, w0=0.5, Q=0.2)
+    compare_terms(term + term0, pyterm + pyterm0)
+    compare_terms(term * term0, pyterm * pyterm0)

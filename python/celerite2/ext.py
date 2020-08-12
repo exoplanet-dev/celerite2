@@ -16,7 +16,7 @@ __all__ = [
 import numpy as np
 
 from . import backprop
-from .celerite2 import ConstantMean, GaussianProcess
+from .celerite2 import GaussianProcess
 
 
 def factor_fwd(a, U, V, P):
@@ -122,15 +122,11 @@ def matmul_rev(a, U, V, P, Y, X, Z, F, G, bX):
 
 class BaseGaussianProcess(GaussianProcess):
     def __init__(self, kernel, t=None, *, mean=0.0, **kwargs):
-        self._kernel = kernel
-        if callable(mean):
-            self._mean = mean
-        else:
-            self._mean = ConstantMean(mean)
+        self.kernel = kernel
+        self.mean = mean
 
         # Placeholders for storing data
         self._t = None
-        self._mean_value = None
         self._diag = None
         self._log_det = -np.inf
         self._norm = np.inf
@@ -179,7 +175,6 @@ class BaseGaussianProcess(GaussianProcess):
 
         # Save the diagonal
         self._t = self.as_tensor(t)
-        self._mean_value = self._mean(self._t)
         self._diag = self.zeros_like(self._t)
         if yerr is not None:
             if diag is not None:
@@ -197,7 +192,7 @@ class BaseGaussianProcess(GaussianProcess):
             self._U,
             self._V,
             self._P,
-        ) = self._kernel.get_celerite_matrices(self._t, self._diag)
+        ) = self.kernel.get_celerite_matrices(self._t, self._diag)
 
         self.do_compute(quiet)
 
@@ -219,7 +214,7 @@ class BaseGaussianProcess(GaussianProcess):
 
     def log_likelihood(self, y):
         y = self._process_input(y, require_vector=True)
-        return self._norm - 0.5 * self.do_norm(y - self._mean_value)
+        return self._norm - 0.5 * self.do_norm(y - self._mean(self._t))
 
     def predict(
         self,
@@ -232,8 +227,7 @@ class BaseGaussianProcess(GaussianProcess):
         kernel=None,
     ):
         y = self._process_input(y, require_vector=True)
-
-        resid = y - self._mean_value
+        resid = y - self._mean(self._t)
         alpha = self.do_solve(resid)
 
         if t is None:
@@ -246,7 +240,7 @@ class BaseGaussianProcess(GaussianProcess):
 
         KxsT = None
         if kernel is None:
-            kernel = self._kernel
+            kernel = self.kernel
 
             if t is None:
                 if include_mean:
@@ -259,11 +253,11 @@ class BaseGaussianProcess(GaussianProcess):
                     U_star,
                     V_star,
                     inds,
-                ) = self._kernel.get_conditional_mean_matrices(self._t, xs)
+                ) = self.kernel.get_conditional_mean_matrices(self._t, xs)
                 mu = self.do_conditional_mean(alpha, U_star, V_star, inds)
 
                 if include_mean:
-                    mu += self._mean(self._t)
+                    mu += self._mean(xs)
 
         else:
             KxsT = kernel.get_value(xs[None, :] - self._t[:, None])

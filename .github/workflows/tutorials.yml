@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install -U pip
-          python -m pip install ".[tutorials]"
+          python -m pip install --use-feature=2020-resolver ".[tutorials]"
 
       - name: Execute the notebooks
         run: |

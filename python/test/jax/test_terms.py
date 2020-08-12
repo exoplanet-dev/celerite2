@@ -40,6 +40,8 @@ compare_terms = partial(check_tensor_term, evaluate)
             dict(S0=np.float64(1.5), w0=np.float64(2.456), Q=np.float64(3.4)),
         ),
         ("SHOTerm", dict(sigma=1.5, w0=2.456, Q=3.4)),
+        ("SHOTerm", dict(sigma=1.5, rho=2.456, Q=3.4)),
+        ("SHOTerm", dict(S0=1.5, rho=2.456, tau=0.5)),
         ("Matern32Term", dict(sigma=1.5, rho=3.5)),
         ("RotationTerm", dict(sigma=1.5, Q0=2.1, dQ=0.5, period=1.3, f=0.7)),
     ],

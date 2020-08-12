@@ -27,17 +27,23 @@ be a good choice.
    :maxdepth: 2
    :caption: User Guide
 
-   install
-   citation
-   api/python
-   api/theano
-   api/c++
+   user/install
+   user/upgrade
+   user/citation
 
 .. toctree::
    :maxdepth: 2
    :caption: Tutorials
 
    tutorials/first.ipynb
+
+.. toctree::
+   :maxdepth: 2
+   :caption: API Details
+
+   api/python
+   api/theano
+   api/c++
 
 License & attribution
 ---------------------

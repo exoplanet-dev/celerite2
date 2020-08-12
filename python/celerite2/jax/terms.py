@@ -16,6 +16,7 @@ from itertools import chain, product
 
 from jax import numpy as np
 
+from .. import terms as base_terms
 from . import ops
 
 
@@ -400,19 +401,11 @@ class ComplexTerm(Term):
 
 
 class SHOTerm(Term):
-    def __init__(self, *, w0, Q, S0=None, sigma=None, eps=1e-5):
-        self.eps = np.float64(eps)
-        self.w0 = np.float64(w0)
-        self.Q = np.float64(Q)
+    __parameter_spec__ = base_terms.SHOTerm.__parameter_spec__
 
-        if S0 is not None:
-            if sigma is not None:
-                raise ValueError("only one of S0 and sigma can be given")
-            self.S0 = np.float64(S0)
-        elif sigma is not None:
-            self.S0 = np.float64(sigma) ** 2 / (self.w0 * self.Q)
-        else:
-            raise ValueError("either S0 or sigma must be given")
+    @base_terms.handle_parameter_spec(np.float64)
+    def __init__(self, *, eps=1e-5, **kwargs):
+        self.eps = np.float64(eps)
 
     def overdamped(self):
         Q = self.Q

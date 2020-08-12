@@ -14,7 +14,7 @@ __all__ = [
     "OriginalCeleriteTerm",
 ]
 
-
+from functools import wraps
 from itertools import chain, product
 
 import numpy as np
@@ -564,6 +564,38 @@ class ComplexTerm(Term):
         )
 
 
+class handle_parameter_spec:
+    def __init__(self, mapper):
+        self.mapper = mapper
+
+    def __call__(self, to_wrap):
+        @wraps(to_wrap)
+        def wrapped(target, *args, **kwargs):
+            for param, alt in target.__parameter_spec__:
+                all_names = set([param]) | set(name for name, _ in alt)
+                if sum(int(n in kwargs) for n in all_names) != 1:
+                    raise ValueError(
+                        "exactly one of {0} must be defined".format(
+                            list(all_names)
+                        )
+                    )
+                if param in kwargs:
+                    setattr(target, param, self.mapper(kwargs.pop(param)))
+                else:
+                    for name, func in alt:
+                        if name in kwargs:
+                            setattr(
+                                target,
+                                param,
+                                func(target, self.mapper(kwargs.pop(name))),
+                            )
+                            break
+
+            return to_wrap(target, *args, **kwargs)
+
+        return wrapped
+
+
 class SHOTerm(Term):
     r"""A term representing a stochastically-driven, damped harmonic oscillator
 
@@ -576,40 +608,39 @@ class SHOTerm(Term):
 
     with the parameters ``S0``, ``Q``, and ``w0``.
 
-    Besides this parameterization, this implementation also supports an
-    alternative for ``S0`` that can often be better behaved:
+    This implementation also supports the following reparameterizations that
+    can be easier to use and reason about:
 
-    .. math::
-
-        \sigma = \sqrt{S_0\,\omega_0\,Q}
-
-    where ``sigma`` is the standard deviation of the process.
-
-    Either ``S0`` or ``sigma`` must be defined.
+    1. ``rho``, the undamped period of the oscillator, defined as :math:`\rho
+       = 2\,\pi / \omega_0`,
+    2. ``tau``, the damping timescale of the process, defined as :math:`\tau =
+       2\,Q / \omega_0`, and
+    3. ``sigma``, the standard deviation of the process, defined as
+       :math:`\sigma = \sqrt{S_0\,\omega_0\,Q}`.
 
     Args:
-        Q: The quality factor, :math:`Q` above.
         w0: The undamped angular frequency, :math:`\omega_0` above.
+        rho: Alternative parameterization for ``w0`` as described above.
+        Q: The quality factor, :math:`Q` above.
+        tau: Alternative parameterization for ``Q`` as described above.
         S0: The power at :math:`\omega = 0`, :math:`S_0` above.
-        sigma: Alternative parameterization for ``S0`` where ``sigma`` is the
-            standard deviation of the process as described above.
+        sigma: Alternative parameterization for ``S0`` as described above.
         eps (optional): A regularization parameter used for numerical stability
             when computing :math:`\sqrt{1-4\,Q^2}` or :math:`\sqrt{4\,Q^2-1}`.
     """
 
-    def __init__(self, *, w0, Q, S0=None, sigma=None, eps=1e-5):
-        self.eps = float(eps)
-        self.w0 = float(w0)
-        self.Q = float(Q)
+    __parameter_spec__ = (
+        ("w0", (("rho", lambda self, rho: 2 * np.pi / rho),)),
+        ("Q", (("tau", lambda self, tau: 0.5 * self.w0 * tau),)),
+        (
+            "S0",
+            (("sigma", lambda self, sigma: sigma ** 2 / (self.w0 * self.Q)),),
+        ),
+    )
 
-        if S0 is not None:
-            if sigma is not None:
-                raise ValueError("only one of S0 and sigma can be given")
-            self.S0 = float(S0)
-        elif sigma is not None:
-            self.S0 = float(sigma) ** 2 / (self.w0 * self.Q)
-        else:
-            raise ValueError("either S0 or sigma must be given")
+    @handle_parameter_spec(float)
+    def __init__(self, *, eps=1e-5):
+        self.eps = float(eps)
 
     def overdamped(self):
         Q = self.Q
