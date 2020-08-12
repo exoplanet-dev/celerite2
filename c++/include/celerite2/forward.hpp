@@ -44,13 +44,13 @@ void to_dense(const Eigen::MatrixBase<Diag> &a,     // (N,)
  *
  * This computes `d` and `W` such that:
  *
- * `diag(a) + tril(U*V^T) + triu(V*U^T) = L*diag(d)*L^T`
+ * `K = L*diag(d)*L^T`
  *
- * where
+ * where `K` is the celerite matrix and
  *
  * `L = 1 + tril(U*W^T)`
  *
- * This can be safely applied inplace: `d_out` can point to `a` and `W_out` can
+ * This can be safely applied in place: `d_out` can point to `a` and `W_out` can
  * point to `V`, and the memory will be reused. In this particular case, the
  * `celerite2::core::factor_rev` function doesn't use `a` and `V`, but this
  * won't be true for all `_rev` functions.
@@ -125,6 +125,29 @@ Eigen::Index factor(const Eigen::MatrixBase<Diag> &a,           // (N,)
   return 0;
 }
 
+/**
+ * \brief Solve a linear system using the Cholesky factorization
+ *
+ * This computes `X` in the following linear system:
+ *
+ * `K * X = Y`
+ *
+ * where `K` is the celerite matrix. This uses the results of the Cholesky
+ * factorization implemented by `celerite2::core::factor`.
+ *
+ * This can be safely applied in place *as long as you don't need to compute the
+ * reverse pass*. To compute the solve in place, set `X_out = Y` and `Z_out = Y`.
+ *
+ * @param U     (N, J): The first low rank matrix
+ * @param P     (N-1, J): The exponential difference matrix
+ * @param d     (N,): The diagonal component of the Cholesky factor
+ * @param W     (N, J): The second low rank component of the Cholesky factor
+ * @param Y     (N, Nrhs): The right hand side vector or matrix
+ * @param X_out (N, Nrhs): The final solution to the linear system
+ * @param Z_out (N, Nrhs): An intermediate result of the operation
+ * @param F_out (N, J*Nrhs): The workspace for the forward sweep
+ * @param G_out (N, J*Nrhs): The workspace for the backward sweep
+ */
 template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename RightHandSideOut, typename Work>
 void solve(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
            const Eigen::MatrixBase<LowRank> &P,              // (N-1, J)
@@ -149,6 +172,25 @@ void solve(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
   internal::backward<true, update_workspace>(U, W, P, Z, X, G_out);
 }
 
+/**
+ * \brief Compute the norm of vector or matrix under the celerite metric
+ *
+ * This computes `Y^T * K^-1 * Y` where `K` is the celerite matrix. This uses
+ * the results of the Cholesky factorization implemented by
+ * `celerite2::core::factor`.
+ *
+ * This can be safely applied in place *as long as you don't need to compute the
+ * reverse pass*. To compute the solve in place, set `Z_out = Y`.
+ *
+ * @param U     (N, J): The first low rank matrix
+ * @param P     (N-1, J): The exponential difference matrix
+ * @param d     (N,): The diagonal component of the Cholesky factor
+ * @param W     (N, J): The second low rank component of the Cholesky factor
+ * @param Y     (N, Nrhs): The target vector or matrix
+ * @param X_out (Nrhs, Nrhs): The norm of `Y`
+ * @param Z_out (N, Nrhs): An intermediate result of the operation
+ * @param F_out (N, J*Nrhs): The workspace for the forward sweep
+ */
 template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename Norm, typename RightHandSideOut,
           typename Work>
 void norm(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
@@ -172,6 +214,23 @@ void norm(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
   X = Z.transpose() * d.asDiagonal().inverse() * Z;
 }
 
+/**
+ * \brief Compute product of the Cholesky factor with a vector or matrix
+ *
+ * This computes `L * Y` where `L` is the Cholesky factor of a celerite system
+ * computed using `celerite2::core::factor`.
+ *
+ * This can be safely applied in place *as long as you don't need to compute the
+ * reverse pass*. To compute the solve in place, set `Z_out = Y`.
+ *
+ * @param U     (N, J): The first low rank matrix
+ * @param P     (N-1, J): The exponential difference matrix
+ * @param d     (N,): The diagonal component of the Cholesky factor
+ * @param W     (N, J): The second low rank component of the Cholesky factor
+ * @param Y     (N, Nrhs): The target vector or matrix
+ * @param Z_out (N, Nrhs): The result of the operation
+ * @param F_out (N, J*Nrhs): The workspace for the forward sweep
+ */
 template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename RightHandSideOut, typename Work>
 void dot_tril(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
               const Eigen::MatrixBase<LowRank> &P,              // (N-1, J)
@@ -191,19 +250,19 @@ void dot_tril(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
 /**
  * \brief Compute a matrix-vector or matrix-matrix product
  *
- * This computes `X = [diag(a) + tril(U*V^T) + triu(V*U^T)] * Y` with `O(N*J^2)` scaling
- * with the `P` matrix from Foreman-Mackey et al. for numerical stability. Note that this
- * operation *cannot* be applied in-place.
+ * This computes `X = K * Y` where `K` is the celerite matrix.
  *
- * @param a      (N,): The diagonal component
- * @param U      (N, J): The first low rank matrix
- * @param V      (N, J): The second low rank matrix
- * @param P      (N-1, J): The exponential difference matrix
- * @param Y      (N, Nrhs): The matrix that will be left multiplied by the celerite model
- * @param X_out  (N, Nrhs): The result of the operation
- * @param M_out  (N, Nrhs): The intermediate state of the system
- * @param F_out  (N, J*Nrhs): The workspace for the forward sweep
- * @param G_out  (N, J*Nrhs): The workspace for the backward sweep
+ * Note that this operation *cannot* be safely applied in place.
+ *
+ * @param a     (N,): The diagonal component
+ * @param U     (N, J): The first low rank matrix
+ * @param V     (N, J): The second low rank matrix
+ * @param P     (N-1, J): The exponential difference matrix
+ * @param Y     (N, Nrhs): The target vector or matrix
+ * @param X_out (N, Nrhs): The result of the operation
+ * @param M_out (N, Nrhs): The intermediate state of the system
+ * @param F_out (N, J*Nrhs): The workspace for the forward sweep
+ * @param G_out (N, J*Nrhs): The workspace for the backward sweep
  */
 template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename RightHandSideOut, typename Work>
 void matmul(const Eigen::MatrixBase<Diag> &a,                 // (N,)
@@ -230,6 +289,28 @@ void matmul(const Eigen::MatrixBase<Diag> &a,                 // (N,)
   internal::backward<false, update_workspace>(U, V, P, Y, X, G_out);
 }
 
+/**
+ * \brief Compute the conditional mean of a celerite process
+ *
+ * This computes `K_star * K^-1 * y` where `K` is the celerite matrix and
+ * `K_star` is the rectangular covariance between the training points and the
+ * test points.
+ *
+ * See the original celerite paper (https://arxiv.org/abs/1703.09710) for the
+ * definitions of the `_star` matrices.
+ *
+ * Note that this operation *cannot* be safely applied in place.
+ *
+ * @param U      (N, J): The first low rank matrix
+ * @param V      (N, J): The second low rank matrix
+ * @param P      (N-1, J): The exponential difference matrix
+ * @param z      (N,): The solution to the linear system `x = K^-1 * y`
+ * @param U_star (M, J): The first low rank matrix for `K_star`
+ * @param V_star (M, J): The second low rank matrix for `K_star`
+ * @param inds   (M,): The indices where the test points would be inserted into
+ *                     the training data; this *must* be sorted
+ * @param mu_out (M,): The conditional mean
+ */
 template <typename LowRank, typename RightHandSide, typename Indices, typename RightHandSideOut>
 void conditional_mean(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
                       const Eigen::MatrixBase<LowRank> &V,              // (N, J)

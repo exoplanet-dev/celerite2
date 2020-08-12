@@ -10,6 +10,21 @@ enough to get you started if you're interested in using or contributing to the
 low-level code directly. Please feel free to `open an issue
 <https://github.com/dfm/celerite2/issues>`_ if you have questions!
 
+One thing to note when using these functions is that the performance will be
+greatly improved (especially for small values of ``J``) by using fixed size
+matrices because `Eigen <http://eigen.tuxfamily.org>`_ can work its magic. If
+you use the :ref:`cpp-terms` interface defined below to construct your low rank
+matrices, the results will be right (using the `Width` parameter), but you might
+need to enforce this manually if you're building your own matrices. Much of the
+code in the `pybind11 <https://pybind11.readthedocs.io>`_ interface is dedicated
+to making sure that small matrices correctly typed.
+
+It is also worth noting that the notation in the equations below (and throughout
+these pages) is a little sloppy since it generally neglects the ``P`` matrix.
+Take a look at `the original celerite paper <https://arxiv.org/abs/1703.09710>`_
+for more details about the numerical stability introduced by using this matrix,
+and how it affects the algorithms.
+
 .. _cpp-basic:
 
 Basic interface
@@ -92,13 +107,17 @@ notation in `Foreman-Mackey (2018) <https://arxiv.org/abs/1801.10156>`_:
 
     \bar{x} = \frac{\partial \mathcal{L}}{\partial x}
 
-Below, the forward and reverse methods for each celerite operation are
-documented:
+The forward methods for each celerite operation are documented below, and the
+reverse passes are all implemented following the rules listed above. Take a look
+at `the source code <https://github.com/dfm/celerite2>`_ to see the signatures.
 
 .. doxygenfunction:: celerite2::core::factor(const Eigen::MatrixBase<Diag> &a, const Eigen::MatrixBase<LowRank> &U, const Eigen::MatrixBase<LowRank> &V, const Eigen::MatrixBase<LowRank> &P, Eigen::MatrixBase<DiagOut> const &d_out, Eigen::MatrixBase<LowRankOut> const &W_out, Eigen::MatrixBase<Work> const &S_out)
+.. doxygenfunction:: celerite2::core::solve(const Eigen::MatrixBase<LowRank> &U, const Eigen::MatrixBase<LowRank> &P, const Eigen::MatrixBase<Diag> &d, const Eigen::MatrixBase<LowRank> &W, const Eigen::MatrixBase<RightHandSide> &Y, Eigen::MatrixBase<RightHandSideOut> const &X_out, Eigen::MatrixBase<RightHandSideOut> const &Z_out, Eigen::MatrixBase<Work> const &F_out, Eigen::MatrixBase<Work> const &G_out)
+.. doxygenfunction:: celerite2::core::norm(const Eigen::MatrixBase<LowRank> &U, const Eigen::MatrixBase<LowRank> &P, const Eigen::MatrixBase<Diag> &d, const Eigen::MatrixBase<LowRank> &W, const Eigen::MatrixBase<RightHandSide> &Y, Eigen::MatrixBase<Norm> const &X_out, Eigen::MatrixBase<RightHandSideOut> const &Z_out, Eigen::MatrixBase<Work> const &F_out)
+.. doxygenfunction:: celerite2::core::dot_tril(const Eigen::MatrixBase<LowRank> &U, const Eigen::MatrixBase<LowRank> &P, const Eigen::MatrixBase<Diag> &d, const Eigen::MatrixBase<LowRank> &W, const Eigen::MatrixBase<RightHandSide> &Y, Eigen::MatrixBase<RightHandSideOut> const &Z_out)
 .. doxygenfunction:: celerite2::core::matmul(const Eigen::MatrixBase<Diag> &a, const Eigen::MatrixBase<LowRank> &U, const Eigen::MatrixBase<LowRank> &V, const Eigen::MatrixBase<LowRank> &P, const Eigen::MatrixBase<RightHandSide> &Y, Eigen::MatrixBase<RightHandSideOut> const &X_out, Eigen::MatrixBase<RightHandSideOut> const &M_out, Eigen::MatrixBase<Work> const &F_out, Eigen::MatrixBase<Work> const &G_out)
 
-.. doxygenfunction:: celerite2::core::factor_rev
+.. _cpp-terms:
 
 Terms
 -----
