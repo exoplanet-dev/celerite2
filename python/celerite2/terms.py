@@ -588,9 +588,9 @@ class SHOTerm(Term):
     Either ``S0`` or ``sigma`` must be defined.
 
     Args:
-        Q: The parameter :math:`Q`.
-        w0: The parameter :math:`\omega_0`.
-        S0: The parameter :math:`S_0`.
+        Q: The quality factor, :math:`Q` above.
+        w0: The undamped angular frequency, :math:`\omega_0` above.
+        S0: The power at :math:`\omega = 0`, :math:`S_0` above.
         sigma: Alternative parameterization for ``S0`` where ``sigma`` is the
             standard deviation of the process as described above.
         eps (optional): A regularization parameter used for numerical stability
@@ -761,6 +761,12 @@ class RotationTerm(TermSum):
 
 
 class OriginalCeleriteTerm(Term):
+    """A wrapper around terms defined using the original celerite package
+
+    Args:
+        term (celerite.terms.Term): The term defined using ``celerite``.
+    """
+
     def __init__(self, term):
         self.term = term
 

@@ -1,7 +1,7 @@
 .. _python-api:
 
-Pure Python interface
-=====================
+Python interface
+================
 
 The primary interface to computations using *celerite2* are provided by the
 :class:`celerite2.GaussianProcess` class that is documented below. These

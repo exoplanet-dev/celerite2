@@ -37,6 +37,7 @@ intersphinx_mapping = {
     "numpy": ("https://docs.scipy.org/doc/numpy/", None),
     "scipy": ("https://docs.scipy.org/doc/scipy/reference/", None),
     "pymc3": ("https://docs.pymc.io/", None),
+    "celerite": ("https://celerite.readthedocs.io/en/stable/", None),
 }
 
 templates_path = ["_templates"]

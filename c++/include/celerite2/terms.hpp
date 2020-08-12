@@ -35,10 +35,30 @@ class Term {
    * The underlying scalar type of this `Term` (should probably always be `double`)
    */
   typedef T Scalar;
+
+  /**
+   * \typedef Vector
+   * An `Eigen` vector with data type `Scalar`
+   */
   typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> Vector;
+
+  /**
+   * \typedef LowRank
+   * The `Eigen` type for the low-rank matrices used internally
+   */
   typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Width, Order> LowRank;
-  typedef std::tuple<Vector, LowRank, LowRank, LowRank> Matrices;
+
+  /**
+   * \typedef Coeffs
+   * A tuple of vectors giving the coefficients for the celerite model
+   */
   typedef std::tuple<Vector, Vector, Vector, Vector, Vector, Vector> Coeffs;
+
+  /**
+   * \typedef Matrices
+   * A tuple of matrices representing this celerite process
+   */
+  typedef std::tuple<Vector, LowRank, LowRank, LowRank> Matrices;
 
   Term(){};
 
@@ -47,12 +67,12 @@ class Term {
   /**
    * Set the coefficients of the term
    *
-   * @param ar     (J_real,): The real amplitudes
-   * @param cr     (J_real,): The real exponential
-   * @param ac     (J_comp,): The complex even amplitude
-   * @param bc     (J_comp,): The complex odd amplitude
-   * @param cc     (J_comp,): The complex exponential
-   * @param dc     (J_comp,): The complex frequency
+   * @param ar     (J_real,): The real amplitudes.
+   * @param cr     (J_real,): The real exponential.
+   * @param ac     (J_comp,): The complex even amplitude.
+   * @param bc     (J_comp,): The complex odd amplitude.
+   * @param cc     (J_comp,): The complex exponential.
+   * @param dc     (J_comp,): The complex frequency.
    */
   void set_coefficients(const Vector &ar, const Vector &cr, const Vector &ac, const Vector &bc, const Vector &cc, const Vector &dc) {
     Eigen::Index nr = ar.rows(), nc = ac.rows();
@@ -77,6 +97,12 @@ class Term {
    */
   Coeffs get_coefficients() const { return std::make_tuple(ar_, cr_, ac_, bc_, cc_, dc_); }
 
+  /**
+   * Get the matrices required to represent the celerite process
+   *
+   * @param x    (N,): The independent coordinates of the data.
+   * @param diag (N,): The diagonal variance of the process.
+   */
   Matrices get_celerite_matrices(const Vector &x, const Vector &diag) const {
     Eigen::Index N = x.rows();
     if (diag.rows() != N) throw dimension_mismatch();
@@ -109,6 +135,8 @@ class Term {
 
   /**
    * Adding two terms builds a new term where the coefficients have been concatenated
+   *
+   * @param other (Term): The term to add to this one.
    */
   template <typename Other>
   Term<typename std::common_type<Scalar, typename Other::Scalar>::type, sum_width<Width, Other::Width>::value> operator+(const Other &other) const {
@@ -138,9 +166,20 @@ class Term {
   Vector ar_, cr_, ac_, bc_, cc_, dc_;
 };
 
+/**
+ * \class RealTerm
+ * The simplest celerite model
+ *
+ * @param a: The amplitude of the term.
+ * @param c: The exponent of the term.
+ */
 template <typename T>
 class RealTerm : public Term<T, 1> {
   public:
+  /**
+   * \typedef Scalar
+   * The underlying scalar type of this `Term` (should probably always be `double`)
+   */
   typedef T Scalar;
   constexpr static int Width = 1;
   using typename Term<Scalar, 1>::Vector;
@@ -153,9 +192,22 @@ class RealTerm : public Term<T, 1> {
   };
 };
 
+/**
+ * \class ComplexTerm
+ * A general celerite model
+ *
+ * @param a: The real part of the amplitude.
+ * @param b: The complex part of the amplitude.
+ * @param c: The real part of the exponent.
+ * @param d: The complex part of the exponent.
+ */
 template <typename T>
 class ComplexTerm : public Term<T, 2> {
   public:
+  /**
+   * \typedef Scalar
+   * The underlying scalar type of this `Term` (should probably always be `double`)
+   */
   typedef T Scalar;
   constexpr static int Width = 2;
   using typename Term<Scalar, 2>::Vector;
@@ -170,9 +222,22 @@ class ComplexTerm : public Term<T, 2> {
   };
 };
 
+/**
+ * \class SHOTerm
+ * A term representing a stochastically-driven, damped harmonic oscillator
+ *
+ * @param S0:  The power at `omega = 0`.
+ * @param w0:  The undamped angular frequency.
+ * @param Q:   The quality factor.
+ * @param eps: A regularization parameter used for numerical stability.
+ */
 template <typename T>
 class SHOTerm : public Term<T, 2> {
   public:
+  /**
+   * \typedef Scalar
+   * The underlying scalar type of this `Term` (should probably always be `double`)
+   */
   typedef T Scalar;
   constexpr static int Width = 2;
   using typename Term<Scalar, 2>::Vector;

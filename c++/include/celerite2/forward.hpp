@@ -6,6 +6,15 @@
 namespace celerite2 {
 namespace core {
 
+/**
+ * \brief Get the dense representation of a celerite matrix
+ *
+ * @param a     (N,): The diagonal component
+ * @param U     (N, J): The first low rank matrix
+ * @param V     (N, J): The second low rank matrix
+ * @param P     (N-1, J): The exponential difference matrix
+ * @param K_out (N, N): The dense matrix
+ */
 template <typename Diag, typename LowRank, typename Dense>
 void to_dense(const Eigen::MatrixBase<Diag> &a,     // (N,)
               const Eigen::MatrixBase<LowRank> &U,  // (N, J)
@@ -30,6 +39,30 @@ void to_dense(const Eigen::MatrixBase<Diag> &a,     // (N,)
   }
 }
 
+/**
+ * \brief Compute the Cholesky factorization of the system
+ *
+ * This computes `d` and `W` such that:
+ *
+ * `diag(a) + tril(U*V^T) + triu(V*U^T) = L*diag(d)*L^T`
+ *
+ * where
+ *
+ * `L = 1 + tril(U*W^T)`
+ *
+ * This can be safely applied inplace: `d_out` can point to `a` and `W_out` can
+ * point to `V`, and the memory will be reused. In this particular case, the
+ * `celerite2::core::factor_rev` function doesn't use `a` and `V`, but this
+ * won't be true for all `_rev` functions.
+ *
+ * @param a     (N,): The diagonal component
+ * @param U     (N, J): The first low rank matrix
+ * @param V     (N, J): The second low rank matrix
+ * @param P     (N-1, J): The exponential difference matrix
+ * @param d_out (N,): The diagonal component of the Cholesky factor
+ * @param W_out (N, J): The second low rank component of the Cholesky factor
+ * @param S_out (N, J*J): The cached value of the S matrix at each step
+ */
 template <bool update_workspace = true, typename Diag, typename LowRank, typename DiagOut, typename LowRankOut, typename Work>
 Eigen::Index factor(const Eigen::MatrixBase<Diag> &a,           // (N,)
                     const Eigen::MatrixBase<LowRank> &U,        // (N, J)
@@ -156,6 +189,8 @@ void dot_tril(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
 }
 
 /**
+ * \brief Compute a matrix-vector or matrix-matrix product
+ *
  * This computes `X = [diag(a) + tril(U*V^T) + triu(V*U^T)] * Y` with `O(N*J^2)` scaling
  * with the `P` matrix from Foreman-Mackey et al. for numerical stability. Note that this
  * operation *cannot* be applied in-place.
@@ -163,12 +198,12 @@ void dot_tril(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
  * @param a      (N,): The diagonal component
  * @param U      (N, J): The first low rank matrix
  * @param V      (N, J): The second low rank matrix
- * @param P      (N - 1, J): The exponential difference matrix
+ * @param P      (N-1, J): The exponential difference matrix
  * @param Y      (N, Nrhs): The matrix that will be left multiplied by the celerite model
  * @param X_out  (N, Nrhs): The result of the operation
  * @param M_out  (N, Nrhs): The intermediate state of the system
- * @param F_out  (N, J * Nrhs): The workspace for the forward pass
- * @param G_out  (N, J * Nrhs): The workspace for the backward pass
+ * @param F_out  (N, J*Nrhs): The workspace for the forward sweep
+ * @param G_out  (N, J*Nrhs): The workspace for the backward sweep
  */
 template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename RightHandSideOut, typename Work>
 void matmul(const Eigen::MatrixBase<Diag> &a,                 // (N,)

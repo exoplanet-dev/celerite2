@@ -13,8 +13,6 @@ __all__ = [
     "matmul_rev",
     "BaseGaussianProcess",
 ]
-from functools import wraps
-
 import numpy as np
 
 from . import backprop

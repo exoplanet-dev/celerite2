@@ -25,7 +25,8 @@ following:
    term = terms.SHOTerm(S0=tt.dscalar(), w0=tt.dscalar(), Q=tt.dscalar())
    gp = celerite2.theano.GaussianProcess(term)
 
-The :class:`theano.GaussianProcess` class is detailed below:
+The :class:`celerite2.theano.GaussianProcess` class is detailed below:
 
 .. autoclass:: celerite2.theano.GaussianProcess
    :inherited-members:
+   :exclude-members: sample, sample_conditional, recompute
