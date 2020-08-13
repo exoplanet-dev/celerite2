@@ -225,6 +225,7 @@ class BaseGaussianProcess(GaussianProcess):
         return_var=False,
         include_mean=True,
         kernel=None,
+        _fast_mean=True,
     ):
         y = self._process_input(y, require_vector=True)
         resid = y - self._mean(self._t)
@@ -239,6 +240,7 @@ class BaseGaussianProcess(GaussianProcess):
                 raise ValueError("dimension mismatch")
 
         KxsT = None
+        mu = None
         if kernel is None:
             kernel = self.kernel
 
@@ -248,7 +250,7 @@ class BaseGaussianProcess(GaussianProcess):
                 else:
                     mu = resid - self._diag * alpha
 
-            else:
+            elif _fast_mean:
                 (
                     U_star,
                     V_star,
@@ -259,7 +261,9 @@ class BaseGaussianProcess(GaussianProcess):
                 if include_mean:
                     mu += self._mean(xs)
 
-        else:
+        if mu is None:
+            if kernel is None:
+                kernel = self.kernel
             KxsT = kernel.get_value(xs[None, :] - self._t[:, None])
             mu = self.tensordot(KxsT, alpha)
             if include_mean:

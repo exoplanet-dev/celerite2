@@ -6,6 +6,12 @@ from theano import tensor as tt
 
 from ..ext import BaseGaussianProcess
 from . import ops
+from .distribution import CeleriteNormal
+
+try:
+    import pymc3 as pm
+except ImportError:
+    pm = None
 
 CITATIONS = (
     ("celerite2:foremanmackey17", "celerite2:foremanmackey18"),
@@ -88,6 +94,15 @@ class GaussianProcess(BaseGaussianProcess):
     def diagdot(self, a, b):
         return tt.batched_dot(a.T, b.T)
 
+    def _add_citations_to_pymc3_model(self, **kwargs):
+        if not pm:
+            raise ImportError("pymc3 is required for the 'marginal' method")
+
+        model = pm.modelcontext(kwargs.get("model", None))
+        if not hasattr(model, "__citations__"):
+            model.__citations__ = dict()
+        model.__citations__["celerite2"] = CITATIONS
+
     def marginal(self, name, **kwargs):
         """Add the marginal likelihood to a PyMC3 model
 
@@ -96,14 +111,55 @@ class GaussianProcess(BaseGaussianProcess):
             observed (optional): The observed data
 
         Returns:
-            A :class:`pymc3.DensityDist` with the log likelihood
+            A :class:`celerite2.theano.CeleriteNormal` distribution
+            representing the marginal likelihood.
         """
-        import pymc3
+        self._add_citations_to_pymc3_model(**kwargs)
+        return CeleriteNormal(name, self, **kwargs)
 
-        # Support for 'exoplanet' citations
-        model = pymc3.modelcontext(kwargs.get("model", None))
-        if not hasattr(model, "__citations__"):
-            model.__citations__ = dict()
-        model.__citations__["celerite2"] = CITATIONS
+    def conditional(
+        self, name, y, t=None, include_mean=True, kernel=None, **kwargs
+    ):
+        """Add a variable representing the conditional density to a PyMC3 model
 
-        return pymc3.DensityDist(name, self.log_likelihood, **kwargs)
+        .. note:: The performance of this method will generally be poor since
+            the sampler will numerically sample this parameter. Depending on
+            your use case, you might be better served by tracking the results
+            of :func:`GaussianProcess.predict` using ``Deterministic``
+            variables and computing the predictions as a postprocessing step.
+
+        Args:
+            name (str): The name of the random variable
+            y (shape[N]): The observations at coordinates ``x`` from
+                :func:`GausianProcess.compute`.
+            t (shape[M], optional): The independent coordinates where the
+                prediction should be made. If this is omitted the coordinates
+                will be assumed to be ``x`` from
+                :func:`GaussianProcess.compute` and an efficient method will
+                be used to compute the mean prediction.
+            include_mean (bool, optional): Include the mean function in the
+                prediction.
+            kernel (optional): If provided, compute the conditional
+                distribution using a different kernel. This is generally used
+                to separate the contributions from different model components.
+
+        Returns:
+            A :class:`pymc3.MvNormal` distribution representing the conditional
+            density.
+        """
+        self._add_citations_to_pymc3_model(**kwargs)
+
+        if t is None:
+            shape = kwargs.pop("shape", len(y))
+        else:
+            shape = kwargs.pop("shape", len(t))
+
+        mu, cov = self.predict(
+            y,
+            t=t,
+            return_cov=True,
+            include_mean=include_mean,
+            kernel=kernel,
+            _fast_mean=False,
+        )
+        return pm.MvNormal(name, mu=mu, cov=cov, shape=shape, **kwargs)

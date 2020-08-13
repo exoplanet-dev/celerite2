@@ -42,7 +42,7 @@ y = (
     + yerr * np.random.randn(len(t))
 )
 
-true_t = np.linspace(0, 10, 5000)
+true_t = np.linspace(0, 10, 500)
 true_y = 0.2 * (true_t - 5) + np.sin(3 * true_t + 0.1 * (true_t - 5) ** 2)
 
 plt.plot(true_t, true_y, "k", lw=1.5, alpha=0.3)
@@ -73,19 +73,20 @@ gp = celerite2.GaussianProcess(kernel, mean=0.0)
 gp.compute(t, yerr=yerr)
 
 print("Initial log likelihood: {0}".format(gp.log_likelihood(y)))
-
-
 # -
 
 # Let's look at the underlying power spectral density of this initial model:
 
 # +
+freq = np.linspace(1.0 / 8, 1.0 / 0.3, 500)
+omega = 2 * np.pi * freq
+
+
 def plot_psd(gp):
-    freq = np.linspace(1.0 / 8, 1.0 / 0.3, 1000)
-    omega = 2 * np.pi * freq
     for n, term in enumerate(gp.kernel.terms):
         plt.loglog(freq, term.get_psd(omega), label="term {0}".format(n + 1))
     plt.loglog(freq, gp.kernel.get_psd(omega), ":k", label="full model")
+    plt.xlim(freq.min(), freq.max())
     plt.legend()
     plt.xlabel("frequency [1 / day]")
     plt.ylabel("power [day ppt$^2$]")
@@ -101,14 +102,14 @@ plot_psd(gp)
 
 # +
 def plot_prediction(gp):
-    mu, variance = gp.predict(y, t=true_t, return_var=True)
-    sigma = np.sqrt(variance)
-
     plt.plot(true_t, true_y, "k", lw=1.5, alpha=0.3, label="data")
     plt.errorbar(t, y, yerr=yerr, fmt=".k", capsize=0, label="truth")
 
-    plt.plot(true_t, mu, label="prediction")
-    plt.fill_between(true_t, mu - sigma, mu + sigma, color="C0", alpha=0.2)
+    if gp:
+        mu, variance = gp.predict(y, t=true_t, return_var=True)
+        sigma = np.sqrt(variance)
+        plt.plot(true_t, mu, label="prediction")
+        plt.fill_between(true_t, mu - sigma, mu + sigma, color="C0", alpha=0.2)
 
     plt.xlabel("x [day]")
     plt.ylabel("y [ppm]")
@@ -121,7 +122,12 @@ plt.title("initial prediction")
 plot_prediction(gp)
 # -
 
-# Ok, that looks pretty terrible, but we can get a better fit by numerically maximizing the likelihood using [scipy](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html):
+# Ok, that looks pretty terrible, but we can get a better fit by numerically maximizing the likelihood as described in the following section.
+#
+# ## Maximum likelihood
+#
+# In this section, we'll improve our initial GP model by maximizing the likelihood function for the parameters of the kernel, the mean, and a "jitter" (a constant variance term added to the diagonal of our covariance matrix).
+# To do this, we'll use the numerical optimization routine from [scipy](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html):
 
 # +
 from scipy.optimize import minimize
@@ -133,16 +139,16 @@ def set_params(params, gp):
     gp.kernel = terms.SHOTerm(
         sigma=theta[0], rho=theta[1], tau=theta[2]
     ) + terms.SHOTerm(sigma=theta[3], rho=theta[4], Q=0.25)
+    gp.compute(t, diag=yerr ** 2 + theta[5], quiet=True)
     return gp
 
 
 def neg_log_like(params, gp):
     gp = set_params(params, gp)
-    gp.recompute(quiet=True)
     return -gp.log_likelihood(y)
 
 
-initial_params = [0.0, 0.0, 0.0, np.log(10.0), 0.0, np.log(5.0)]
+initial_params = [0.0, 0.0, 0.0, np.log(10.0), 0.0, np.log(5.0), np.log(0.01)]
 soln = minimize(neg_log_like, initial_params, method="L-BFGS-B", args=(gp,))
 opt_gp = set_params(soln.x, gp)
 soln
@@ -158,3 +164,112 @@ plot_psd(opt_gp)
 plt.figure()
 plt.title("maximum likelihood prediction")
 plot_prediction(opt_gp)
+# -
+
+# These predictions are starting to look much better!
+#
+# ## Posterior inference using emcee
+#
+# Now, to get a sense for the uncertainties on our model, let's use Markov chain Monte Carlo (MCMC) to numerically estimate the posterior expectations of the model.
+# In this first example, we'll use the [emcee](https://emcee.readthedocs.io) package to run our MCMC.
+# Our likelihood function is the same as the one we used in the previous section, but we'll also choose a wide normal prior on each of our parameters.
+
+# +
+import emcee
+
+
+def log_prob(params, gp):
+    gp = set_params(params, gp)
+    return (
+        gp.log_likelihood(y) - 0.5 * np.sum((params / 5.0) ** 2),
+        gp.kernel.get_psd(omega),
+    )
+
+
+np.random.seed(5693854)
+coords = soln.x + 1e-5 * np.random.randn(32, len(soln.x))
+sampler = emcee.EnsembleSampler(
+    coords.shape[0], coords.shape[1], log_prob, args=(gp,)
+)
+sampler.run_mcmc(coords, 2000, progress=True)
+# -
+
+# After running our MCMC, we can plot the predictions that the model makes for a handful of samples from the chain.
+# This gives a qualitative sense of the uncertainty in the predictions.
+
+# +
+chain = sampler.get_chain(discard=100, flat=True)
+
+for sample in chain[np.random.randint(len(chain), size=50)]:
+    gp = set_params(sample, gp)
+    plt.plot(true_t, gp.sample_conditional(y, true_t), color="C0", alpha=0.1)
+
+plt.title("posterior prediction")
+plot_prediction(None)
+# -
+
+# Similarly, we can plot the posterior expectation for the power spectral density:
+
+# +
+psds = sampler.get_blobs(discard=100, flat=True)
+
+q = np.percentile(np.log(psds), [16, 50, 84], axis=0)
+
+plt.loglog(freq, np.exp(q[1]), color="C0")
+plt.fill_between(freq, np.exp(q[0]), np.exp(q[2]), color="C0", alpha=0.1)
+
+plt.xlim(freq.min(), freq.max())
+plt.xlabel("frequency [1 / day]")
+plt.ylabel("power [day ppt$^2$]")
+_ = plt.title("posterior psd")
+# -
+
+# ## Posterior inference using PyMC3
+#
+# *celerite2* also includes support for probabilistic modeling using PyMC3, and we can implement the same model from above as follows:
+
+# +
+import pymc3 as pm
+
+import celerite2.theano
+from celerite2.theano import terms as theano_terms
+
+with pm.Model() as model:
+
+    mean = pm.Normal("mean", mu=0.0, sigma=5.0)
+    jitter = pm.Lognormal("jitter", mu=0.0, sigma=5.0)
+
+    sigma1 = pm.Lognormal("sigma1", mu=0.0, sigma=5.0)
+    rho1 = pm.Lognormal("rho1", mu=0.0, sigma=5.0)
+    tau = pm.Lognormal("tau", mu=0.0, sigma=5.0)
+    term1 = theano_terms.SHOTerm(sigma=sigma1, rho=rho1, tau=tau)
+
+    sigma2 = pm.Lognormal("sigma2", mu=0.0, sigma=5.0)
+    rho2 = pm.Lognormal("rho2", mu=0.0, sigma=5.0)
+    term2 = theano_terms.SHOTerm(sigma=sigma2, rho=rho2, Q=0.25)
+
+    kernel = term1 + term2
+    gp = celerite2.theano.GaussianProcess(kernel, mean=mean)
+    gp.compute(t, diag=yerr ** 2 + jitter, quiet=True)
+    gp.marginal("obs", observed=y)
+
+    pm.Deterministic("psd", kernel.get_psd(omega))
+
+    trace = pm.sample(tune=1000, draws=1000, target_accept=0.9)
+# -
+
+# L
+
+# +
+psds = trace["psd"]
+
+q = np.percentile(psds, [16, 50, 84], axis=0)
+
+plt.loglog(freq, q[1], color="C0")
+plt.fill_between(freq, q[0], q[2], color="C0", alpha=0.1)
+
+plt.xlim(freq.min(), freq.max())
+plt.xlabel("frequency [1 / day]")
+plt.ylabel("power [day ppt$^2$]")
+_ = plt.title("posterior psd")
+# -

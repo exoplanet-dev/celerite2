@@ -58,9 +58,9 @@ EXTRA_REQUIRE = {
         "jupyter",
         "nbconvert",
         "matplotlib",
-        "jax",
-        "jaxlib",
         "scipy",
+        "emcee",
+        "pymc3",
     ],
 }
 EXTRA_REQUIRE["dev"] = (

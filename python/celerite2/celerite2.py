@@ -400,8 +400,8 @@ class GaussianProcess:
             ``M == len(t)``.
 
         Args:
-            y (array[n]): The observations at coordinates ``x`` from
-                :func:`GP.compute`.
+            y (shape[N]): The observations at coordinates ``x`` from
+                :func:`GausianProcess.compute`.
             t (shape[M], optional): The independent coordinates where the
                 prediction should be made. If this is omitted the coordinates
                 will be assumed to be ``x`` from

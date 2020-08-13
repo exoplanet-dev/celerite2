@@ -30,3 +30,14 @@ The :class:`celerite2.theano.GaussianProcess` class is detailed below:
 .. autoclass:: celerite2.theano.GaussianProcess
    :inherited-members:
    :exclude-members: sample, sample_conditional, recompute
+
+
+PyMC3 support
+-------------
+
+This implementation comes with a custom PyMC3 ``Distribution`` that represents a
+multivariate normal with a *celerite* covariance matrix. This is used by the
+:func:`celerite2.theano.GaussianProcess.marginal` method documented above which
+adds a marginal likelihood node to a PyMC3 model.
+
+.. autoclass:: celerite.theano.CeleriteNormal

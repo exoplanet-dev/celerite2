@@ -6,7 +6,15 @@ import os
 import logging
 import warnings
 
+import theano
 import matplotlib.pyplot as plt
+
+# import multiprocessing as mp
+# mp.set_start_method("fork")
+
+
+# Compile bugz
+theano.config.gcc.cxxflags = "-Wno-c++11-narrowing"
 
 # Remove when Theano is updated
 warnings.filterwarnings("ignore", category=DeprecationWarning)
