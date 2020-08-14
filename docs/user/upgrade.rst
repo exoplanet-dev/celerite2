@@ -26,7 +26,7 @@ in many cases, by excitement about deep learning. And there are now many Python
 libraries that implement the features needed to build the probabilistic models
 such as `PyMC3 <https://docs.pymc.io/>`_ (built on `Theano
 <http://deeplearning.net/software/theano/>`_), `TensorFlow Probability
-<https://www.tensorflow.org/probability>`_, and `Pyro <https://pyro.ai/>` (built
+<https://www.tensorflow.org/probability>`_, and `Pyro <https://pyro.ai/>`_ (built
 on `PyTorch <https://pytorch.org/>`_), to name only a few. Unfortunately the
 original ``celerite`` package was not compatible with any of these frameworks and
 a rewrite was required to provide consistent support across a range of use cases.

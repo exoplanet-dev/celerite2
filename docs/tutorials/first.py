@@ -272,4 +272,3 @@ plt.xlim(freq.min(), freq.max())
 plt.xlabel("frequency [1 / day]")
 plt.ylabel("power [day ppt$^2$]")
 _ = plt.title("posterior psd")
-# -
