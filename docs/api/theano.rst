@@ -40,4 +40,4 @@ multivariate normal with a *celerite* covariance matrix. This is used by the
 :func:`celerite2.theano.GaussianProcess.marginal` method documented above which
 adds a marginal likelihood node to a PyMC3 model.
 
-.. autoclass:: celerite.theano.CeleriteNormal
+.. autoclass:: celerite2.theano.CeleriteNormal

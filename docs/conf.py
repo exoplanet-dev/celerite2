@@ -27,6 +27,7 @@ extensions = [
 autodoc_mock_imports = [
     "numpy",
     "theano",
+    "pymc3",
     "celerite2.driver",
     "celerite2.backprop",
 ]
