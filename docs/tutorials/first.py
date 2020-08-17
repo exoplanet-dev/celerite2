@@ -243,7 +243,7 @@ with pm.Model() as model:
     jitter = pm.Lognormal("jitter", mu=0.0, sigma=5.0)
 
     sigma1 = pm.Lognormal("sigma1", mu=0.0, sigma=5.0)
-    rho1 = pm.Lognormal("rho1", mu=0.0, sigma=5.0)
+    rho1 = pm.Lognormal("rho1", mu=0.0, sigma=5.0, testval=np.exp(soln.x[2]))
     tau = pm.Lognormal("tau", mu=0.0, sigma=5.0)
     term1 = theano_terms.SHOTerm(sigma=sigma1, rho=rho1, tau=tau)
 
@@ -259,7 +259,12 @@ with pm.Model() as model:
     pm.Deterministic("psd", kernel.get_psd(omega))
 
     trace = pm.sample(
-        tune=1000, draws=1000, target_accept=0.95, init="jitter+adapt_full"
+        tune=1000,
+        draws=1000,
+        target_accept=0.95,
+        init="adapt_full",
+        cores=1,
+        random_seed=34923,
     )
 # -
 

@@ -52,6 +52,7 @@ EXTRA_REQUIRE = {
         "rtds_action",
         "nbsphinx",
         "breathe",
+        "ipython",
     ],
     "tutorials": [
         "jupytext",
@@ -62,7 +63,6 @@ EXTRA_REQUIRE = {
         "emcee",
         "pymc3",
         "tqdm",
-        "ipython",
     ],
 }
 EXTRA_REQUIRE["dev"] = (
