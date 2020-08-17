@@ -13,7 +13,12 @@
 #     name: python3
 # ---
 
+# + nbsphinx="hidden"
 # %matplotlib inline
+
+# + nbsphinx="hidden"
+# %run notebook_setup
+# -
 
 # # Getting started
 #
@@ -25,8 +30,6 @@
 # To start, here’s some code to simulate the dataset:
 
 # +
-# %run notebook_setup
-
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -191,7 +194,7 @@ coords = soln.x + 1e-5 * np.random.randn(32, len(soln.x))
 sampler = emcee.EnsembleSampler(
     coords.shape[0], coords.shape[1], log_prob, args=(gp,)
 )
-sampler.run_mcmc(coords, 2000, progress=True)
+state = sampler.run_mcmc(coords, 2000, progress=True)
 # -
 
 # After running our MCMC, we can plot the predictions that the model makes for a handful of samples from the chain.
@@ -213,15 +216,15 @@ plot_prediction(None)
 # +
 psds = sampler.get_blobs(discard=100, flat=True)
 
-q = np.percentile(np.log(psds), [16, 50, 84], axis=0)
+q = np.percentile(psds, [16, 50, 84], axis=0)
 
-plt.loglog(freq, np.exp(q[1]), color="C0")
-plt.fill_between(freq, np.exp(q[0]), np.exp(q[2]), color="C0", alpha=0.1)
+plt.loglog(freq, q[1], color="C0")
+plt.fill_between(freq, q[0], q[2], color="C0", alpha=0.1)
 
 plt.xlim(freq.min(), freq.max())
 plt.xlabel("frequency [1 / day]")
 plt.ylabel("power [day ppt$^2$]")
-_ = plt.title("posterior psd")
+_ = plt.title("posterior psd using emcee")
 # -
 
 # ## Posterior inference using PyMC3
@@ -255,10 +258,12 @@ with pm.Model() as model:
 
     pm.Deterministic("psd", kernel.get_psd(omega))
 
-    trace = pm.sample(tune=1000, draws=1000, target_accept=0.9)
+    trace = pm.sample(
+        tune=1000, draws=1000, target_accept=0.95, init="jitter+adapt_full"
+    )
 # -
 
-# L
+# Like before, we can plot the posterior estimate of the power spectrum to show that the results are qualitatively similar:
 
 # +
 psds = trace["psd"]
@@ -271,4 +276,8 @@ plt.fill_between(freq, q[0], q[2], color="C0", alpha=0.1)
 plt.xlim(freq.min(), freq.max())
 plt.xlabel("frequency [1 / day]")
 plt.ylabel("power [day ppt$^2$]")
-_ = plt.title("posterior psd")
+_ = plt.title("posterior psd using PyMC3")
+# -
+
+# In this particular case, the runtime with PyMC3 is somewhat longer than with emcee, but it also produced more effective samples.
+# If we were to run a higher dimensional model (with more parameters) then PyMC3 will generally be substantially faster.
