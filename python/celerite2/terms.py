@@ -5,7 +5,7 @@ __all__ = [
     "TermSum",
     "TermProduct",
     "TermDiff",
-    "IntegratedTerm",
+    "TermConvolution",
     "RealTerm",
     "ComplexTerm",
     "SHOTerm",
@@ -48,6 +48,10 @@ class Term:
         .. code-block:: python
 
             (ar, cr, ac, bc, cc, dc)
+
+        .. note:: All of the returned objects must be arrays, even if they only
+            have one element.
+
         """
         raise NotImplementedError("subclasses must implement this method")
 
@@ -222,9 +226,9 @@ class TermSum(Term):
     """
 
     def __init__(self, *terms):
-        if any(isinstance(term, IntegratedTerm) for term in terms):
+        if any(isinstance(term, TermConvolution) for term in terms):
             raise TypeError(
-                "You cannot perform operations on an IntegratedTerm, it must "
+                "You cannot perform operations on an TermConvolution, it must "
                 "be the outer term in the kernel"
             )
         self._terms = terms
@@ -251,11 +255,11 @@ class TermProduct(Term):
     """
 
     def __init__(self, term1, term2):
-        int1 = isinstance(term1, IntegratedTerm)
-        int2 = isinstance(term2, IntegratedTerm)
+        int1 = isinstance(term1, TermConvolution)
+        int2 = isinstance(term2, TermConvolution)
         if int1 or int2:
             raise TypeError(
-                "You cannot perform operations on an IntegratedTerm, it must "
+                "You cannot perform operations on an TermConvolution, it must "
                 "be the outer term in the kernel"
             )
         self.term1 = term1
@@ -312,9 +316,9 @@ class TermDiff(Term):
     """
 
     def __init__(self, term):
-        if isinstance(term, IntegratedTerm):
+        if isinstance(term, TermConvolution):
             raise TypeError(
-                "You cannot perform operations on an IntegratedTerm, it must "
+                "You cannot perform operations on an TermConvolution, it must "
                 "be the outer term in the kernel"
             )
         self.term = term
@@ -333,7 +337,7 @@ class TermDiff(Term):
         return final_coeffs
 
 
-class IntegratedTerm(Term):
+class TermConvolution(Term):
     """A term corresponding to the integral of another term over a boxcar
 
     The process produced by this term is equivalent to the process produced by
@@ -511,6 +515,10 @@ class RealTerm(Term):
         c: The exponent of the term.
     """
 
+    @staticmethod
+    def get_test_parameters():
+        return dict(a=1.5, c=0.7)
+
     def __init__(self, *, a, c):
         self.a = float(a)
         self.c = float(c)
@@ -545,6 +553,10 @@ class ComplexTerm(Term):
         c: The real part of the exponent.
         d: The imaginary part of exponent.
     """
+
+    @staticmethod
+    def get_test_parameters():
+        return dict(a=1.5, b=0.7, c=0.7, d=0.5)
 
     def __init__(self, *, a, b, c, d):
         self.a = float(a)
@@ -638,6 +650,10 @@ class SHOTerm(Term):
         ),
     )
 
+    @staticmethod
+    def get_test_parameters():
+        return dict(sigma=1.5, tau=2.345, rho=3.4)
+
     @handle_parameter_spec(float)
     def __init__(self, *, eps=1e-5):
         self.eps = float(eps)
@@ -709,6 +725,10 @@ class Matern32Term(Term):
         eps (optional): The value of the parameter :math:`\epsilon`.
     """
 
+    @staticmethod
+    def get_test_parameters():
+        return dict(sigma=1.5, rho=2.345)
+
     def __init__(self, *, sigma, rho, eps=0.01):
         self.sigma = float(sigma)
         self.rho = float(rho)
@@ -766,6 +786,10 @@ class RotationTerm(TermSum):
             primary. This should probably always be ``0 < f < 1``, but that
             is not enforced.
     """
+
+    @staticmethod
+    def get_test_parameters():
+        return dict(sigma=1.5, period=3.45, Q0=1.3, dQ=1.05, f=0.5)
 
     def __init__(self, *, sigma, period, Q0, dQ, f):
         self.sigma = float(sigma)

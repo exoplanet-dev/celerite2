@@ -53,8 +53,8 @@ def test_base_terms(name, args):
 
     compare_terms(terms.TermDiff(term), pyterms.TermDiff(pyterm))
     compare_terms(
-        terms.IntegratedTerm(term, 0.5),
-        pyterms.IntegratedTerm(pyterm, 0.5),
+        terms.TermConvolution(term, 0.5),
+        pyterms.TermConvolution(pyterm, 0.5),
         atol=5e-6,
     )
 

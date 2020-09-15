@@ -34,7 +34,6 @@ SETUP_REQUIRES = INSTALL_REQUIRES + [
 EXTRA_REQUIRE = {
     "style": ["isort", "black", "black_nbconvert"],
     "test": [
-        "wheel",
         "coverage[toml]",
         "pytest==6.0.0rc1",
         "pytest-cov",
@@ -66,7 +65,8 @@ EXTRA_REQUIRE = {
     ],
 }
 EXTRA_REQUIRE["dev"] = (
-    EXTRA_REQUIRE["test"]
+    EXTRA_REQUIRE["style"]
+    + EXTRA_REQUIRE["test"]
     + EXTRA_REQUIRE["release"]
     + ["pre-commit", "nbstripout", "flake8"]
 )

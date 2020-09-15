@@ -5,7 +5,7 @@ __all__ = [
     "TermSum",
     "TermProduct",
     "TermDiff",
-    "IntegratedTerm",
+    "TermConvolution",
     "RealTerm",
     "ComplexTerm",
     "SHOTerm",
@@ -134,10 +134,10 @@ class TermSum(Term):
     __doc__ = base_terms.TermSum.__doc__
 
     def __init__(self, *terms, **kwargs):
-        if any(isinstance(term, IntegratedTerm) for term in terms):
+        if any(isinstance(term, TermConvolution) for term in terms):
             raise TypeError(
                 "You cannot perform operations on an "
-                "IntegratedTerm, it must be the outer term in "
+                "TermConvolution, it must be the outer term in "
                 "the kernel"
             )
         self._terms = terms
@@ -156,12 +156,12 @@ class TermProduct(Term):
     __doc__ = base_terms.TermProduct.__doc__
 
     def __init__(self, term1, term2, **kwargs):
-        int1 = isinstance(term1, IntegratedTerm)
-        int2 = isinstance(term2, IntegratedTerm)
+        int1 = isinstance(term1, TermConvolution)
+        int2 = isinstance(term2, TermConvolution)
         if int1 or int2:
             raise TypeError(
                 "You cannot perform operations on an "
-                "IntegratedTerm, it must be the outer term in "
+                "TermConvolution, it must be the outer term in "
                 "the kernel"
             )
         self.term1 = term1
@@ -237,10 +237,10 @@ class TermDiff(Term):
     __doc__ = base_terms.TermDiff.__doc__
 
     def __init__(self, term, **kwargs):
-        if isinstance(term, IntegratedTerm):
+        if isinstance(term, TermConvolution):
             raise TypeError(
                 "You cannot perform operations on an "
-                "IntegratedTerm, it must be the outer term in "
+                "TermConvolution, it must be the outer term in "
                 "the kernel"
             )
         self.term = term
@@ -260,8 +260,8 @@ class TermDiff(Term):
         return final_coeffs
 
 
-class IntegratedTerm(Term):
-    __doc__ = base_terms.IntegratedTerm.__doc__
+class TermConvolution(Term):
+    __doc__ = base_terms.TermConvolution.__doc__
 
     def __init__(self, term, delta, **kwargs):
         self.term = term

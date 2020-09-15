@@ -5,7 +5,7 @@ __all__ = [
     "TermSum",
     "TermProduct",
     "TermDiff",
-    "IntegratedTerm",
+    "TermConvolution",
     "RealTerm",
     "ComplexTerm",
     "SHOTerm",
@@ -147,9 +147,9 @@ class Term(nn.Module):
 class TermSum(Term):
     def __init__(self, *terms):
         super().__init__()
-        if any(isinstance(term, IntegratedTerm) for term in terms):
+        if any(isinstance(term, TermConvolution) for term in terms):
             raise TypeError(
-                "You cannot perform operations on an IntegratedTerm, it must "
+                "You cannot perform operations on an TermConvolution, it must "
                 "be the outer term in the kernel"
             )
         self._terms = terms
@@ -166,12 +166,12 @@ class TermSum(Term):
 class TermProduct(Term):
     def __init__(self, term1, term2):
         super().__init__()
-        int1 = isinstance(term1, IntegratedTerm)
-        int2 = isinstance(term2, IntegratedTerm)
+        int1 = isinstance(term1, TermConvolution)
+        int2 = isinstance(term2, TermConvolution)
         if int1 or int2:
             raise TypeError(
                 "You cannot perform operations on an "
-                "IntegratedTerm, it must be the outer term in "
+                "TermConvolution, it must be the outer term in "
                 "the kernel"
             )
         self.term1 = term1
@@ -255,10 +255,10 @@ class TermProduct(Term):
 class TermDiff(Term):
     def __init__(self, term):
         super().__init__()
-        if isinstance(term, IntegratedTerm):
+        if isinstance(term, TermConvolution):
             raise TypeError(
                 "You cannot perform operations on an "
-                "IntegratedTerm, it must be the outer term in "
+                "TermConvolution, it must be the outer term in "
                 "the kernel"
             )
         self.term = term
@@ -277,7 +277,7 @@ class TermDiff(Term):
         return final_coeffs
 
 
-class IntegratedTerm(Term):
+class TermConvolution(Term):
     def __init__(self, term, delta):
         super().__init__()
         self.term = term

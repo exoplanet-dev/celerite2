@@ -51,7 +51,7 @@ def test_base_terms(name, args):
 
     compare_terms(terms.TermDiff(term), pyterms.TermDiff(pyterm))
     compare_terms(
-        terms.IntegratedTerm(term, 0.5), pyterms.IntegratedTerm(pyterm, 0.5)
+        terms.TermConvolution(term, 0.5), pyterms.TermConvolution(pyterm, 0.5)
     )
 
     term0 = terms.SHOTerm(S0=1.0, w0=0.5, Q=1.5)

@@ -61,7 +61,7 @@ These classes encapsulate various operations on terms.
 .. autoclass:: celerite2.terms.TermSum
 .. autoclass:: celerite2.terms.TermProduct
 .. autoclass:: celerite2.terms.TermDiff
-.. autoclass:: celerite2.terms.IntegratedTerm
+.. autoclass:: celerite2.terms.TermConvolution
 
 Other models
 ++++++++++++

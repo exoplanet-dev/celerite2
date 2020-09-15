@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from functools import partial
 
+import numpy as np
 import pytest
 
 from celerite2 import terms as pyterms
@@ -21,6 +22,21 @@ pytestmark = pytest.mark.skipif(
 
 
 compare_terms = partial(check_tensor_term, lambda x: x.eval())
+
+
+def test_complete_implementation():
+    x = np.linspace(-10, 10, 500)
+    for name in pyterms.__all__:
+        if name == "OriginalCeleriteTerm":
+            continue
+        term = getattr(terms, name)
+        if name.startswith("Term"):
+            continue
+        pyterm = getattr(pyterms, name)
+        args = pyterm.get_test_parameters()
+        term = term(**args)
+        pyterm = pyterm(**args)
+        assert np.allclose(term.get_value(x).eval(), pyterm.get_value(x))
 
 
 @pytest.mark.parametrize(
@@ -44,7 +60,7 @@ def test_base_terms(name, args):
 
     compare_terms(terms.TermDiff(term), pyterms.TermDiff(pyterm))
     compare_terms(
-        terms.IntegratedTerm(term, 0.5), pyterms.IntegratedTerm(pyterm, 0.5)
+        terms.TermConvolution(term, 0.5), pyterms.TermConvolution(pyterm, 0.5)
     )
 
     term0 = terms.SHOTerm(S0=1.0, w0=0.5, Q=1.5)
