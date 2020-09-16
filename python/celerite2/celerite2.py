@@ -38,6 +38,7 @@ class GaussianProcess:
         self._t = None
         self._mean_value = None
         self._diag = None
+        self._size = None
         self._log_det = -np.inf
         self._norm = np.inf
 
@@ -103,7 +104,11 @@ class GaussianProcess:
         # Save the diagonal
         self._t = np.ascontiguousarray(t, dtype=np.float64)
         self._mean_value = self._mean(self._t)
-        self._diag = np.empty_like(self._t)
+        try:
+            self._diag = np.empty((len(self._t), self.kernel.M))
+        except AttributeError:
+            self._diag = np.empty_like(self._t)
+        self._size = self._diag.size
         if yerr is None and diag is None:
             self._diag[:] = 0.0
 
@@ -169,9 +174,9 @@ class GaussianProcess:
         y = np.atleast_1d(y)
         if self._t is None:
             raise RuntimeError("you must call 'compute' first")
-        if self._t.shape[0] != y.shape[0]:
+        if self._size != y.shape[0]:
             raise ValueError("dimension mismatch")
-        if require_vector and self._t.shape != y.shape:
+        if require_vector and (self._size,) != y.shape:
             raise ValueError("'y' must be one dimensional")
         if inplace:
             if (
@@ -386,9 +391,9 @@ class GaussianProcess:
         if self._t is None:
             raise RuntimeError("you must call 'compute' first")
         if size is None:
-            n = np.random.randn(len(self._t))
+            n = np.random.randn(self._size)
         else:
-            n = np.random.randn(len(self._t), size)
+            n = np.random.randn(self._size, size)
         result = self.dot_tril(n, inplace=True).T
         if include_mean:
             result += self._mean(self._t)

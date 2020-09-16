@@ -31,16 +31,19 @@ class KronTerm(Term):
     ):
         # Check the input dimensions
         x = np.atleast_1d(x)
-        diag = np.atleast_1d(diag)
-        N = len(diag)
-        if N != len(x) * self.M:
-            raise ValueError("'diag' must have the shape 'N * M'")
+        diag = np.atleast_2d(diag)
+        N0, M = diag.shape
+        if len(x) != N0 or M != self.M:
+            raise ValueError("'diag' must have the shape (N, M)")
+        N = N0 * M
 
-        # Compute the kernel for the celerite subproblem
-        a_sub, U_sub, V_sub, _ = self.term.get_celerite_matrices(
+        # Compute the coefficients and kernel for the celerite subproblem
+        ar, cr, ac, _, cc, _ = self.term.get_coefficients()
+        _, U_sub, V_sub, _ = self.term.get_celerite_matrices(
             x, np.zeros_like(x)
         )
-        J = U_sub.shape[1]
+        J0 = U_sub.shape[1]
+        J = J0 * self.M
 
         # Allocate memory as requested
         if a is None:
@@ -63,16 +66,21 @@ class KronTerm(Term):
         # Expand the times appropriately
         x_full = np.repeat(x, self.M)
         dx = x_full[1:] - x_full[:-1]
-        a[:] = diag
 
-        a[:] = diag + tt.diag(self.R)[:, None] * (tt.sum(ar) + tt.sum(ac))
+        a[:] = (
+            diag + np.diag(self.R)[None, :] * (np.sum(ar) + np.sum(ac))
+        ).flatten()
+        U[:] = np.kron(U_sub, self.R)
+        V[:] = np.kron(V_sub, np.eye(self.M))
 
-        # a = tt.reshape(a.T, (1, a.size))[0]
-        # U = tt.slinalg.kron(U, self.R)
-        # V = tt.slinalg.kron(V, tt.eye(self.R.shape[0]))
-        # c = tt.concatenate((cr, cc, cc))
-        # P = tt.exp(-c[None, :] * dx[:, None])
-        # P = tt.tile(P, (1, self.R.shape[0]))
+        c = np.concatenate((cr, cc, cc))
+        P[:, :J0] = np.exp(-c[None, :] * dx[:, None])
+        P[:, J0:] = np.repeat(P[:, :J0], self.M - 1, axis=1)
+
+        return a, U, V, P
+
+    def get_value(self, tau):
+        return np.kron(self.term.get_value(tau), self.R)
 
 
 class LowRankKronTerm(KronTerm):
