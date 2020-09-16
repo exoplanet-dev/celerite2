@@ -32,17 +32,9 @@ class Term(base_terms.Term):
         dtype = theano.scalar.upcast(self.dtype, b.dtype)
         return TermSum(self, b, dtype=dtype)
 
-    def __radd__(self, b):
-        dtype = theano.scalar.upcast(self.dtype, b.dtype)
-        return TermSum(b, self, dtype=dtype)
-
     def __mul__(self, b):
         dtype = theano.scalar.upcast(self.dtype, b.dtype)
         return TermProduct(self, b, dtype=dtype)
-
-    def __rmul__(self, b):
-        dtype = theano.scalar.upcast(self.dtype, b.dtype)
-        return TermProduct(b, self, dtype=dtype)
 
     @property
     def terms(self):
@@ -100,7 +92,8 @@ class Term(base_terms.Term):
         )
 
         V = tt.concatenate(
-            (tt.ones_like(ar)[None, :] + z[:, None], cos, sin), axis=1,
+            (tt.ones_like(ar)[None, :] + z[:, None], cos, sin),
+            axis=1,
         )
 
         dx = x[1:] - x[:-1]

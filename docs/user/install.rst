@@ -25,7 +25,7 @@ The source code for *celerite2* can be downloaded and installed `from GitHub
 
 .. code-block:: bash
 
-    git clone https://github.com/dfm/celerite2.git
+    git clone --recursive https://github.com/dfm/celerite2.git
     cd celerite2
     python -m pip install -e .
 
