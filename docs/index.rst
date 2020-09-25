@@ -20,8 +20,8 @@ with more general covariance functions, `GPyTorch <https://gpytorch.ai/>`_ might
 be a good choice.
 
 *celerite2* is being actively developed in `a public repository on GitHub
-<https://github.com/dfm/celerite>`_ so if you have any trouble, `open an issue
-<https://github.com/dfm/celerite/issues>`_ there.
+<https://github.com/exoplanet-dev/celerite2>`_ so if you have any trouble, `open an issue
+<https://github.com/exoplanet-dev/celerite2/issues>`_ there.
 
 .. toctree::
    :maxdepth: 2

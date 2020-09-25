@@ -8,7 +8,7 @@ C++. This interface was not designed to be as user friendly as the Python
 interfaces and it isn't as thoroughly documented, but these details should be
 enough to get you started if you're interested in using or contributing to the
 low-level code directly. Please feel free to `open an issue
-<https://github.com/dfm/celerite2/issues>`_ if you have questions!
+<https://github.com/exoplanet-dev/celerite2/issues>`_ if you have questions!
 
 One thing to note when using these functions is that the performance will be
 greatly improved (especially for small values of ``J``) by using fixed size
@@ -109,7 +109,7 @@ notation in `Foreman-Mackey (2018) <https://arxiv.org/abs/1801.10156>`_:
 
 The forward methods for each celerite operation are documented below, and the
 reverse passes are all implemented following the rules listed above. Take a look
-at `the source code <https://github.com/dfm/celerite2>`_ to see the signatures.
+at `the source code <https://github.com/exoplanet-dev/celerite2>`_ to see the signatures.
 
 .. doxygenfunction:: celerite2::core::factor(const Eigen::MatrixBase<Diag> &a, const Eigen::MatrixBase<LowRank> &U, const Eigen::MatrixBase<LowRank> &V, const Eigen::MatrixBase<LowRank> &P, Eigen::MatrixBase<DiagOut> const &d_out, Eigen::MatrixBase<LowRankOut> const &W_out, Eigen::MatrixBase<Work> const &S_out)
 .. doxygenfunction:: celerite2::core::solve(const Eigen::MatrixBase<LowRank> &U, const Eigen::MatrixBase<LowRank> &P, const Eigen::MatrixBase<Diag> &d, const Eigen::MatrixBase<LowRank> &W, const Eigen::MatrixBase<RightHandSide> &Y, Eigen::MatrixBase<RightHandSideOut> const &X_out, Eigen::MatrixBase<RightHandSideOut> const &Z_out, Eigen::MatrixBase<Work> const &F_out, Eigen::MatrixBase<Work> const &G_out)

@@ -56,7 +56,7 @@ release = __version__
 if "GITHUB_TOKEN" in os.environ:
     extensions.append("rtds_action")
 
-    rtds_action_github_repo = "dfm/celerite2"
+    rtds_action_github_repo = "exoplanet-dev/celerite2"
     rtds_action_path = "tutorials"
     rtds_action_artifact_prefix = "notebooks-for-"
     rtds_action_github_token = os.environ["GITHUB_TOKEN"]
@@ -89,7 +89,7 @@ html_theme_options = {
     "nav_title": "celerite2",
     "color_primary": "blue",
     "color_accent": "light-blue",
-    "repo_url": "https://github.com/dfm/celerite2",
+    "repo_url": "https://github.com/exoplanet-dev/celerite2",
     "repo_name": "celerite2",
     "globaltoc_depth": 1,
     "globaltoc_collapse": False,

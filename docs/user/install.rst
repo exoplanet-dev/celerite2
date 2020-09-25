@@ -21,11 +21,11 @@ From Source
 -----------
 
 The source code for *celerite2* can be downloaded and installed `from GitHub
-<https://github.com/dfm/celerite2>`_ by running
+<https://github.com/exoplanet-dev/celerite2>`_ by running
 
 .. code-block:: bash
 
-    git clone --recursive https://github.com/dfm/celerite2.git
+    git clone --recursive https://github.com/exoplanet-dev/celerite2.git
     cd celerite2
     python -m pip install -e .
 
@@ -47,7 +47,7 @@ and then execute:
 
 All of the tests should (of course) pass.
 If any of the tests don't pass and if you can't sort out why, `open an issue
-on GitHub <https://github.com/dfm/celerite2/issues>`_.
+on GitHub <https://github.com/exoplanet-dev/celerite2/issues>`_.
 
 To test the interfaces (for example, the Theano interface), run:
 
