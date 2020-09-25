@@ -30,13 +30,3 @@ known_third_party = ["numpy"]
 [tool.pytest.ini_options]
 norecursedirs = "python/test/*"
 addopts = "-v"
-
-[tool.coverage.run]
-relative_files = true
-
-[tool.coverage.report]
-exclude_lines =[
-  "raise NotImplementedError",
-  "except ImportError",
-  "def backward",
-]
