@@ -30,3 +30,6 @@ known_third_party = ["numpy"]
 [tool.pytest.ini_options]
 norecursedirs = "python/test/*"
 addopts = "-v"
+
+[tool.coverage.run]
+relative_files = true
