@@ -76,7 +76,8 @@ def test_consistency(oterm, mean, data):
         assert all(
             np.allclose(a, b)
             for a, b in zip(
-                original_gp.predict(y, **args), gp.predict(y, **args),
+                original_gp.predict(y, **args),
+                gp.predict(y, **args),
             )
         )
         assert all(

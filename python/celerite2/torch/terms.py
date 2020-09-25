@@ -106,7 +106,8 @@ class Term(nn.Module):
         )
 
         V = torch.cat(
-            (torch.ones_like(ar)[None, :] + z[:, None], cos, sin), axis=1,
+            (torch.ones_like(ar)[None, :] + z[:, None], cos, sin),
+            axis=1,
         )
 
         dx = x[1:] - x[:-1]

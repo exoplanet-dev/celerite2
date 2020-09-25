@@ -103,5 +103,8 @@ def test_searchsorted():
     t = np.random.uniform(-1, 6, 200)
     inds = np.searchsorted(x, t)
     check_op(
-        ops.searchsorted, [x, t], [inds], grad=False,
+        ops.searchsorted,
+        [x, t],
+        [inds],
+        grad=False,
     )

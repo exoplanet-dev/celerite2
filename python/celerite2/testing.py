@@ -103,14 +103,22 @@ def check_tensor_term(eval_func, term, pyterm, atol=1e-8):
             )
         else:
             _compare_tensor(
-                eval_func, tensor, array, f"matrix {n}", atol=atol,
+                eval_func,
+                tensor,
+                array,
+                f"matrix {n}",
+                atol=atol,
             )
 
     # Same hack again...
     tensors = term.get_conditional_mean_matrices(x, t)
     arrays = pyterm.get_conditional_mean_matrices(x, t)
     _compare_tensor(
-        eval_func, tensors[-1], arrays[-1], "sorted inds", atol=atol,
+        eval_func,
+        tensors[-1],
+        arrays[-1],
+        "sorted inds",
+        atol=atol,
     )
     for n, (tensor, array) in enumerate(zip(tensors[:2], arrays[:2])):
         _compare_tensor(
@@ -171,13 +179,15 @@ def check_gp_models(eval_func, gp, pygp, y, t):
             assert all(
                 allclose(a, eval_func(b))
                 for a, b in zip(
-                    pygp.predict(y, **args), gp.predict(y, **args),
+                    pygp.predict(y, **args),
+                    gp.predict(y, **args),
                 )
             )
             assert all(
                 allclose(a, eval_func(b))
                 for a, b in zip(
-                    pygp.predict(y, t=t, **args), gp.predict(y, t=t, **args),
+                    pygp.predict(y, t=t, **args),
+                    gp.predict(y, t=t, **args),
                 )
             )
         else:

@@ -104,7 +104,8 @@ class Term:
         )
 
         V = np.concatenate(
-            (np.ones_like(ar)[None, :] + z[:, None], cos, sin), axis=1,
+            (np.ones_like(ar)[None, :] + z[:, None], cos, sin),
+            axis=1,
         )
 
         dx = x[1:] - x[:-1]

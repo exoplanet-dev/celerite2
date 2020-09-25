@@ -107,14 +107,18 @@ def check_grad(op, values, num_out, eps=1.234e-8):
 def test_factor_fwd():
     a, U, V, P, Y = get_matrices()
     check_basic(
-        backprop.factor_fwd, ops.factor, [a, U, V, P],
+        backprop.factor_fwd,
+        ops.factor,
+        [a, U, V, P],
     )
 
 
 def test_factor_rev():
     a, U, V, P, Y = get_matrices()
     check_grad(
-        ops.factor, [a, U, V, P], 2,
+        ops.factor,
+        [a, U, V, P],
+        2,
     )
 
 
@@ -123,7 +127,9 @@ def test_solve_fwd(vector):
     a, U, V, P, Y = get_matrices(vector=vector)
     d, W = driver.factor(U, P, a, V)
     check_basic(
-        backprop.solve_fwd, ops.solve, [U, P, d, W, Y],
+        backprop.solve_fwd,
+        ops.solve,
+        [U, P, d, W, Y],
     )
 
 
@@ -132,7 +138,9 @@ def test_solve_rev(vector):
     a, U, V, P, Y = get_matrices(vector=vector)
     d, W = driver.factor(U, P, a, V)
     check_grad(
-        ops.solve, [U, P, d, W, Y], 1,
+        ops.solve,
+        [U, P, d, W, Y],
+        1,
     )
 
 
@@ -140,7 +148,9 @@ def test_norm_fwd():
     a, U, V, P, Y = get_matrices(vector=True)
     d, W = driver.factor(U, P, a, V)
     check_basic(
-        backprop.norm_fwd, ops.norm, [U, P, d, W, Y],
+        backprop.norm_fwd,
+        ops.norm,
+        [U, P, d, W, Y],
     )
 
 
@@ -148,7 +158,9 @@ def test_norm_rev():
     a, U, V, P, Y = get_matrices(vector=True)
     d, W = driver.factor(U, P, a, V)
     check_grad(
-        ops.norm, [U, P, d, W, Y], 1,
+        ops.norm,
+        [U, P, d, W, Y],
+        1,
     )
 
 
@@ -157,7 +169,9 @@ def test_dot_tril_fwd(vector):
     a, U, V, P, Y = get_matrices(vector=vector)
     d, W = driver.factor(U, P, a, V)
     check_basic(
-        backprop.dot_tril_fwd, ops.dot_tril, [U, P, d, W, Y],
+        backprop.dot_tril_fwd,
+        ops.dot_tril,
+        [U, P, d, W, Y],
     )
 
 
@@ -166,7 +180,9 @@ def test_dot_tril_rev(vector):
     a, U, V, P, Y = get_matrices(vector=vector)
     d, W = driver.factor(U, P, a, V)
     check_grad(
-        ops.dot_tril, [U, P, d, W, Y], 1,
+        ops.dot_tril,
+        [U, P, d, W, Y],
+        1,
     )
 
 
@@ -174,7 +190,9 @@ def test_dot_tril_rev(vector):
 def test_matmul_fwd(vector):
     a, U, V, P, Y = get_matrices(vector=vector)
     check_basic(
-        backprop.matmul_fwd, ops.matmul, [a, U, V, P, Y],
+        backprop.matmul_fwd,
+        ops.matmul,
+        [a, U, V, P, Y],
     )
 
 
@@ -182,7 +200,9 @@ def test_matmul_fwd(vector):
 def test_matmul_rev(vector):
     a, U, V, P, Y = get_matrices(vector=vector)
     check_grad(
-        ops.matmul, [a, U, V, P, Y], 1,
+        ops.matmul,
+        [a, U, V, P, Y],
+        1,
     )
 
 
