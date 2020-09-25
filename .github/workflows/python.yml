@@ -54,10 +54,11 @@ jobs:
           MSSdk: 1
       - name: Run the unit tests
         run: python -m pytest --cov celerite2 python/test
-      - name: Convert coverage
-        run: python -m coverage xml
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
+      - name: Coverage
+        uses: exoplanet-dev/coveralls-python-action@develop
+        continue-on-error: true
+        with:
+          parallel: true
 
   theano:
     name: "Theano"
@@ -81,11 +82,11 @@ jobs:
       - name: Run the unit tests
         shell: bash -l {0}
         run: python -m pytest --cov celerite2 python/test/theano
-      - name: Convert coverage
-        shell: bash -l {0}
-        run: python -m coverage xml
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
+      - name: Coverage
+        uses: exoplanet-dev/coveralls-python-action@develop
+        continue-on-error: true
+        with:
+          parallel: true
 
   pytorch:
     name: "PyTorch"
@@ -109,11 +110,11 @@ jobs:
       - name: Run the unit tests
         shell: bash -l {0}
         run: python -m pytest --cov celerite2 python/test/torch
-      - name: Convert coverage
-        shell: bash -l {0}
-        run: python -m coverage xml
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
+      - name: Coverage
+        uses: exoplanet-dev/coveralls-python-action@develop
+        continue-on-error: true
+        with:
+          parallel: true
 
   jax:
     name: "jax"
@@ -141,3 +142,12 @@ jobs:
         run: python -m coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
+
+  coverage:
+    needs: [build, theano, pytorch, jax]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Coveralls Finished
+      uses: exoplanet-dev/coveralls-python-action@develop
+      with:
+        parallel-finished: true
