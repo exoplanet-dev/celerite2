@@ -1,5 +1,0 @@
-[report]
-exclude_lines =
-    raise NotImplementedError
-    except ImportError
-    def backward

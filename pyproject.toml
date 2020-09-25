@@ -33,3 +33,10 @@ addopts = "-v"
 
 [tool.coverage.run]
 relative_files = true
+
+[tool.coverage.report]
+exclude_lines =[
+  "raise NotImplementedError",
+  "except ImportError",
+  "def backward",
+]
