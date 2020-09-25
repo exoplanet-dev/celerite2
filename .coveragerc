@@ -1,5 +1,5 @@
 [run]
-relative_files = True
+relative_files = true
 
 [report]
 exclude_lines =
