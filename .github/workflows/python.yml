@@ -48,7 +48,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install -U pip
-          python -m pip install -e --use-feature=2020-resolver ".[test]"
+          python -m pip install --use-feature=2020-resolver -e ".[test]"
         env:
           DISTUTILS_USE_SDK: 1
           MSSdk: 1
@@ -79,7 +79,7 @@ jobs:
         run: |
           conda install -q numpy scipy theano mkl-service
           python -m pip install -U pip
-          python -m pip install -e --use-feature=2020-resolver ".[test,theano]"
+          python -m pip install --use-feature=2020-resolver -e ".[test,theano]"
       - name: Run the unit tests
         shell: bash -l {0}
         run: python -m pytest --cov celerite2 python/test/theano
@@ -107,7 +107,7 @@ jobs:
         run: |
           conda install pytorch torchvision cpuonly -c pytorch
           python -m pip install -U pip
-          python -m pip install -e --use-feature=2020-resolver ".[test,torch]"
+          python -m pip install --use-feature=2020-resolver -e ".[test,torch]"
       - name: Run the unit tests
         shell: bash -l {0}
         run: python -m pytest --cov celerite2 python/test/torch
@@ -134,7 +134,7 @@ jobs:
         shell: bash -l {0}
         run: |
           python -m pip install -U pip
-          python -m pip install -e --use-feature=2020-resolver ".[test,jax]"
+          python -m pip install --use-feature=2020-resolver -e ".[test,jax]"
       - name: Run the unit tests
         shell: bash -l {0}
         run: python -m pytest --cov celerite2 python/test/jax
