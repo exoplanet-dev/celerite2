@@ -36,6 +36,7 @@ class GaussianProcess:
 
         # Placeholders for storing data
         self._t = None
+        self._mean_value = None
         self._diag = None
         self._log_det = -np.inf
         self._norm = np.inf
@@ -59,6 +60,14 @@ class GaussianProcess:
             self._mean = mean
         else:
             self._mean = ConstantMean(mean)
+
+    @property
+    def mean_value(self):
+        if self._mean_value is None:
+            raise AttributeError(
+                "'compute' must be executed before accessing mean_value"
+            )
+        return self._mean_value
 
     def compute(
         self, t, *, yerr=None, diag=None, check_sorted=True, quiet=False
@@ -93,6 +102,7 @@ class GaussianProcess:
 
         # Save the diagonal
         self._t = np.ascontiguousarray(t, dtype=np.float64)
+        self._mean_value = self._mean(self._t)
         self._diag = np.empty_like(self._t)
         if yerr is None and diag is None:
             self._diag[:] = 0.0

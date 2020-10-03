@@ -33,9 +33,9 @@ class CeleriteNormal(Continuous):
 
         super().__init__(*args, **kwargs)
         self.gp = gp
-        self.mean = self.median = self.mode = self.gp.mean(
-            self.gp._t
-        ) + tt.zeros_like(self.gp._t)
+        self.mean = (
+            self.median
+        ) = self.mode = self.gp.mean_value + tt.zeros_like(self.gp._t)
 
     def random(self, point=None, size=None):
         if size is None:

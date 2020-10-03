@@ -127,6 +127,7 @@ class BaseGaussianProcess(GaussianProcess):
 
         # Placeholders for storing data
         self._t = None
+        self._mean_value = None
         self._diag = None
         self._log_det = -np.inf
         self._norm = np.inf
@@ -175,6 +176,7 @@ class BaseGaussianProcess(GaussianProcess):
 
         # Save the diagonal
         self._t = self.as_tensor(t)
+        self._mean_value = self._mean(self._t)
         self._diag = self.zeros_like(self._t)
         if yerr is not None:
             if diag is not None:
@@ -214,7 +216,7 @@ class BaseGaussianProcess(GaussianProcess):
 
     def log_likelihood(self, y):
         y = self._process_input(y, require_vector=True)
-        return self._norm - 0.5 * self.do_norm(y - self._mean(self._t))
+        return self._norm - 0.5 * self.do_norm(y - self._mean_value)
 
     def predict(
         self,
@@ -228,7 +230,7 @@ class BaseGaussianProcess(GaussianProcess):
         _fast_mean=True,
     ):
         y = self._process_input(y, require_vector=True)
-        resid = y - self._mean(self._t)
+        resid = y - self._mean_value
         alpha = self.do_solve(resid)
 
         if t is None:
