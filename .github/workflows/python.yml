@@ -73,6 +73,12 @@ jobs:
         with:
           python-version: 3.8
           auto-update-conda: true
+      - name: "Cache ~/.theano"
+        uses: actions/cache@v2
+        with:
+          path: ~/.theano
+          key: theano-${{ hashFiles('python/test/theano/*.py') }}
+          restore-keys: theano-
       - name: Install dependencies
         shell: bash -l {0}
         run: |
