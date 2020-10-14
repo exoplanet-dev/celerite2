@@ -55,7 +55,7 @@ jobs:
       - name: Run the unit tests
         run: python -m pytest --cov celerite2 python/test
       - uses: actions/upload-artifact@v2
-        if: ${{ matrix.os != "windows-latest" }}
+        if: ${{ matrix.os != 'windows-latest' }}
         with:
           name: cov-${{ matrix.os }}-${{ matrix.python-version }}
           path: .coverage
