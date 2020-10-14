@@ -17,6 +17,7 @@ class KronTerm(Term):
                 "R must be a square matrix; "
                 "use a LowRankKronTerm for the low rank model"
             )
+        self.alpha2 = np.diag(self.R)
 
     def __add__(self, b):
         raise NotImplementedError("addition is not implemented for KronTerm")
@@ -79,7 +80,7 @@ class KronTerm(Term):
             a (shape[N*M], optional): The diagonal of the A matrix.
             U (shape[N*M, J*M], optional): The first low-rank matrix.
             V (shape[N*M, J*M], optional): The second low-rank matrix.
-            P (shape[N*M-1, J], optional): The regularization matrix used for
+            P (shape[N*M-1, J*M], optional): The regularization matrix used for
                 numerical stability.
 
         Raises:
@@ -100,7 +101,7 @@ class KronTerm(Term):
             x, np.zeros_like(x)
         )
         J0 = U_sub.shape[1]
-        J = J0 * self.M
+        J = self._get_J(J0)
 
         # Allocate memory as requested
         if a is None:
@@ -125,14 +126,14 @@ class KronTerm(Term):
         dx = x_full[1:] - x_full[:-1]
 
         a[:] = (
-            diag + np.diag(self.R)[None, :] * (np.sum(ar) + np.sum(ac))
+            diag + self.alpha2[None, :] * (np.sum(ar) + np.sum(ac))
         ).flatten()
-        U[:] = np.kron(U_sub, self.R)
-        V[:] = np.kron(V_sub, np.eye(self.M))
+        U[:] = np.kron(U_sub, self._get_U_kron())
+        V[:] = np.kron(V_sub, self._get_V_kron())
 
         c = np.concatenate((cr, cc, cc))
-        P0 = np.exp(-c[None, :] * dx[:, None])
-        P[:] = np.tile(P0[:, :, None], (1, 1, self.M)).reshape((-1, J))
+        P0 = np.exp(-c[None, :] * dx[:, None], out=P[:, :J0])
+        self._copy_P(P0, P)
 
         return a, U, V, P
 
@@ -148,9 +149,46 @@ class KronTerm(Term):
             "Conditional mean matrices have not (yet!) been implemented"
         )
 
+    # The following should be implemented by subclasses
+    def _get_J(self, J0):
+        return self.M * J0
+
+    def _get_U_kron(self):
+        return self.R
+
+    def _get_V_kron(self):
+        return np.eye(self.M)
+
+    def _copy_P(self, P0, P):
+        P[:] = np.tile(P0[:, :, None], (1, 1, self.M)).reshape(P.shape)
+
 
 class LowRankKronTerm(KronTerm):
-    pass
+    def __init__(self, term, *, alpha):
+        self.term = term
+        self.alpha = np.ascontiguousarray(
+            np.atleast_1d(alpha), dtype=np.float64
+        )
+        if self.alpha.ndim != 1:
+            raise ValueError(
+                "alpha must be a vector; "
+                "use a general KronTerm for a full rank model"
+            )
+        self.M = len(self.alpha)
+        self.R = np.outer(self.alpha, self.alpha)
+        self.alpha2 = self.alpha ** 2
+
+    def _get_J(self, J0):
+        return J0
+
+    def _get_U_kron(self):
+        return self.alpha[:, None]
+
+    def _get_V_kron(self):
+        return self.alpha[:, None]
+
+    def _copy_P(self, P0, P):
+        pass
 
 
 class KronTermSum(Term):
