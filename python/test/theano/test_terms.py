@@ -24,10 +24,11 @@ pytestmark = pytest.mark.skipif(
 compare_terms = partial(check_tensor_term, lambda x: x.eval())
 
 
+@pytest.mark.xfail(reason="TermSumGeneral not yet implemented")
 def test_complete_implementation():
     x = np.linspace(-10, 10, 500)
     for name in pyterms.__all__:
-        if name == "OriginalCeleriteTerm" or name == "TermSumGeneral":
+        if name == "OriginalCeleriteTerm":
             continue
         term = getattr(terms, name)
         if name.startswith("Term"):
