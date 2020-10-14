@@ -81,6 +81,7 @@ jobs:
           python -m pip install --use-feature=2020-resolver -e ".[test,theano]"
       - name: Get theano compiledir
         id: compiledir
+        shell: bash -l {0}
         run: |
           python -c "import theano; print('::set-output name=compiledir::' + theano.config.compiledir.split('/')[-1])"
       - name: "Cache ~/.theano"
