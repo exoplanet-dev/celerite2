@@ -78,18 +78,7 @@ def _convert_kernel(celerite_kernel):
     raise NotImplementedError()
 
 
-@pytest.mark.parametrize("oterm", test_terms)
-def test_consistency(oterm):
-    # Check that the coefficients are all correct
-    term = _convert_kernel(oterm)
-    for v1, v2 in zip(oterm.get_all_coefficients(), term.get_coefficients()):
-        assert np.allclose(v1, v2)
-    for v1, v2 in zip(
-        terms.OriginalCeleriteTerm(oterm).get_coefficients(),
-        term.get_coefficients(),
-    ):
-        assert np.allclose(v1, v2)
-
+def check_term(oterm, term):
     # Make sure that the covariance matrix is right
     np.random.seed(40582)
     x = np.sort(np.random.uniform(0, 10, 50))
@@ -117,3 +106,54 @@ def test_consistency(oterm):
     y = np.vstack([x]).T
     value = term.dot(x, diag, y)
     assert np.allclose(value, np.dot(K, y))
+
+
+@pytest.mark.parametrize("oterm", test_terms)
+def test_consistency(oterm):
+    # Check that the coefficients are all correct
+    term = _convert_kernel(oterm)
+    for v1, v2 in zip(oterm.get_all_coefficients(), term.get_coefficients()):
+        assert np.allclose(v1, v2)
+    for v1, v2 in zip(
+        terms.OriginalCeleriteTerm(oterm).get_coefficients(),
+        term.get_coefficients(),
+    ):
+        assert np.allclose(v1, v2)
+
+    check_term(oterm, term)
+
+
+def test_general_sum():
+    term1 = terms.SHOTerm(sigma=1.0, rho=0.3, Q=0.1)
+    term2 = terms.SHOTerm(sigma=1.5, rho=3.3, Q=0.5)
+    term3 = terms.SHOTerm(sigma=0.3, rho=1.5, Q=2.0)
+    oterm = term1 + term2 + term3
+
+    term2.__requires_general_addition__ = True
+    term3.__requires_general_addition__ = True
+    term = term1 + term2 + term3
+    assert isinstance(oterm, terms.TermSum)
+    assert isinstance(term, terms.TermSumGeneral)
+
+    np.random.seed(40582)
+    x = np.sort(np.random.uniform(0, 10, 50))
+    t = np.sort(np.random.uniform(-1, 11, 100))
+    diag = np.random.uniform(0.1, 0.3, len(x))
+
+    for n, (a, b) in enumerate(
+        zip(
+            oterm.get_celerite_matrices(x, diag),
+            term.get_celerite_matrices(x, diag),
+        )
+    ):
+        assert np.allclose(a, b)
+
+    for n, (a, b) in enumerate(
+        zip(
+            oterm.get_conditional_mean_matrices(x, t),
+            term.get_conditional_mean_matrices(x, t),
+        )
+    ):
+        assert np.allclose(a, b)
+
+    check_term(oterm, term)

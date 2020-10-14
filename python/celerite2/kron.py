@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 
-__all__ = ["KronTerm"]
+__all__ = ["KronTerm", "LowRankKronTerm", "KronTermSum"]
 
 import numpy as np
 
-from .terms import Term
+from .terms import Term, TermSumGeneral
 
 
 class KronTerm(Term):
+    __compat__ = "kronecker"
+    __requires_general_addition__ = True
+
     def __init__(self, term, *, R):
         self.term = term
         self.R = np.ascontiguousarray(np.atleast_2d(R), dtype=np.float64)
@@ -19,10 +22,25 @@ class KronTerm(Term):
             )
         self.alpha2 = np.diag(self.R)
 
+    def __len__(self):
+        return len(self.term) * self.M
+
     def __add__(self, b):
-        raise NotImplementedError("addition is not implemented for KronTerm")
+        if b.__compat__ != self.__compat__:
+            raise TypeError("KronTerms can only be added to other KronTerms")
+        return KronTermSum(self, b)
+
+    def __radd__(self, b):
+        if b.__compat__ != self.__compat__:
+            raise TypeError("KronTerms can only be added to other KronTerms")
+        return KronTermSum(b, self)
 
     def __mul__(self, b):
+        raise NotImplementedError(
+            "multiplication is not implemented for KronTerm"
+        )
+
+    def __rmul__(self, b):
         raise NotImplementedError(
             "multiplication is not implemented for KronTerm"
         )
@@ -178,6 +196,9 @@ class LowRankKronTerm(KronTerm):
         self.R = np.outer(self.alpha, self.alpha)
         self.alpha2 = self.alpha ** 2
 
+    def __len__(self):
+        return len(self.term)
+
     def _get_J(self, J0):
         return J0
 
@@ -191,5 +212,5 @@ class LowRankKronTerm(KronTerm):
         pass
 
 
-class KronTermSum(Term):
-    pass
+class KronTermSum(TermSumGeneral):
+    __compat__ = "kronecker"
