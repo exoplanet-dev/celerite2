@@ -7,7 +7,7 @@ on:
 
 jobs:
   style:
-    name: "Check the code format"
+    name: "style"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -54,15 +54,14 @@ jobs:
           MSSdk: 1
       - name: Run the unit tests
         run: python -m pytest --cov celerite2 python/test
-      - name: Coverage
-        uses: exoplanet-dev/coveralls-python-action@develop
-        if: matrix.os == 'ubuntu-latest'
-        continue-on-error: true
+      - uses: actions/upload-artifact@v2
+        if: ${{ matrix.os != 'windows-latest' }}
         with:
-          parallel: true
+          name: cov-${{ matrix.os }}-${{ matrix.python-version }}
+          path: .coverage
 
   theano:
-    name: "Theano"
+    name: "theano"
     runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v2
@@ -83,14 +82,13 @@ jobs:
       - name: Run the unit tests
         shell: bash -l {0}
         run: python -m pytest --cov celerite2 python/test/theano
-      - name: Coverage
-        uses: exoplanet-dev/coveralls-python-action@develop
-        continue-on-error: true
+      - uses: actions/upload-artifact@v2
         with:
-          parallel: true
+          name: cov-theano
+          path: .coverage
 
   pytorch:
-    name: "PyTorch"
+    name: "pytorch"
     runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v2
@@ -111,11 +109,10 @@ jobs:
       - name: Run the unit tests
         shell: bash -l {0}
         run: python -m pytest --cov celerite2 python/test/torch
-      - name: Coverage
-        uses: exoplanet-dev/coveralls-python-action@develop
-        continue-on-error: true
+      - uses: actions/upload-artifact@v2
         with:
-          parallel: true
+          name: cov-pytorch
+          path: .coverage
 
   jax:
     name: "jax"
@@ -138,17 +135,29 @@ jobs:
       - name: Run the unit tests
         shell: bash -l {0}
         run: python -m pytest --cov celerite2 python/test/jax
-      - name: Coverage
-        uses: exoplanet-dev/coveralls-python-action@develop
-        continue-on-error: true
+      - uses: actions/upload-artifact@v2
         with:
-          parallel: true
+          name: cov-jax
+          path: .coverage
 
   coverage:
+    name: coverage
     needs: [build, theano, pytorch, jax]
     runs-on: ubuntu-latest
     steps:
-    - name: Coveralls Finished
-      uses: exoplanet-dev/coveralls-python-action@develop
-      with:
-        parallel-finished: true
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.7
+      - name: Download all artifacts
+        uses: actions/download-artifact@v2
+      - name: Merge and upload coverage
+        run: |
+          python -m pip install coveralls
+          find . -name \.coverage -exec coverage combine --append {} \;
+          coveralls
+        env:
+          GITHUB_TOKEN: ${{ secrets.github_token }}
