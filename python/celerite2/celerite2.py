@@ -65,7 +65,7 @@ class GaussianProcess:
     @property
     def mean_value(self):
         if self._mean_value is None:
-            raise AttributeError(
+            raise RuntimeError(
                 "'compute' must be executed before accessing mean_value"
             )
         return self._mean_value
@@ -97,30 +97,45 @@ class GaussianProcess:
         # Check the input coordinates
         t = np.atleast_1d(t)
         if check_sorted and np.any(np.diff(t) < 0.0):
-            raise ValueError("the input coordinates must be sorted")
+            raise ValueError("The input coordinates must be sorted")
         if len(t.shape) != 1:
-            raise ValueError("the input coordinates must be one dimensional")
+            raise ValueError("The input coordinates must be one dimensional")
 
         # Save the diagonal
         self._t = np.ascontiguousarray(t, dtype=np.float64)
+        if self._t.ndim != 1:
+            raise ValueError("Input 't' must be 1D")
         self._mean_value = self._mean(self._t)
-        try:
-            self._diag = np.empty((len(self._t), self.kernel.M))
-        except AttributeError:
-            self._diag = np.empty_like(self._t)
+
+        # Check the dimensions
+        N = len(self._t)
+        M = self.kernel.dimension
+        if M:
+            self._shape = (N, M)
+        else:
+            self._shape = (N,)
+
+        self._diag = np.empty(self._shape)
         self._size = self._diag.size
         if yerr is None and diag is None:
             self._diag[:] = 0.0
 
-        elif yerr is not None:
-            if diag is not None:
-                raise ValueError(
-                    "only one of 'diag' and 'yerr' can be provided"
-                )
-            self._diag[:] = np.atleast_1d(yerr) ** 2
-
         else:
-            self._diag[:] = np.atleast_1d(diag)
+            if yerr is not None:
+                if diag is not None:
+                    raise ValueError(
+                        "Only one of 'diag' and 'yerr' can be provided"
+                    )
+                diag = np.atleast_1d(yerr) ** 2
+            else:
+                diag = np.atleast_1d(diag)
+
+            if diag.shape != self._shape:
+                raise ValueError(
+                    f"Invalid shape for 'diag'; expected {self._shape}, got "
+                    f"{diag.shape}"
+                )
+            self._diag[:] = diag
 
         # Fill the celerite matrices
         (
@@ -145,7 +160,7 @@ class GaussianProcess:
         else:
             self._log_det = np.sum(np.log(self._d))
             self._norm = -0.5 * (
-                self._log_det + len(self._t) * np.log(2 * np.pi)
+                self._log_det + self._size * np.log(2 * np.pi)
             )
 
     def recompute(self, *, quiet=False):
@@ -164,20 +179,17 @@ class GaussianProcess:
         """
         if self._t is None:
             raise RuntimeError(
-                "you must call 'compute' directly  at least once"
+                "You must call 'compute' directly  at least once"
             )
         return self.compute(
             self._t, diag=self._diag, check_sorted=False, quiet=quiet
         )
 
     def _process_input(self, y, *, inplace=False, require_vector=False):
-        y = np.atleast_1d(y)
         if self._t is None:
-            raise RuntimeError("you must call 'compute' first")
-        if self._size != y.shape[0]:
-            raise ValueError("dimension mismatch")
-        if require_vector and (self._size,) != y.shape:
-            raise ValueError("'y' must be one dimensional")
+            raise RuntimeError("You must call 'compute' first")
+
+        y = np.atleast_1d(y)
         if inplace:
             if (
                 y.dtype != "float64"
@@ -191,7 +203,25 @@ class GaussianProcess:
             y = np.ascontiguousarray(y, dtype=np.float64)
         else:
             y = np.array(y, dtype=np.float64, copy=True, order="C")
+
+        if self._shape != y.shape[: len(self._shape)]:
+            raise ValueError(
+                f"Dimension mismatch; expected {self._shape}..., "
+                f"got {y.shape[:len(self._shape)]}..."
+            )
+
+        if len(self._shape) == 2:
+            y = np.reshape(y, (self._size,) + y.shape[2:])
+
+        if require_vector and (self._size,) != y.shape:
+            raise ValueError("'y' must be one dimensional")
+
         return y
+
+    def _reshape_output(self, y):
+        if len(self._shape) == 1:
+            return y
+        return np.reshape(y, (-1, self._shape[1]) + y.shape[1:])
 
     def apply_inverse(self, y, *, inplace=False):
         """Apply the inverse of the covariance matrix to a vector or matrix
@@ -213,7 +243,9 @@ class GaussianProcess:
             ValueError: When the inputs are not valid (shape, number, etc.).
         """
         y = self._process_input(y, inplace=inplace)
-        return driver.solve(self._U, self._P, self._d, self._W, y)
+        return self._reshape_output(
+            driver.solve(self._U, self._P, self._d, self._W, y)
+        )
 
     def dot_tril(self, y, *, inplace=False):
         """Dot the Cholesky factor of the GP system into a vector or matrix
@@ -235,7 +267,9 @@ class GaussianProcess:
             ValueError: When the inputs are not valid (shape, number, etc.).
         """
         y = self._process_input(y, inplace=inplace)
-        return driver.dot_tril(self._U, self._P, self._d, self._W, y)
+        return self._reshape_output(
+            driver.dot_tril(self._U, self._P, self._d, self._W, y)
+        )
 
     def log_likelihood(self, y, *, inplace=False):
         """Compute the marginalized likelihood of the GP model
@@ -257,11 +291,13 @@ class GaussianProcess:
                 first.
             ValueError: When the inputs are not valid (shape, number, etc.).
         """
-        y = self._process_input(y, inplace=inplace, require_vector=True)
+        y = self._process_input(
+            y - self.mean_value, inplace=inplace, require_vector=True
+        )
         if not np.isfinite(self._log_det):
             return -np.inf
         loglike = self._norm - 0.5 * driver.norm(
-            self._U, self._P, self._d, self._W, y - self._mean(self._t)
+            self._U, self._P, self._d, self._W, y
         )
         if not np.isfinite(loglike):
             return -np.inf
@@ -307,11 +343,11 @@ class GaussianProcess:
                 first.
             ValueError: When the inputs are not valid (shape, number, etc.).
         """
-        y = self._process_input(y, inplace=True, require_vector=True)
-        mean_value = self._mean(self._t)
-        alpha = driver.solve(
-            self._U, self._P, self._d, self._W, y - mean_value
+        mean_value = self.mean_value
+        y = self._process_input(
+            y - mean_value, inplace=True, require_vector=True
         )
+        alpha = driver.solve(self._U, self._P, self._d, self._W, np.copy(y))
 
         if t is None:
             xs = self._t
@@ -326,9 +362,9 @@ class GaussianProcess:
             kernel = self.kernel
 
             if t is None:
-                mu = y - self._diag * alpha
-                if not include_mean:
-                    mu -= mean_value
+                mu = self._reshape_output(y - self._diag.flatten() * alpha)
+                if include_mean:
+                    mu += mean_value
             else:
 
                 (
@@ -340,13 +376,13 @@ class GaussianProcess:
                 mu = driver.conditional_mean(
                     self._U, self._V, self._P, alpha, U_star, V_star, inds, mu
                 )
-
+                mu = self._reshape_output(mu)
                 if include_mean:
                     mu += self._mean(xs)
 
         else:
             KxsT = kernel.get_value(xs[None, :] - self._t[:, None])
-            mu = np.dot(KxsT.T, alpha)
+            mu = self._reshape_output(np.dot(KxsT.T, alpha))
             if include_mean:
                 mu += self._mean(xs)
 
@@ -360,14 +396,19 @@ class GaussianProcess:
             var = kernel.get_value(0.0) - np.einsum(
                 "ij,ij->j", KxsT, self.apply_inverse(KxsT, inplace=False)
             )
-            return mu, var
+            return mu, self._reshape_output(var)
 
         # Predictive covariance
         cov = kernel.get_value(xs[:, None] - xs[None, :])
         cov -= np.tensordot(
             KxsT, self.apply_inverse(KxsT, inplace=False), axes=(0, 0)
         )
-        return mu, cov
+        if len(self._shape) == 1:
+            return mu, cov
+
+        m = len(xs)
+        M = self._shape[1]
+        return mu, np.reshape(cov, (m, M, m, M))
 
     def sample(self, *, size=None, include_mean=True):
         """Generate random samples from the prior implied by the GP system
@@ -391,10 +432,10 @@ class GaussianProcess:
         if self._t is None:
             raise RuntimeError("you must call 'compute' first")
         if size is None:
-            n = np.random.randn(self._size)
+            n = np.random.randn(*self._shape)
         else:
-            n = np.random.randn(self._size, size)
-        result = self.dot_tril(n, inplace=True).T
+            n = np.random.randn(*(self._shape + (size,)))
+        result = np.moveaxis(self.dot_tril(n, inplace=True), -1, 0)
         if include_mean:
             result += self._mean(self._t)
         return result
@@ -438,6 +479,16 @@ class GaussianProcess:
         mu, cov = self.predict(
             y, t, return_cov=True, include_mean=include_mean, kernel=kernel
         )
+
+        if len(self._shape) == 2:
+            mu = mu.flatten()
+            m = cov.shape[0] * cov.shape[1]
+            cov = np.reshape(cov, (m, m))
+
         if regularize is not None:
             cov[np.diag_indices_from(cov)] += regularize
-        return np.random.multivariate_normal(mu, cov, size=size)
+
+        samp = np.random.multivariate_normal(mu, cov, size=size)
+        if len(self._shape) == 1:
+            return samp
+        return np.reshape(samp, samp.shape[:-1] + (-1, self._shape[1]))

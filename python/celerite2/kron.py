@@ -8,13 +8,18 @@ from .terms import Term, TermSumGeneral
 
 
 class KronTerm(Term):
-    __compat__ = "kronecker"
     __requires_general_addition__ = True
+
+    @property
+    def dimension(self):
+        return self.M
 
     def __init__(self, term, *, R):
         self.term = term
         self.R = np.ascontiguousarray(np.atleast_2d(R), dtype=np.float64)
         self.M = len(self.R)
+        if self.M < 1:
+            raise ValueError("At least one 'band' is required")
         if self.R.ndim != 2 or self.R.shape != (self.M, self.M):
             raise ValueError(
                 "R must be a square matrix; "
@@ -26,13 +31,13 @@ class KronTerm(Term):
         return len(self.term) * self.M
 
     def __add__(self, b):
-        if b.__compat__ != self.__compat__:
-            raise TypeError("KronTerms can only be added to other KronTerms")
+        if self.dimension != b.dimension:
+            raise TypeError("Incompatible term dimensions")
         return KronTermSum(self, b)
 
     def __radd__(self, b):
-        if b.__compat__ != self.__compat__:
-            raise TypeError("KronTerms can only be added to other KronTerms")
+        if self.dimension != b.dimension:
+            raise TypeError("Incompatible term dimensions")
         return KronTermSum(b, self)
 
     def __mul__(self, b):
@@ -193,6 +198,8 @@ class LowRankKronTerm(KronTerm):
                 "use a general KronTerm for a full rank model"
             )
         self.M = len(self.alpha)
+        if self.M < 1:
+            raise ValueError("At least one 'band' is required")
         self.R = np.outer(self.alpha, self.alpha)
         self.alpha2 = self.alpha ** 2
 
@@ -213,4 +220,6 @@ class LowRankKronTerm(KronTerm):
 
 
 class KronTermSum(TermSumGeneral):
-    __compat__ = "kronecker"
+    @property
+    def dimension(self):
+        return self.terms[0].M

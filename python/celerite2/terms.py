@@ -31,12 +31,15 @@ class Term:
 
     """
 
-    __compat__ = None
     __requires_general_addition__ = False
 
+    @property
+    def dimension(self):
+        return 0
+
     def __add__(self, b):
-        if self.__compat__ != b.__compat__:
-            raise TypeError("Incompatible terms")
+        if self.dimension != b.dimension:
+            raise TypeError("Incompatible term dimensions")
         if (
             self.__requires_general_addition__
             or b.__requires_general_addition__
@@ -45,8 +48,8 @@ class Term:
         return TermSum(self, b)
 
     def __mul__(self, b):
-        if self.__compat__ != b.__compat__:
-            raise TypeError("Incompatible terms")
+        if self.dimension != b.dimension:
+            raise TypeError("Incompatible term dimensions")
         return TermProduct(self, b)
 
     def __len__(self):
