@@ -29,6 +29,20 @@ jobs:
           python -m pip install -U pip
           python -m pip install --use-feature=2020-resolver ".[tutorials]"
 
+      - name: Get theano compiledir
+        id: compiledir
+        run: |
+          python -c "import theano; print('::set-output name=compiledir::' + theano.config.compiledir.split('/')[-1])"
+
+      - name: "Cache ~/.theano"
+        uses: actions/cache@v2
+        with:
+          path: ~/.theano
+          key: tutorials-${{ steps.compiledir.outputs.compiledir }}-${{ hashFiles('docs/tutorials/*.py') }}
+          restore-keys: |
+            tutorials-${{ steps.compiledir.outputs.compiledir }}-
+            tutorials-
+
       - name: Execute the notebooks
         run: |
           jupytext --to ipynb --execute docs/tutorials/*.py
