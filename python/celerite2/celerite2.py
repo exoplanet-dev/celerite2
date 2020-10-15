@@ -38,7 +38,9 @@ class GaussianProcess:
         self._t = None
         self._mean_value = None
         self._diag = None
+        self._mask = None
         self._size = None
+        self._shape = None
         self._log_det = -np.inf
         self._norm = np.inf
 
@@ -71,7 +73,14 @@ class GaussianProcess:
         return self._mean_value
 
     def compute(
-        self, t, *, yerr=None, diag=None, check_sorted=True, quiet=False
+        self,
+        t,
+        *,
+        yerr=None,
+        diag=None,
+        check_sorted=True,
+        quiet=False,
+        mask=None,
     ):
         """Compute the Cholesky factorization of the GP covariance matrix
 
@@ -137,6 +146,22 @@ class GaussianProcess:
                 )
             self._diag[:] = diag
 
+        if mask is not None:
+            if len(self._shape) == 1:
+                raise ValueError("Masking is only defined for 2D data")
+            mask = np.atleast_2d(mask)
+            if mask.dtype != bool:
+                raise ValueError("Input 'mask' must be a boolean array")
+            if mask.shape != self._shape:
+                raise ValueError(
+                    f"Invalid dimensions for 'mask'; expected {self._shape}, "
+                    f"got {mask.shape}"
+                )
+            self._mask = np.ascontiguousarray(mask, dtype=bool).flatten()
+
+        else:
+            self._mask = None
+
         # Fill the celerite matrices
         (
             self._d,
@@ -146,6 +171,14 @@ class GaussianProcess:
         ) = self.kernel.get_celerite_matrices(
             self._t, self._diag, a=self._d, U=self._U, V=self._V, P=self._P
         )
+
+        if self._mask is not None:
+            self._d = np.ascontiguousarray(self._d[self._mask])
+            self._U = np.ascontiguousarray(self._U[self._mask])
+            self._V = np.ascontiguousarray(self._V[self._mask])
+            self._P = np.ascontiguousarray(self._P[self._mask[:-1]])
+            if len(self._P) == len(self._U):
+                self._P = self._P[:-1]
 
         # Compute the Cholesky factorization
         try:
