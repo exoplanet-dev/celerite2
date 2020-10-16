@@ -223,6 +223,9 @@ class GaussianProcess:
             return y
         return np.reshape(y, (-1, self._shape[1]) + y.shape[1:])
 
+    def _apply_inverse(self, y):
+        return driver.solve(self._U, self._P, self._d, self._W, y)
+
     def apply_inverse(self, y, *, inplace=False):
         """Apply the inverse of the covariance matrix to a vector or matrix
 
@@ -243,9 +246,7 @@ class GaussianProcess:
             ValueError: When the inputs are not valid (shape, number, etc.).
         """
         y = self._process_input(y, inplace=inplace)
-        return self._reshape_output(
-            driver.solve(self._U, self._P, self._d, self._W, y)
-        )
+        return self._reshape_output(self._apply_inverse(y))
 
     def dot_tril(self, y, *, inplace=False):
         """Dot the Cholesky factor of the GP system into a vector or matrix
@@ -358,6 +359,7 @@ class GaussianProcess:
                 raise ValueError("dimension mismatch")
 
         KxsT = None
+        mu = None
         if kernel is None:
             kernel = self.kernel
 
@@ -365,22 +367,36 @@ class GaussianProcess:
                 mu = self._reshape_output(y - self._diag.flatten() * alpha)
                 if include_mean:
                     mu += mean_value
-            else:
+            elif np.all(np.diff(xs > 0)):
 
-                (
-                    U_star,
-                    V_star,
-                    inds,
-                ) = self.kernel.get_conditional_mean_matrices(self._t, xs)
-                mu = np.empty_like(xs)
-                mu = driver.conditional_mean(
-                    self._U, self._V, self._P, alpha, U_star, V_star, inds, mu
-                )
-                mu = self._reshape_output(mu)
-                if include_mean:
-                    mu += self._mean(xs)
+                try:
+                    (
+                        U_star,
+                        V_star,
+                        inds,
+                    ) = self.kernel.get_conditional_mean_matrices(self._t, xs)
 
-        else:
+                except NotImplementedError:
+                    # We'll fall back on the slow method below
+                    pass
+
+                else:
+                    mu = np.empty_like(xs)
+                    mu = driver.conditional_mean(
+                        self._U,
+                        self._V,
+                        self._P,
+                        alpha,
+                        U_star,
+                        V_star,
+                        inds,
+                        mu,
+                    )
+                    mu = self._reshape_output(mu)
+                    if include_mean:
+                        mu += self._mean(xs)
+
+        if mu is None:
             KxsT = kernel.get_value(xs[None, :] - self._t[:, None])
             mu = self._reshape_output(np.dot(KxsT.T, alpha))
             if include_mean:
@@ -393,15 +409,15 @@ class GaussianProcess:
         if KxsT is None:
             KxsT = kernel.get_value(xs[None, :] - self._t[:, None])
         if return_var:
-            var = kernel.get_value(0.0) - np.einsum(
-                "ij,ij->j", KxsT, self.apply_inverse(KxsT, inplace=False)
+            var = np.diag(kernel.get_value(0.0)) - self._reshape_output(
+                np.einsum("ij,ij->j", KxsT, self._apply_inverse(np.copy(KxsT)))
             )
-            return mu, self._reshape_output(var)
+            return mu, var
 
         # Predictive covariance
         cov = kernel.get_value(xs[:, None] - xs[None, :])
         cov -= np.tensordot(
-            KxsT, self.apply_inverse(KxsT, inplace=False), axes=(0, 0)
+            KxsT, self._apply_inverse(np.copy(KxsT)), axes=(0, 0)
         )
         if len(self._shape) == 1:
             return mu, cov
@@ -435,7 +451,10 @@ class GaussianProcess:
             n = np.random.randn(*self._shape)
         else:
             n = np.random.randn(*(self._shape + (size,)))
-        result = np.moveaxis(self.dot_tril(n, inplace=True), -1, 0)
+
+        result = self.dot_tril(n, inplace=True)
+        if size is not None:
+            result = np.moveaxis(result, -1, 0)
         if include_mean:
             result += self._mean(self._t)
         return result
