@@ -409,7 +409,9 @@ class GaussianProcess:
         if KxsT is None:
             KxsT = kernel.get_value(xs[None, :] - self._t[:, None])
         if return_var:
-            var = np.diag(kernel.get_value(0.0)) - self._reshape_output(
+            var = np.squeeze(
+                np.diag(kernel.get_value(0.0))
+            ) - self._reshape_output(
                 np.einsum("ij,ij->j", KxsT, self._apply_inverse(np.copy(KxsT)))
             )
             return mu, var

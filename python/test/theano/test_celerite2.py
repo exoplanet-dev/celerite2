@@ -55,33 +55,6 @@ def test_consistency(name, args, mean):
 
     check_gp_models(lambda x: x.eval(), gp, pygp, y, t)
 
-    # # "log_likelihood" method
-    # assert np.allclose(pygp.log_likelihood(y), gp.log_likelihood(y).eval())
-
-    # # "predict" method
-    # for args in [
-    #     dict(return_cov=False, return_var=False),
-    #     dict(return_cov=False, return_var=True),
-    #     dict(return_cov=True, return_var=False),
-    # ]:
-    #     assert all(
-    #         np.allclose(a, b)
-    #         for a, b in zip(
-    #             pygp.predict(y, **args),
-    #             theano.function([], gp.predict(y, **args))(),
-    #         )
-    #     )
-    #     assert all(
-    #         np.allclose(a, b)
-    #         for a, b in zip(
-    #             pygp.predict(y, t=t, **args),
-    #             theano.function([], gp.predict(y, t=t, **args))(),
-    #         )
-    #     )
-
-    # # "dot_tril" method
-    # assert np.allclose(pygp.dot_tril(y), gp.dot_tril(y).eval())
-
 
 def test_errors():
     # Generate fake data

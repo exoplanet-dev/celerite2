@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.5.2
+#       jupytext_version: 1.6.0
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -36,7 +36,10 @@ import matplotlib.pyplot as plt
 np.random.seed(42)
 
 t = np.sort(
-    np.append(np.random.uniform(0, 3.8, 57), np.random.uniform(5.5, 10, 68),)
+    np.append(
+        np.random.uniform(0, 3.8, 57),
+        np.random.uniform(5.5, 10, 68),
+    )
 )  # The input coordinates must be sorted
 yerr = np.random.uniform(0.08, 0.22, len(t))
 y = (
