@@ -367,7 +367,7 @@ class GaussianProcess:
                 mu = self._reshape_output(y - self._diag.flatten() * alpha)
                 if include_mean:
                     mu += mean_value
-            elif np.all(np.diff(xs > 0)):
+            elif np.all(np.diff(xs) > 0):
 
                 try:
                     (
