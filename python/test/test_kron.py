@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 
-from celerite2 import kron, terms, GaussianProcess
+from celerite2 import GaussianProcess, kron, terms
 
 
 def check_value(term, x, diag, y, t):
