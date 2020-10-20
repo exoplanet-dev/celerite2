@@ -140,6 +140,9 @@ class BaseGaussianProcess(GaussianProcess):
     def as_tensor(self, tensor):
         raise NotImplementedError("must be implemented by subclasses")
 
+    def get_size(self, tensor):
+        return tensor.size
+
     def zeros(self, shape):
         raise NotImplementedError("must be implemented by subclasses")
 
@@ -186,11 +189,11 @@ class BaseGaussianProcess(GaussianProcess):
         self._t = self.as_tensor(t)
         self._mean_value = self._mean(self._t)
         if self.kernel.dimension == 0:
-            self._shape = (self._t.size,)
+            self._shape = (self.get_size(self._t),)
         else:
-            self._shape = (self._t.size, self.kernel.dimension)
+            self._shape = (self.get_size(self._t), self.kernel.dimension)
         self._diag = self.zeros(self._shape)
-        self._size = self._diag.size
+        self._size = self.get_size(self._diag)
         if yerr is not None:
             if diag is not None:
                 raise ValueError(

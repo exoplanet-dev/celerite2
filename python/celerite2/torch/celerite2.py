@@ -19,15 +19,29 @@ class GaussianProcess(nn.Module, BaseGaussianProcess):
 
         # Placeholders for storing data
         self._t = None
+        self._mean_value = None
         self._diag = None
+        self._size = None
+        self._shape = None
         self._log_det = -np.inf
         self._norm = np.inf
 
         if t is not None:
             self.compute(t, **kwargs)
 
+    @property
+    def mean_value(self):
+        if self._mean_value is None:
+            raise RuntimeError(
+                "'compute' must be executed before accessing mean_value"
+            )
+        return self._mean_value
+
     def as_tensor(self, tensor):
         return as_tensor(tensor)
+
+    def get_size(self, tensor):
+        return torch.prod(tensor.size())
 
     def zeros(self, shape):
         return torch.zeros(shape)

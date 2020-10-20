@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import theano
-from theano import tensor as tt
 
 from celerite2.theano import GaussianProcess, kron, terms
 
