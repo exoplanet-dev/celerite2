@@ -129,6 +129,8 @@ class BaseGaussianProcess(GaussianProcess):
         self._t = None
         self._mean_value = None
         self._diag = None
+        self._size = None
+        self._shape = None
         self._log_det = -np.inf
         self._norm = np.inf
 
@@ -138,7 +140,13 @@ class BaseGaussianProcess(GaussianProcess):
     def as_tensor(self, tensor):
         raise NotImplementedError("must be implemented by subclasses")
 
-    def zeros_like(self, tensor):
+    def zeros(self, shape):
+        raise NotImplementedError("must be implemented by subclasses")
+
+    def reshape(self, y, shape):
+        raise NotImplementedError("must be implemented by subclasses")
+
+    def diag_squeeze(self, y):
         raise NotImplementedError("must be implemented by subclasses")
 
     def do_compute(self, quiet):
@@ -177,7 +185,12 @@ class BaseGaussianProcess(GaussianProcess):
         # Save the diagonal
         self._t = self.as_tensor(t)
         self._mean_value = self._mean(self._t)
-        self._diag = self.zeros_like(self._t)
+        if self.kernel.dimension == 0:
+            self._shape = (self._t.size,)
+        else:
+            self._shape = (self._t.size, self.kernel.dimension)
+        self._diag = self.zeros(self._shape)
+        self._size = self._diag.size
         if yerr is not None:
             if diag is not None:
                 raise ValueError(
@@ -202,21 +215,30 @@ class BaseGaussianProcess(GaussianProcess):
         if self._t is None:
             raise RuntimeError("you must call 'compute' first")
         y = self.as_tensor(y)
+        if self.kernel.dimension != 0:
+            y = self.reshape(
+                y, (self._size,) + tuple(y.shape[2:]), ndim=y.ndim - 1
+            )
         if require_vector and y.ndim != 1:
             raise ValueError("'y' must be one dimensional")
         return y
 
+    def _reshape_output(self, y):
+        if self.kernel.dimension == 0:
+            return y
+        return self.reshape(y, (-1, self._shape[1]) + tuple(y.shape[1:]))
+
     def apply_inverse(self, y):
         y = self._process_input(y)
-        return self.do_solve(y)
+        return self._reshape_output(self.do_solve(y))
 
     def dot_tril(self, y):
         y = self._process_input(y)
-        return self.do_dot_tril(y)
+        return self._reshape_output(self.do_dot_tril(y))
 
     def log_likelihood(self, y):
-        y = self._process_input(y, require_vector=True)
-        return self._norm - 0.5 * self.do_norm(y - self._mean_value)
+        y = self._process_input(y - self.mean_value, require_vector=True)
+        return self._norm - 0.5 * self.do_norm(y)
 
     def predict(
         self,
@@ -229,9 +251,9 @@ class BaseGaussianProcess(GaussianProcess):
         kernel=None,
         _fast_mean=True,
     ):
-        y = self._process_input(y, require_vector=True)
-        resid = y - self._mean_value
-        alpha = self.do_solve(resid)
+        mean_value = self.mean_value
+        y = self._process_input(y - mean_value, require_vector=True)
+        alpha = self.do_solve(y)
 
         if t is None:
             xs = self._t
@@ -248,26 +270,39 @@ class BaseGaussianProcess(GaussianProcess):
 
             if t is None:
                 if include_mean:
-                    mu = y - self._diag * alpha
+                    mu = (
+                        self._reshape_output(
+                            y - self.reshape(self._diag, (-1,)) * alpha
+                        )
+                        + mean_value
+                    )
                 else:
-                    mu = resid - self._diag * alpha
+                    mu = self._reshape_output(
+                        y - self.reshape(self._diag, (-1,)) * alpha
+                    )
 
             elif _fast_mean:
-                (
-                    U_star,
-                    V_star,
-                    inds,
-                ) = self.kernel.get_conditional_mean_matrices(self._t, xs)
-                mu = self.do_conditional_mean(alpha, U_star, V_star, inds)
+                try:
+                    (
+                        U_star,
+                        V_star,
+                        inds,
+                    ) = self.kernel.get_conditional_mean_matrices(self._t, xs)
+                except NotImplementedError:
+                    pass
+                else:
+                    mu = self._reshape_output(
+                        self.do_conditional_mean(alpha, U_star, V_star, inds)
+                    )
 
-                if include_mean:
-                    mu += self._mean(xs)
+                    if include_mean:
+                        mu += self._mean(xs)
 
         if mu is None:
             if kernel is None:
                 kernel = self.kernel
             KxsT = kernel.get_value(xs[None, :] - self._t[:, None])
-            mu = self.tensordot(KxsT, alpha)
+            mu = self._reshape_output(self.tensordot(KxsT, alpha))
             if include_mean:
                 mu += self._mean(xs)
 
@@ -278,15 +313,19 @@ class BaseGaussianProcess(GaussianProcess):
         if KxsT is None:
             KxsT = kernel.get_value(xs[None, :] - self._t[:, None])
         if return_var:
-            var = kernel.get_value(0.0) - self.diagdot(
-                KxsT, self.do_solve(KxsT)
-            )
+            var = self.diag_squeeze(
+                kernel.get_value(self.zeros((1, 1)))
+            ) - self._reshape_output(self.diagdot(KxsT, self.do_solve(KxsT)))
             return mu, var
 
         # Predictive covariance
         cov = kernel.get_value(xs[:, None] - xs[None, :])
         cov -= self.tensordot(KxsT, self.do_solve(KxsT))
-        return mu, cov
+
+        if self.kernel.dimension == 0:
+            return mu, cov
+
+        return mu, self.reshape(cov, tuple(mu.shape) + tuple(mu.shape))
 
     def sample(self, *args, **kwargs):
         raise NotImplementedError("'sample' is not implemented by extensions")

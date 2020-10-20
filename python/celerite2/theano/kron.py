@@ -29,13 +29,9 @@ class KronTerm(Term):
         self.alpha2 = tt.diag(self.R)
 
     def __add__(self, b):
-        if self.dimension != b.dimension:
-            raise TypeError("Incompatible term dimensions")
         return KronTermSum(self, b)
 
     def __radd__(self, b):
-        if self.dimension != b.dimension:
-            raise TypeError("Incompatible term dimensions")
         return KronTermSum(b, self)
 
     def __mul__(self, b):

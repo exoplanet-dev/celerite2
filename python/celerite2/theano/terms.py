@@ -210,7 +210,7 @@ class TermSumGeneral(Term):
             V.append(args[2])
             P.append(args[3])
 
-        a = tt.reshape(diag, -1) + tt.sum(a, axis=0)
+        a = tt.reshape(diag, (-1,)) + tt.sum(a, axis=0)
         U = tt.concatenate(U, axis=1)
         V = tt.concatenate(V, axis=1)
         P = tt.concatenate(P, axis=1)

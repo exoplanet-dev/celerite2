@@ -39,6 +39,7 @@ class GaussianProcess:
         self._mean_value = None
         self._diag = None
         self._size = None
+        self._shape = None
         self._log_det = -np.inf
         self._norm = np.inf
 

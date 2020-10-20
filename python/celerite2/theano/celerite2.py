@@ -51,8 +51,14 @@ class GaussianProcess(BaseGaussianProcess):
     def as_tensor(self, tensor):
         return tt.as_tensor_variable(tensor).astype("float64")
 
-    def zeros_like(self, tensor):
-        return tt.zeros_like(tensor)
+    def zeros(self, shape):
+        return tt.zeros(shape)
+
+    def reshape(self, y, shape, ndim=None):
+        return tt.reshape(y, shape, ndim=ndim)
+
+    def diag_squeeze(self, y):
+        return tt.squeeze(tt.diag(y))
 
     def do_compute(self, quiet):
         if quiet:
@@ -69,9 +75,7 @@ class GaussianProcess(BaseGaussianProcess):
             )
             self._log_det = tt.sum(tt.log(self._d))
 
-        self._norm = -0.5 * (
-            self._log_det + self._t.shape[0] * np.log(2 * np.pi)
-        )
+        self._norm = -0.5 * (self._log_det + self._size * np.log(2 * np.pi))
 
     def check_sorted(self, t):
         return tt.opt.Assert()(t, tt.all(t[1:] - t[:-1] >= 0))
