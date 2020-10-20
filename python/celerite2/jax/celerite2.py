@@ -12,8 +12,14 @@ class GaussianProcess(BaseGaussianProcess):
     def as_tensor(self, tensor):
         return np.asarray(tensor, dtype=np.float64)
 
-    def zeros_like(self, tensor):
-        return np.zeros_like(tensor)
+    def zeros(self, shape):
+        return np.zeros(shape)
+
+    def reshape(self, y, shape, ndim=None):
+        return np.reshape(y, shape)
+
+    def diag_squeeze(self, y):
+        return np.squeeze(np.diag(y))
 
     def do_compute(self, quiet):
         # Compute the Cholesky factorization
@@ -29,7 +35,7 @@ class GaussianProcess(BaseGaussianProcess):
         else:
             self._log_det = np.sum(np.log(self._d))
             self._norm = -0.5 * (
-                self._log_det + len(self._t) * np.log(2 * np.pi)
+                self._log_det + self._size * np.log(2 * np.pi)
             )
 
     def check_sorted(self, t):

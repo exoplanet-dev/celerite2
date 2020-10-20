@@ -29,8 +29,14 @@ class GaussianProcess(nn.Module, BaseGaussianProcess):
     def as_tensor(self, tensor):
         return as_tensor(tensor)
 
-    def zeros_like(self, tensor):
-        return torch.zeros_like(tensor)
+    def zeros(self, shape):
+        return torch.zeros(shape)
+
+    def reshape(self, y, shape, ndim=None):
+        return torch.reshape(y, shape)
+
+    def diag_squeeze(self, y):
+        return torch.squeeze(torch.diag(y))
 
     def do_compute(self, quiet):
         # Compute the Cholesky factorization
