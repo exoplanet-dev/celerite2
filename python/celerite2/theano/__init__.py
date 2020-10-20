@@ -2,6 +2,6 @@
 
 __all__ = ["terms", "kron", "GaussianProcess", "CeleriteNormal"]
 
-from . import terms, kron
+from . import kron, terms
 from .celerite2 import GaussianProcess
 from .distribution import CeleriteNormal

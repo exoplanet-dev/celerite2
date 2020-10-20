@@ -2,7 +2,7 @@
 
 __all__ = ["__version__", "terms", "kron", "GaussianProcess"]
 
-from . import terms, kron
+from . import kron, terms
 from .celerite2 import GaussianProcess
 from .celerite2_version import __version__
 

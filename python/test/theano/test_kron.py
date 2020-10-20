@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import theano
-import theano.tensor as tt
+from theano import tensor as tt
 
-from celerite2.theano import terms, kron, GaussianProcess
+from celerite2.theano import GaussianProcess, kron, terms
 
 
 def check_value(term, x, diag, y, t):

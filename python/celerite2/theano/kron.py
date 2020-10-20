@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 
 __all__ = ["KronTerm", "LowRankKronTerm", "KronTermSum"]
-
-import theano.tensor as tt
+from theano import tensor as tt
 from theano.tensor.slinalg import kron
 
-from .terms import Term, TermSumGeneral
 from .. import kron as base_kron
+from .terms import Term, TermSumGeneral
 
 
 class KronTerm(Term):
