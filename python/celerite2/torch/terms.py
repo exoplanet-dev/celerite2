@@ -34,6 +34,10 @@ class Term(nn.Module):
         return TermProduct(self, b)
 
     @property
+    def dimension(self):
+        return 0
+
+    @property
     def terms(self):
         return [self]
 

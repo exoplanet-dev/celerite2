@@ -313,9 +313,13 @@ class BaseGaussianProcess(GaussianProcess):
         if KxsT is None:
             KxsT = kernel.get_value(xs[None, :] - self._t[:, None])
         if return_var:
-            var = self.diag_squeeze(
-                kernel.get_value(self.zeros((1, 1)))
-            ) - self._reshape_output(self.diagdot(KxsT, self.do_solve(KxsT)))
+            if self.kernel.dimension == 0:
+                var0 = kernel.get_value(0.0)
+            else:
+                var0 = self.diag_squeeze(kernel.get_value(self.zeros((1, 1))))
+            var = var0 - self._reshape_output(
+                self.diagdot(KxsT, self.do_solve(KxsT))
+            )
             return mu, var
 
         # Predictive covariance
