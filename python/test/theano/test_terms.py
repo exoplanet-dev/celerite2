@@ -24,7 +24,6 @@ pytestmark = pytest.mark.skipif(
 compare_terms = partial(check_tensor_term, lambda x: x.eval())
 
 
-@pytest.mark.xfail(reason="TermSumGeneral not yet implemented")
 def test_complete_implementation():
     x = np.linspace(-10, 10, 500)
     for name in pyterms.__all__:

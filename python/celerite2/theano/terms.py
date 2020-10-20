@@ -3,6 +3,7 @@
 __all__ = [
     "Term",
     "TermSum",
+    "TermSumGeneral",
     "TermProduct",
     "TermDiff",
     "TermConvolution",
@@ -28,11 +29,23 @@ class Term(base_terms.Term):
         self.dtype = dtype
         self.coefficients = self.get_coefficients()
 
+    def __len__(self):
+        raise TypeError("len is not implemented for Theano terms")
+
     def __add__(self, b):
+        if self.dimension != b.dimension:
+            raise TypeError("Incompatible term dimensions")
         dtype = theano.scalar.upcast(self.dtype, b.dtype)
+        if (
+            self.__requires_general_addition__
+            or b.__requires_general_addition__
+        ):
+            return TermSumGeneral(self, b, dtype=dtype)
         return TermSum(self, b, dtype=dtype)
 
     def __mul__(self, b):
+        if self.dimension != b.dimension:
+            raise TypeError("Incompatible term dimensions")
         dtype = theano.scalar.upcast(self.dtype, b.dtype)
         return TermProduct(self, b, dtype=dtype)
 
@@ -127,11 +140,10 @@ class TermSum(Term):
     __doc__ = base_terms.TermSum.__doc__
 
     def __init__(self, *terms, **kwargs):
-        if any(isinstance(term, TermConvolution) for term in terms):
+        if any(term.__requires_general_addition__ for term in terms):
             raise TypeError(
-                "You cannot perform operations on an "
-                "TermConvolution, it must be the outer term in "
-                "the kernel"
+                "You cannot perform operations on a term that requires general"
+                " addition, it must be the outer term in the kernel"
             )
         self._terms = terms
         super().__init__(**kwargs)
@@ -145,17 +157,87 @@ class TermSum(Term):
         return tuple(tt.concatenate(a, axis=0) for a in zip(*coeffs))
 
 
+class TermSumGeneral(Term):
+    __doc__ = base_terms.TermSumGeneral.__doc__
+    __requires_general_addition__ = True
+
+    def __init__(self, *terms):
+        basic = [
+            term for term in terms if not term.__requires_general_addition__
+        ]
+        self._terms = [
+            term for term in terms if term.__requires_general_addition__
+        ]
+        if len(basic):
+            self._terms.insert(0, TermSum(*basic))
+        if not len(self._terms):
+            raise ValueError(
+                "A general term sum cannot be instantiated without any terms"
+            )
+
+    @property
+    def terms(self):
+        return self._terms
+
+    # def __len__(self):
+    #     return sum(map(len, self.terms))
+
+    def get_value(self, tau):
+        K = self.terms[0].get_value(tau)
+        for term in self.terms[1:]:
+            K += term.get_value(tau)
+        return K
+
+    def get_psd(self, omega):
+        p = self.terms[0].get_psd(omega)
+        for term in self.terms[1:]:
+            p += term.get_psd(omega)
+        return p
+
+    def get_celerite_matrices(self, x, diag):
+        x = tt.as_tensor_variable(x)
+        diag = tt.as_tensor_variable(diag)
+        zeros = tt.zeros_like(diag)
+
+        a = []
+        U = []
+        V = []
+        P = []
+        for term in self.terms:
+            args = term.get_celerite_matrices(x, zeros)
+            a.append(args[0])
+            U.append(args[1])
+            V.append(args[2])
+            P.append(args[3])
+
+        a = tt.reshape(diag, -1) + tt.sum(a, axis=0)
+        U = tt.concatenate(U, axis=1)
+        V = tt.concatenate(V, axis=1)
+        P = tt.concatenate(P, axis=1)
+
+        return a, U, V, P
+
+    def get_conditional_mean_matrices(self, x, t):
+        Us = []
+        Vs = []
+        for term in self.terms:
+            U, V, inds = term.get_conditional_mean_matrices(x, t)
+            Us.append(U)
+            Vs.append(V)
+        return tt.concatenate(Us, axis=1), tt.concatenate(Vs, axis=1), inds
+
+
 class TermProduct(Term):
     __doc__ = base_terms.TermProduct.__doc__
 
     def __init__(self, term1, term2, **kwargs):
-        int1 = isinstance(term1, TermConvolution)
-        int2 = isinstance(term2, TermConvolution)
-        if int1 or int2:
+        if (
+            term1.__requires_general_addition__
+            or term2.__requires_general_addition__
+        ):
             raise TypeError(
-                "You cannot perform operations on an "
-                "TermConvolution, it must be the outer term in "
-                "the kernel"
+                "You cannot perform operations on a term that requires general"
+                " addition, it must be the outer term in the kernel"
             )
         self.term1 = term1
         self.term2 = term2
@@ -230,11 +312,10 @@ class TermDiff(Term):
     __doc__ = base_terms.TermDiff.__doc__
 
     def __init__(self, term, **kwargs):
-        if isinstance(term, TermConvolution):
+        if term.__requires_general_addition__:
             raise TypeError(
-                "You cannot perform operations on an "
-                "TermConvolution, it must be the outer term in "
-                "the kernel"
+                "You cannot perform operations on a term that requires general"
+                " addition, it must be the outer term in the kernel"
             )
         self.term = term
         super().__init__(**kwargs)
@@ -254,6 +335,7 @@ class TermDiff(Term):
 
 
 class TermConvolution(Term):
+    __requires_general_addition__ = True
     __doc__ = base_terms.TermConvolution.__doc__
 
     def __init__(self, term, delta, **kwargs):
