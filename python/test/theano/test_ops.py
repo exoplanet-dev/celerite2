@@ -34,6 +34,7 @@ def convert_values_to_types(values):
             types.append(tt.dmatrix())
         else:
             raise ValueError("unknown type")
+        types[-1].tag.test_value = v
     return types
 
 

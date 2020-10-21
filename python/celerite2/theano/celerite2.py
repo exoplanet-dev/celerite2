@@ -8,11 +8,6 @@ from ..ext import BaseGaussianProcess
 from . import ops
 from .distribution import CeleriteNormal
 
-try:
-    import pymc3 as pm
-except ImportError:
-    pm = None
-
 CITATIONS = (
     ("celerite2:foremanmackey17", "celerite2:foremanmackey18"),
     r"""
@@ -99,8 +94,7 @@ class GaussianProcess(BaseGaussianProcess):
         return tt.batched_dot(a.T, b.T)
 
     def _add_citations_to_pymc3_model(self, **kwargs):
-        if not pm:
-            raise ImportError("pymc3 is required for the 'marginal' method")
+        import pymc3 as pm
 
         model = pm.modelcontext(kwargs.get("model", None))
         if not hasattr(model, "__citations__"):

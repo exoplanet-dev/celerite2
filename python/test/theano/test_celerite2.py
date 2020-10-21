@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-import pymc3 as pm
 import pytest
 
 import celerite2
@@ -61,8 +60,8 @@ def test_errors(data):
         gp.log_likelihood(y)
 
     # Sorted
-    gp.compute(x[::-1], diag=diag)
     with pytest.raises(AssertionError):
+        gp.compute(x[::-1], diag=diag)
         gp._d.eval()
 
     # 1D
@@ -74,8 +73,8 @@ def test_errors(data):
         gp.compute(x, diag=diag, yerr=np.sqrt(diag))
 
     # Not positive definite
-    gp.compute(x, diag=-10 * diag)
     with pytest.raises(celerite2.backprop.LinAlgError):
+        gp.compute(x, diag=-10 * diag)
         gp._d.eval()
 
     # Not positive definite with `quiet`
@@ -100,6 +99,8 @@ def test_errors(data):
 
 
 def test_marginal(data):
+    import pymc3 as pm
+
     x, diag, y, t = data
 
     with pm.Model() as model:
@@ -114,6 +115,8 @@ def test_marginal(data):
 
 
 def test_citations(data):
+    import pymc3 as pm
+
     x, diag, y, t = data
 
     with pm.Model() as model:
