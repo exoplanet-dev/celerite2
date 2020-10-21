@@ -24,6 +24,7 @@ from . import ops
 
 class Term(base_terms.Term):
     __doc__ = base_terms.Term.__doc__
+    __citations__ = None
 
     def __init__(self, *, dtype="float64"):
         self.dtype = dtype

@@ -7,10 +7,34 @@ from theano.tensor.slinalg import kron
 from .. import kron as base_kron
 from .terms import Term, TermSumGeneral
 
+CITATIONS = (
+    ("celerite2:gordon20",),
+    r"""
+@article{celerite2:gordon20,
+       author = {{Gordon}, Tyler and {Agol}, Eric and
+                 {Foreman-Mackey}, Daniel},
+        title = "{A Fast, 2D Gaussian Process Method Based on Celerite:
+                  Applications to Transiting Exoplanet Discovery and
+                  Characterization}",
+      journal = {arXiv e-prints},
+         year = 2020,
+        month = jul,
+          eid = {arXiv:2007.05799},
+        pages = {arXiv:2007.05799},
+archivePrefix = {arXiv},
+       eprint = {2007.05799},
+ primaryClass = {astro-ph.IM},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2020arXiv200705799G},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+""",
+)
+
 
 class KronTerm(Term):
     __requires_general_addition__ = True
     __doc__ = base_kron.KronTerm.__doc__
+    __citations__ = CITATIONS
 
     @property
     def dimension(self):
@@ -131,6 +155,8 @@ class LowRankKronTerm(KronTerm):
 
 
 class KronTermSum(TermSumGeneral):
+    __citations__ = CITATIONS
+
     @property
     def dimension(self):
         return self.terms[0].M

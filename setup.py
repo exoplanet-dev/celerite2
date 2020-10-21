@@ -40,7 +40,7 @@ EXTRA_REQUIRE = {
         "scipy",
         "celerite>=0.3.1",
     ],
-    "theano": ["theano"],
+    "theano": ["theano", "pymc3"],
     "torch": ["torch"],
     "jax": ["jax", "jaxlib"],
     "release": ["pep517", "twine"],

@@ -106,6 +106,8 @@ class GaussianProcess(BaseGaussianProcess):
         if not hasattr(model, "__citations__"):
             model.__citations__ = dict()
         model.__citations__["celerite2"] = CITATIONS
+        if self.kernel.__citations__:
+            model.__citations__["celerite2:kernel"] = self.kernel.__citations__
 
     def marginal(self, name, **kwargs):
         """Add the marginal likelihood to a PyMC3 model

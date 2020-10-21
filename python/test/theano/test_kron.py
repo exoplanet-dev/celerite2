@@ -1,8 +1,24 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+import pymc3 as pm
+import pytest
 import theano
 
 from celerite2.theano import GaussianProcess, kron, terms
+
+
+@pytest.fixture
+def data():
+    N = 100
+    M = 5
+
+    np.random.seed(105)
+    x = np.sort(np.random.uniform(0, 10, N))
+    t = np.sort(np.random.uniform(-1, 11, 25))
+    diag = np.random.uniform(0.1, 0.5, (N, M))
+    y = np.random.randn(N * M, 3)
+
+    return N, M, x, diag, y, t
 
 
 def check_value(term, x, diag, y, t):
@@ -63,15 +79,8 @@ def check_value(term, x, diag, y, t):
     assert np.allclose(cov, cov0.reshape((len(t), M, len(t), M)))
 
 
-def test_value():
-    N = 100
-    M = 5
-
-    np.random.seed(105)
-    x = np.sort(np.random.uniform(0, 10, N))
-    t = np.sort(np.random.uniform(-1, 11, 25))
-    diag = np.random.uniform(0.1, 0.5, (N, M))
-    y = np.random.randn(N * M, 3)
+def test_value(data):
+    N, M, x, diag, y, t = data
 
     R = np.random.randn(M, M)
     R[np.diag_indices_from(R)] = np.exp(R[np.diag_indices_from(R)])
@@ -90,15 +99,8 @@ def test_value():
     check_value(term, x, diag, y, t)
 
 
-def test_low_rank_value():
-    N = 100
-    M = 5
-
-    np.random.seed(105)
-    x = np.sort(np.random.uniform(0, 10, N))
-    t = np.sort(np.random.uniform(-1, 11, 25))
-    diag = np.random.uniform(0.1, 0.5, (N, M))
-    y = np.random.randn(N * M, 3)
+def test_low_rank_value(data):
+    N, M, x, diag, y, t = data
 
     alpha = np.random.randn(M)
     term0 = terms.SHOTerm(sigma=1.5, rho=1.3, Q=0.3)
@@ -118,15 +120,8 @@ def test_low_rank_value():
     )
 
 
-def test_sum_value():
-    N = 100
-    M = 5
-
-    np.random.seed(105)
-    x = np.sort(np.random.uniform(0, 10, N))
-    t = np.sort(np.random.uniform(-1, 11, 25))
-    diag = np.random.uniform(0.1, 0.5, (N, M))
-    y = np.random.randn(N * M, 3)
+def test_sum_value(data):
+    N, M, x, diag, y, t = data
 
     alpha = np.random.randn(M)
     R = np.random.randn(M, M)
@@ -144,3 +139,13 @@ def test_sum_value():
     assert P.eval().shape == (N * M - 1, 2 * M + 2)
 
     check_value(term, x, diag, y, t)
+
+
+def test_citations(data):
+    N, M, x, diag, y, t = data
+
+    with pm.Model() as model:
+        term = kron.KronTerm(terms.SHOTerm(S0=1.0, w0=0.5, Q=3.0), R=np.eye(M))
+        gp = GaussianProcess(term, t=x, diag=diag)
+        gp.marginal("obs", observed=y[:, 0].reshape((N, M)))
+        assert model.__citations__["celerite2:kernel"] == kron.CITATIONS
