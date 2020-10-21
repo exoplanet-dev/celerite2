@@ -36,6 +36,7 @@ be a good choice.
    :caption: Tutorials
 
    tutorials/first.ipynb
+   tutorials/kron.ipynb
 
 .. toctree::
    :maxdepth: 2
