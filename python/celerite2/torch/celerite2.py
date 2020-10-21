@@ -41,7 +41,7 @@ class GaussianProcess(nn.Module, BaseGaussianProcess):
         return as_tensor(tensor)
 
     def get_size(self, tensor):
-        return torch.prod(tensor.size())
+        return torch.numel(tensor)
 
     def zeros(self, shape):
         return torch.zeros(shape)
