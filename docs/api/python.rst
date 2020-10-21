@@ -72,3 +72,16 @@ recommended unless you're confident that you know what you're doing.
 .. autoclass:: celerite2.terms.RealTerm
 .. autoclass:: celerite2.terms.ComplexTerm
 .. autoclass:: celerite2.terms.OriginalCeleriteTerm
+
+Multivariate models
+-------------------
+
+The original *celerite* algorithm was only defined for one dimensional inputs,
+but this was generalized by `Gordon et al. (2020)
+<https://arxiv.org/abs/2007.05799>`_ to support multivariate inputs on tensor
+product grids with separable kernels. In this case, the covariance matrix is
+given by a Kronecker product. These models are now available in *celerite2*
+using the following terms:
+
+.. autoclass:: celerite2.kron.KronTerm
+.. autoclass:: celerite2.kron.LowRankKronTerm

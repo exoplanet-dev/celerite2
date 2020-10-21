@@ -132,6 +132,8 @@ class KronTerm(Term):
 
 
 class LowRankKronTerm(KronTerm):
+    __doc__ = base_kron.LowRankKronTerm.__doc__
+
     def __init__(self, term, *, alpha):
         self.term = term
         self.alpha = tt.as_tensor_variable(alpha)
@@ -156,6 +158,7 @@ class LowRankKronTerm(KronTerm):
 
 class KronTermSum(TermSumGeneral):
     __citations__ = CITATIONS
+    __doc__ = base_kron.KronTermSum.__doc__
 
     @property
     def dimension(self):

@@ -8,6 +8,22 @@ from .terms import Term, TermSumGeneral
 
 
 class KronTerm(Term):
+    """A general multivariate celerite term
+
+    This term supports rectangular data with the shape ``N, M`` where ``N`` is
+    the usual "time" axis or similar, but ``M`` is the dimension of the output
+    space. The model is that the multivariate data are correlated samples from
+    an underlying process descirbed by a standard *celerite* kernel. The
+    covariance between output dimensions is given by the general ``M x M``
+    matrix ``R``. More details about this model can be found in `Gordon et al.
+    (2020) <https://arxiv.org/abs/2007.05799>`_.
+
+    Args:
+        term (celerite2.terms.Term): The celerite term describing the
+            underlying process.
+        R (shape[M, M]): The covariance matrix between output dimensions.
+    """
+
     __requires_general_addition__ = True
 
     @property
@@ -187,6 +203,19 @@ class KronTerm(Term):
 
 
 class LowRankKronTerm(KronTerm):
+    """A low rank multivariate celerite term
+
+    A low rank version of :class:`celerite2.kron.KronTerm` where the covariance
+    between outputs is ``R = alpha * alpha^T``, where ``alpha`` is a column
+    vector of size ``M``. More details about this model can be found in `Gordon
+    et al. (2020) <https://arxiv.org/abs/2007.05799>`_.
+
+    Args:
+        term (celerite2.terms.Term): The celerite term describing the
+            underlying process.
+        alpha (shape[M]): The vector of amplitudes for each output.
+    """
+
     def __init__(self, term, *, alpha):
         self.term = term
         self.alpha = np.ascontiguousarray(
