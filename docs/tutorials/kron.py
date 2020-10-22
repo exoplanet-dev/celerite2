@@ -22,6 +22,17 @@
 
 # # Multivariate models
 #
+# The original *celerite* package only supported one-dimensional data (like time series), but [Gordon et al. (2020)](https://arxiv.org/abs/2007.05799) generalized the method to multivariate data on a tensor product grid.
+# This has been implmented in *celerite2* so "rectangular" data are now supported.
+# The main application discussed by [Gordon et al. (2020)](https://arxiv.org/abs/2007.05799) was multiwavelength observations of transiting exoplanets, but this can be applicable to many other problems with the following structure:
+#
+# 1. The rectagular data must be fully filled: you must have observations in every band at every time. We've developed a method to handle missing data and that will be included in a future release.
+# 2. The covariance matrix must be seperable with the form `k({x, y}_n, {x, y}_m) = k1(x_n, x_m) * k2(y_n, y_m)`, where `x` (a scalar) indexes the "longest" one-dimensional axis of the data (for example, time) and `y` (optionally a vector) indexes the narrower axis of the data (for example, wavelength). To apply *celerite*, we must make the further assumption that `k1(x_n, x_m)` is a standard *celerite* kernel, but no limitations are placed on the form of `k2(y_n, y_m)`.
+#
+# The implementation of this method in *celerite2* comes with two forms for the kernel:
+#
+# 1. `kron.KronTerm`: A general form of the model where `k2(y_n, y_m)` is specified as a full-rank `M x M` matrix called `R`, where `M` is the size of the `y` dimension. The computational cost of evaluating this model scales as `O(N * J^2 * M^3)` where `N` is the size of the `x` dimension and `J` is the rank of the *celerite* term describing `k1(x_n, x_m)`.
+# 2. `kron.LowRankKronTerm`: A more computationally efficient method where
 
 # +
 import numpy as np

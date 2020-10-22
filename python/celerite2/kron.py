@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__all__ = ["KronTerm", "LowRankKronTerm", "KronTermSum"]
+__all__ = ["KronTerm", "KronTermSum"]
 
 import numpy as np
 
@@ -30,21 +30,32 @@ class KronTerm(Term):
     def dimension(self):
         return self.M
 
-    def __init__(self, term, *, R):
+    def __init__(self, term, *, R=None, L=None):
         self.term = term
-        self.R = np.ascontiguousarray(np.atleast_2d(R), dtype=np.float64)
-        self.M = len(self.R)
-        if self.M < 1:
-            raise ValueError("At least one 'band' is required")
-        if self.R.ndim != 2 or self.R.shape != (self.M, self.M):
-            raise ValueError(
-                "R must be a square matrix; "
-                "use a LowRankKronTerm for the low rank model"
-            )
+
+        if R is not None:
+            if L is not None:
+                raise ValueError("Only one of 'R' and 'L' can be defined")
+            self.R = np.ascontiguousarray(np.atleast_2d(R), dtype=np.float64)
+            try:
+                self.L = np.linalg.cholesky(self.R)
+            except np.linalg.LinAlgError:
+                M = np.copy(self.R)
+                M[np.diag_indices_from(M)] += 1e-10
+                self.L = np.linalg.cholesky(M)
+        elif L is not None:
+            self.L = np.ascontiguousarray(L, dtype=np.float64)
+            if self.L.ndim == 1:
+                self.L = np.reshape(self.L, (-1, 1))
+            self.R = np.dot(self.L, self.L.T)
+        else:
+            raise ValueError("One of 'R' and 'L' must be defined")
+
+        self.M, self.K = self.L.shape
         self.alpha2 = np.diag(self.R)
 
     def __len__(self):
-        return len(self.term) * self.M
+        return len(self.term) * self.K
 
     def __add__(self, b):
         if self.dimension != b.dimension:
@@ -140,7 +151,7 @@ class KronTerm(Term):
             x, np.zeros_like(x)
         )
         J0 = U_sub.shape[1]
-        J = self._get_J(J0)
+        J = self.K * J0
 
         # Allocate memory as requested
         if a is None:
@@ -167,12 +178,13 @@ class KronTerm(Term):
         a[:] = (
             diag + self.alpha2[None, :] * (np.sum(ar) + np.sum(ac))
         ).flatten()
-        U[:] = np.kron(U_sub, self._get_U_kron())
-        V[:] = np.kron(V_sub, self._get_V_kron())
+        U[:] = np.kron(U_sub, self.L)
+        V[:] = np.kron(V_sub, self.L)
 
         c = np.concatenate((cr, cc, cc))
         P0 = np.exp(-c[None, :] * dx[:, None], out=P[:, :J0])
-        self._copy_P(P0, P)
+        if self.K > 1:
+            P[:] = np.tile(P0[:, :, None], (1, 1, self.K)).reshape(P.shape)
 
         return a, U, V, P
 
@@ -187,65 +199,6 @@ class KronTerm(Term):
         raise NotImplementedError(
             "Conditional mean matrices have not (yet!) been implemented"
         )
-
-    # The following should be implemented by subclasses
-    def _get_J(self, J0):
-        return self.M * J0
-
-    def _get_U_kron(self):
-        return self.R
-
-    def _get_V_kron(self):
-        return np.eye(self.M)
-
-    def _copy_P(self, P0, P):
-        P[:] = np.tile(P0[:, :, None], (1, 1, self.M)).reshape(P.shape)
-
-
-class LowRankKronTerm(KronTerm):
-    """A low rank multivariate celerite term
-
-    A low rank version of :class:`celerite2.kron.KronTerm` where the covariance
-    between outputs is ``R = alpha * alpha^T``, where ``alpha`` is a column
-    vector of size ``M``. More details about this model can be found in `Gordon
-    et al. (2020) <https://arxiv.org/abs/2007.05799>`_.
-
-    Args:
-        term (celerite2.terms.Term): The celerite term describing the
-            underlying process.
-        alpha (shape[M]): The vector of amplitudes for each output.
-    """
-
-    def __init__(self, term, *, alpha):
-        self.term = term
-        self.alpha = np.ascontiguousarray(
-            np.atleast_1d(alpha), dtype=np.float64
-        )
-        if self.alpha.ndim != 1:
-            raise ValueError(
-                "alpha must be a vector; "
-                "use a general KronTerm for a full rank model"
-            )
-        self.M = len(self.alpha)
-        if self.M < 1:
-            raise ValueError("At least one 'band' is required")
-        self.R = np.outer(self.alpha, self.alpha)
-        self.alpha2 = self.alpha ** 2
-
-    def __len__(self):
-        return len(self.term)
-
-    def _get_J(self, J0):
-        return J0
-
-    def _get_U_kron(self):
-        return self.alpha[:, None]
-
-    def _get_V_kron(self):
-        return self.alpha[:, None]
-
-    def _copy_P(self, P0, P):
-        pass
 
 
 class KronTermSum(TermSumGeneral):

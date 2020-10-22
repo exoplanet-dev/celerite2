@@ -104,7 +104,7 @@ def test_low_rank_value(data):
 
     alpha = np.random.randn(M)
     term0 = terms.SHOTerm(sigma=1.5, rho=1.3, Q=0.3)
-    term = kron.LowRankKronTerm(term0, alpha=alpha)
+    term = kron.KronTerm(term0, L=alpha)
 
     a, U, V, P = term.get_celerite_matrices(x, diag)
     assert a.eval().shape == (N * M,)
@@ -130,7 +130,7 @@ def test_sum_value(data):
     R = np.dot(R, R.T)
 
     term0 = terms.SHOTerm(sigma=1.5, rho=1.3, Q=0.3)
-    term = kron.KronTerm(term0, R=R) + kron.LowRankKronTerm(term0, alpha=alpha)
+    term = kron.KronTerm(term0, R=R) + kron.KronTerm(term0, L=alpha)
 
     a, U, V, P = term.get_celerite_matrices(x, diag)
     assert a.eval().shape == (N * M,)

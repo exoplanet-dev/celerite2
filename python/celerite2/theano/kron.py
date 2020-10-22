@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-__all__ = ["KronTerm", "LowRankKronTerm", "KronTermSum"]
+__all__ = ["KronTerm", "KronTermSum"]
 from theano import tensor as tt
-from theano.tensor.slinalg import kron
+from theano.tensor.slinalg import Cholesky, kron
 
 from .. import kron as base_kron
 from .terms import Term, TermSumGeneral
@@ -31,6 +31,9 @@ archivePrefix = {arXiv},
 )
 
 
+cholesky = Cholesky(lower=True)
+
+
 class KronTerm(Term):
     __requires_general_addition__ = True
     __doc__ = base_kron.KronTerm.__doc__
@@ -40,15 +43,29 @@ class KronTerm(Term):
     def dimension(self):
         return self.M
 
-    def __init__(self, term, *, R):
+    def __init__(self, term, *, R=None, L=None):
         self.term = term
-        self.R = tt.as_tensor_variable(R)
-        self.M = self.R.shape[0]
-        if self.R.ndim != 2:
-            raise ValueError(
-                "R must be a square matrix; "
-                "use a LowRankKronTerm for the low rank model"
-            )
+
+        if R is not None:
+            if L is not None:
+                raise ValueError("Only one of 'R' and 'L' can be defined")
+            self.R = tt.as_tensor_variable(R)
+            self.L = cholesky(self.R + 1e-10 * tt.eye(R.shape[0]))
+            self.M = self.R.shape[0]
+            self.K = self.R.shape[0]
+
+        elif L is not None:
+            self.L = tt.as_tensor_variable(L)
+            self.M = self.L.shape[0]
+            if self.L.ndim == 1:
+                self.L = tt.reshape(self.L, (-1, 1))
+                self.K = 1
+            else:
+                self.K = self.L.shape[1]
+            self.R = tt.dot(self.L, self.L.T)
+        else:
+            raise ValueError("One of 'R' and 'L' must be defined")
+
         self.alpha2 = tt.diag(self.R)
 
     def __add__(self, b):
@@ -104,12 +121,12 @@ class KronTerm(Term):
         a = tt.reshape(
             diag + self.alpha2[None, :] * (tt.sum(ar) + tt.sum(ac)), (-1,)
         )
-        U = kron(U_sub, self._get_U_kron())
-        V = kron(V_sub, self._get_V_kron())
+        U = kron(U_sub, self.L)
+        V = kron(V_sub, self.L)
 
         c = tt.concatenate((cr, cc, cc))
         P0 = tt.exp(-c[None, :] * dx[:, None])
-        P = self._copy_P(P0)
+        P = tt.tile(P0[:, :, None], (1, 1, self.K)).reshape((P0.shape[0], -1))
 
         return a, U, V, P
 
@@ -117,43 +134,6 @@ class KronTerm(Term):
         raise NotImplementedError(
             "Conditional mean matrices have not (yet!) been implemented"
         )
-
-    # The following should be implemented by subclasses
-    def _get_U_kron(self):
-        return self.R
-
-    def _get_V_kron(self):
-        return tt.eye(self.M)
-
-    def _copy_P(self, P0):
-        return tt.tile(P0[:, :, None], (1, 1, self.M)).reshape(
-            (P0.shape[0], -1)
-        )
-
-
-class LowRankKronTerm(KronTerm):
-    __doc__ = base_kron.LowRankKronTerm.__doc__
-
-    def __init__(self, term, *, alpha):
-        self.term = term
-        self.alpha = tt.as_tensor_variable(alpha)
-        if self.alpha.ndim != 1:
-            raise ValueError(
-                "alpha must be a vector; "
-                "use a general KronTerm for a full rank model"
-            )
-        self.M = self.alpha.shape[0]
-        self.R = self.alpha[None, :] * self.alpha[:, None]
-        self.alpha2 = self.alpha ** 2
-
-    def _get_U_kron(self):
-        return self.alpha[:, None]
-
-    def _get_V_kron(self):
-        return self.alpha[:, None]
-
-    def _copy_P(self, P0):
-        return P0
 
 
 class KronTermSum(TermSumGeneral):

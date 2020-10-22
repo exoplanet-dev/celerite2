@@ -81,7 +81,6 @@ but this was generalized by `Gordon et al. (2020)
 <https://arxiv.org/abs/2007.05799>`_ to support multivariate inputs on tensor
 product grids with separable kernels. In this case, the covariance matrix is
 given by a Kronecker product. These models are now available in *celerite2*
-using the following terms:
+using the following:
 
 .. autoclass:: celerite2.kron.KronTerm
-.. autoclass:: celerite2.kron.LowRankKronTerm
