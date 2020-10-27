@@ -182,6 +182,12 @@ else:
             include_dirs=include_dirs,
             language="c++",
         ),
+        Extension(
+            "celerite2.jax.xla_ops",
+            ["python/celerite2/jax/xla_ops.cpp"],
+            include_dirs=include_dirs,
+            language="c++",
+        ),
     ]
 
 # END PYBIND11
