@@ -73,6 +73,7 @@ def test_matmul(vector):
     a, U, V, P, Y = get_matrices(vector=vector)
     X = driver.matmul(a, U, V, P, Y, np.copy(Y))
     check_op(ops.matmul, [a, U, V, P, Y], [X])
+    check_op(jit(ops.matmul), [a, U, V, P, Y], [X])
 
 
 def test_conditional_mean():

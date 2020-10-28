@@ -264,6 +264,78 @@ const void dot_tril_rev(void *out_tuple, const void **in) {
 #undef FIXED_SIZE_MAP
 }
 
+const void matmul(void *out_tuple, const void **in) {
+  void **out     = reinterpret_cast<void **>(out_tuple);
+  const int N    = *reinterpret_cast<const int *>(in[0]);
+  const int J    = *reinterpret_cast<const int *>(in[1]);
+  const int nrhs = *reinterpret_cast<const int *>(in[2]);
+
+  CONST_VECTOR(a, 3, N);
+#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
+  {                                                                                                                                                  \
+    CONST_MATRIX(SIZE, U, 4, N, J);                                                                                                                  \
+    CONST_MATRIX(SIZE, V, 5, N, J);                                                                                                                  \
+    CONST_MATRIX(SIZE, P, 6, N - 1, J);                                                                                                              \
+    if (nrhs == 1) {                                                                                                                                 \
+      CONST_VECTOR(Y, 7, N);                                                                                                                         \
+      VECTOR(X, 0, N);                                                                                                                               \
+      VECTOR(Z, 1, N);                                                                                                                               \
+      MATRIX(SIZE, F, 2, N, J);                                                                                                                      \
+      MATRIX(SIZE, G, 3, N, J);                                                                                                                      \
+      celerite2::core::matmul(a, U, V, P, Y, X, Z, F, G);                                                                                            \
+    } else {                                                                                                                                         \
+      CONST_MATRIX(Eigen::Dynamic, Y, 7, N, nrhs);                                                                                                   \
+      MATRIX(Eigen::Dynamic, X, 0, N, nrhs);                                                                                                         \
+      MATRIX(Eigen::Dynamic, Z, 1, N, nrhs);                                                                                                         \
+      MATRIX(Eigen::Dynamic, F, 2, N, (J * nrhs));                                                                                                   \
+      MATRIX(Eigen::Dynamic, G, 3, N, (J * nrhs));                                                                                                   \
+      celerite2::core::matmul(a, U, V, P, Y, X, Z, F, G);                                                                                            \
+    }                                                                                                                                                \
+  }
+  UNWRAP_CASES;
+#undef FIXED_SIZE_MAP
+}
+
+const void matmul_rev(void *out_tuple, const void **in) {
+  void **out     = reinterpret_cast<void **>(out_tuple);
+  const int N    = *reinterpret_cast<const int *>(in[0]);
+  const int J    = *reinterpret_cast<const int *>(in[1]);
+  const int nrhs = *reinterpret_cast<const int *>(in[2]);
+
+  CONST_VECTOR(a, 3, N);
+  VECTOR(ba, 0, N);
+#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
+  {                                                                                                                                                  \
+    CONST_MATRIX(SIZE, U, 4, N, J);                                                                                                                  \
+    CONST_MATRIX(SIZE, V, 5, N, J);                                                                                                                  \
+    CONST_MATRIX(SIZE, P, 6, N - 1, J);                                                                                                              \
+    MATRIX(SIZE, bU, 1, N, J);                                                                                                                       \
+    MATRIX(SIZE, bV, 2, N, J);                                                                                                                       \
+    MATRIX(SIZE, bP, 3, N - 1, J);                                                                                                                   \
+    if (nrhs == 1) {                                                                                                                                 \
+      CONST_VECTOR(Y, 7, N);                                                                                                                         \
+      CONST_VECTOR(X, 8, N);                                                                                                                         \
+      CONST_VECTOR(Z, 9, N);                                                                                                                         \
+      CONST_MATRIX(SIZE, F, 10, N, J);                                                                                                               \
+      CONST_MATRIX(SIZE, G, 11, N, J);                                                                                                               \
+      CONST_VECTOR(bX, 12, N);                                                                                                                       \
+      VECTOR(bY, 4, N);                                                                                                                              \
+      celerite2::core::matmul_rev(a, U, V, P, Y, X, Z, F, G, bX, ba, bU, bV, bP, bY);                                                                \
+    } else {                                                                                                                                         \
+      CONST_MATRIX(Eigen::Dynamic, Y, 7, N, nrhs);                                                                                                   \
+      CONST_MATRIX(Eigen::Dynamic, X, 8, N, nrhs);                                                                                                   \
+      CONST_MATRIX(Eigen::Dynamic, Z, 9, N, nrhs);                                                                                                   \
+      CONST_MATRIX(Eigen::Dynamic, F, 10, N, (J * nrhs));                                                                                            \
+      CONST_MATRIX(Eigen::Dynamic, G, 11, N, (J * nrhs));                                                                                            \
+      CONST_MATRIX(Eigen::Dynamic, bX, 12, N, nrhs);                                                                                                 \
+      MATRIX(Eigen::Dynamic, bY, 4, N, nrhs);                                                                                                        \
+      celerite2::core::matmul_rev(a, U, V, P, Y, X, Z, F, G, bX, ba, bU, bV, bP, bY);                                                                \
+    }                                                                                                                                                \
+  }
+  UNWRAP_CASES;
+#undef FIXED_SIZE_MAP
+}
+
 PYBIND11_MODULE(xla_ops, m) {
   m.def("factor", []() {
     const char *name = "xla._CUSTOM_CALL_TARGET";
@@ -296,5 +368,13 @@ PYBIND11_MODULE(xla_ops, m) {
   m.def("dot_tril_rev", []() {
     const char *name = "xla._CUSTOM_CALL_TARGET";
     return py::capsule((void *)&dot_tril_rev, name);
+  });
+  m.def("matmul", []() {
+    const char *name = "xla._CUSTOM_CALL_TARGET";
+    return py::capsule((void *)&matmul, name);
+  });
+  m.def("matmul_rev", []() {
+    const char *name = "xla._CUSTOM_CALL_TARGET";
+    return py::capsule((void *)&matmul_rev, name);
   });
 }

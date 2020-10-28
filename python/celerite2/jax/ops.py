@@ -52,6 +52,12 @@ xla_client.register_cpu_custom_call_target(
 xla_client.register_cpu_custom_call_target(
     b"celerite2_dot_tril_rev", xla_ops.dot_tril_rev()
 )
+xla_client.register_cpu_custom_call_target(
+    b"celerite2_matmul", xla_ops.matmul()
+)
+xla_client.register_cpu_custom_call_target(
+    b"celerite2_matmul_rev", xla_ops.matmul_rev()
+)
 
 
 def factor(a, U, V, P):
@@ -77,6 +83,14 @@ def dot_tril(U, P, d, W, Y):
         X, F = dot_tril_vector_prim.bind(U, P, d, W, Y)
     else:
         X, F = dot_tril_prim.bind(U, P, d, W, Y)
+    return X
+
+
+def matmul(a, U, V, P, Y):
+    if Y.ndim == 1:
+        X, Z, F, G = matmul_vector_prim.bind(a, U, V, P, Y)
+    else:
+        X, Z, F, G = matmul_prim.bind(a, U, V, P, Y)
     return X
 
 
@@ -256,6 +270,7 @@ factor_prim = setup_spec(
         extra_outputs=(dict(name="S", shape="(N, J, J)"),),
     )
 )
+
 solve_prim = setup_spec(
     dict(
         name="celerite2_solve",
@@ -300,6 +315,7 @@ solve_vector_prim = setup_spec(
         ),
     )
 )
+
 norm_prim = setup_spec(
     dict(
         name="celerite2_norm",
@@ -319,6 +335,7 @@ norm_prim = setup_spec(
         ),
     )
 )
+
 dot_tril_prim = setup_spec(
     dict(
         name="celerite2_dot_tril",
@@ -353,6 +370,51 @@ dot_tril_vector_prim = setup_spec(
         ),
         outputs=(dict(name="X", shape="(N,)"),),
         extra_outputs=(dict(name="F", shape="(N, J)"),),
+    )
+)
+
+matmul_prim = setup_spec(
+    dict(
+        name="celerite2_matmul",
+        xla_name=b"celerite2_matmul",
+        get_dims=lambda *args: OrderedDict(
+            list(zip(("N", "J"), args[1])) + [("nrhs", args[4][1])]
+        ),
+        inputs=(
+            dict(name="a", shape="(N,)"),
+            dict(name="U", shape="(N, J)"),
+            dict(name="V", shape="(N, J)"),
+            dict(name="P", shape="(N - 1, J)"),
+            dict(name="Y", shape="(N, nrhs)"),
+        ),
+        outputs=(dict(name="X", shape="(N, nrhs)"),),
+        extra_outputs=(
+            dict(name="Z", shape="(N, nrhs)"),
+            dict(name="F", shape="(N, J, nrhs)"),
+            dict(name="G", shape="(N, J, nrhs)"),
+        ),
+    )
+)
+matmul_vector_prim = setup_spec(
+    dict(
+        name="celerite2_matmul",
+        xla_name=b"celerite2_matmul",
+        get_dims=lambda *args: OrderedDict(
+            list(zip(("N", "J"), args[1])) + [("nrhs", 1)]
+        ),
+        inputs=(
+            dict(name="a", shape="(N,)"),
+            dict(name="U", shape="(N, J)"),
+            dict(name="V", shape="(N, J)"),
+            dict(name="P", shape="(N - 1, J)"),
+            dict(name="Y", shape="(N,)"),
+        ),
+        outputs=(dict(name="X", shape="(N,)"),),
+        extra_outputs=(
+            dict(name="Z", shape="(N,)"),
+            dict(name="F", shape="(N, J)"),
+            dict(name="G", shape="(N, J)"),
+        ),
     )
 )
 
@@ -436,15 +498,6 @@ class wrap_rev:
                 return tuple(map(to_jax, func(*args, *map(to_np, grads))))
 
         return wrapped
-
-
-@jax.custom_vjp
-@wrap_impl(1)
-def matmul(a, U, V, P, Y):
-    return driver.matmul(a, U, V, P, Y, np.empty_like(Y))
-
-
-matmul.defvjp(wrap_fwd(1)(ext.matmul_fwd), wrap_rev(1)(ext.matmul_rev))
 
 
 @wrap_impl(1)
