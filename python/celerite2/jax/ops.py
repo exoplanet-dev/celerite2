@@ -20,11 +20,10 @@ from functools import wraps
 
 import jax
 import numpy as np
-from jax import core
+from jax import core, lax
 from jax import numpy as jnp
 from jax.abstract_arrays import ShapedArray
-from jax.interpreters import xla
-from jax.lax import _broadcasting_select
+from jax.interpreters import ad, xla
 from jax.lib import xla_client
 
 from .. import driver, ext
@@ -35,10 +34,14 @@ xops = xla_client.ops
 xla_client.register_cpu_custom_call_target(
     b"celerite2_factor", xla_ops.factor(), platform="cpu"
 )
+xla_client.register_cpu_custom_call_target(
+    b"celerite2_factor_rev", xla_ops.factor_rev(), platform="cpu"
+)
 
 
 def factor(a, U, V, P):
-    return factor_p.bind(a, U, V, P)
+    flag, d, W, S = factor_p.bind(a, U, V, P)
+    return d, W
 
 
 def factor_impl(a, U, V, P):
@@ -74,13 +77,6 @@ def factor_abstract_eval(a, U, V, P):
     ]
 
 
-def _nan_like(c, operand):
-    shape = c.get_shape(operand)
-    dtype = shape.element_type()
-    nan = xops.ConstantLiteral(c, np.array(np.nan, dtype=dtype))
-    return xops.Broadcast(nan, shape.dimensions())
-
-
 def factor_translation_rule(c, a, U, V, P):
     shape = c.get_shape(U)
 
@@ -89,7 +85,7 @@ def factor_translation_rule(c, a, U, V, P):
     if dtype != np.float64:
         raise ValueError("Invalid dtype; must be float64")
 
-    flag, d, W, S = xops.CustomCallWithLayout(
+    return xops.CustomCallWithLayout(
         c,
         b"celerite2_factor",
         operands=(
@@ -144,11 +140,134 @@ def factor_translation_rule(c, a, U, V, P):
         ),
     )
 
-    # Deal with failed solves
-    ok = xops.Eq(flag, xops.ConstantLiteral(c, np.array(0, np.int32)))
-    d = _broadcasting_select(c, xops.Reshape(ok, (1,)), d, _nan_like(c, d))
 
-    return d, W, S
+def factor_and_jvp(arg_values, arg_tangents):
+    a, U, V, P = arg_values
+    at, Ut, Vt, Pt = arg_tangents
+    flag, d, W, S = factor_p.bind(a, U, V, P)
+
+    def make_zero(x, tan):
+        return lax.zeros_like_array(x) if type(tan) is ad.Zero else tan
+
+    at, Ut, Vt, Pt = (
+        make_zero(a, at),
+        make_zero(U, Ut),
+        make_zero(V, Vt),
+        make_zero(P, Pt),
+    )
+    dt, Wt = factor_jvp_p.bind(a, U, V, P, d, W, S, at, Ut, Vt, Pt)
+    return ((flag, d, W, S), (None, dt, Wt, None))
+
+
+def factor_jvp_abstract_eval(a, U, V, P, d, W, S, at, Ut, Vt, Pt):
+    return [
+        ShapedArray(d.shape, jnp.float64),
+        ShapedArray(W.shape, jnp.float64),
+    ]
+
+
+def factor_jvp_transpose(ct, a, U, V, P, d, W, S, at, Ut, Vt, Pt):
+    def make_zero(x, tan):
+        return lax.zeros_like_array(x) if type(tan) is ad.Zero else tan
+
+    bd, bW = ct
+    bd = make_zero(d, bd)
+    bW = make_zero(W, bW)
+    ba, bU, bV, bP = factor_rev_p.bind(a, U, V, P, d, W, S, bd, bW)
+    return None, None, None, None, None, None, None, ba, bU, bV, bP
+
+
+def factor_rev_impl(a, U, V, P, d, W, S, bd, bW):
+    a, U, V, P, d, W, S, bd, bW = map(to_np, (a, U, V, P, d, W, S, bd, bW))
+    S = np.reshape(S, (len(S), -1))
+    ba, bU, bV, bW = ext.factor_rev(a, U, V, P, d, W, S, bd, bW)
+    return tuple(map(to_jax, (ba, bU, bV, bW)))
+
+
+def factor_rev_abstract_eval(a, U, V, P, d, W, S, bd, bW):
+    return [
+        ShapedArray(a.shape, jnp.float64),
+        ShapedArray(U.shape, jnp.float64),
+        ShapedArray(V.shape, jnp.float64),
+        ShapedArray(P.shape, jnp.float64),
+    ]
+
+
+def factor_rev_translation_rule(c, a, U, V, P, d, W, S, bd, bW):
+    shape = c.get_shape(U)
+    N, J = shape.dimensions()
+    dtype = shape.element_type()
+    if dtype != np.float64:
+        raise ValueError("Invalid dtype; must be float64")
+    return xops.CustomCallWithLayout(
+        c,
+        b"celerite2_factor_rev",
+        operands=(
+            xops.ConstantLiteral(c, np.int32(N)),
+            xops.ConstantLiteral(c, np.int32(J)),
+            a,
+            U,
+            V,
+            P,
+            d,
+            W,
+            S,
+            bd,
+            bW,
+        ),
+        shape_with_layout=xla_client.Shape.tuple_shape(
+            (
+                xla_client.Shape.array_shape(
+                    jnp.dtype(jnp.float64),
+                    (N,),
+                    (0,),
+                ),
+                xla_client.Shape.array_shape(
+                    jnp.dtype(jnp.float64),
+                    (N, J),
+                    (1, 0),
+                ),
+                xla_client.Shape.array_shape(
+                    jnp.dtype(jnp.float64),
+                    (N, J),
+                    (1, 0),
+                ),
+                xla_client.Shape.array_shape(
+                    jnp.dtype(jnp.float64),
+                    (N - 1, J),
+                    (
+                        1,
+                        0,
+                    ),
+                ),
+            )
+        ),
+        operand_shapes_with_layout=(
+            xla_client.Shape.array_shape(jnp.dtype(jnp.int32), (), ()),
+            xla_client.Shape.array_shape(jnp.dtype(jnp.int32), (), ()),
+            xla_client.Shape.array_shape(jnp.dtype(jnp.float64), (N,), (0,)),
+            xla_client.Shape.array_shape(
+                jnp.dtype(jnp.float64), (N, J), (1, 0)
+            ),
+            xla_client.Shape.array_shape(
+                jnp.dtype(jnp.float64), (N, J), (1, 0)
+            ),
+            xla_client.Shape.array_shape(
+                jnp.dtype(jnp.float64), (N - 1, J), (1, 0)
+            ),
+            xla_client.Shape.array_shape(jnp.dtype(jnp.float64), (N,), (0,)),
+            xla_client.Shape.array_shape(
+                jnp.dtype(jnp.float64), (N, J), (1, 0)
+            ),
+            xla_client.Shape.array_shape(
+                jnp.dtype(jnp.float64), (N, J, J), (2, 1, 0)
+            ),
+            xla_client.Shape.array_shape(jnp.dtype(jnp.float64), (N,), (0,)),
+            xla_client.Shape.array_shape(
+                jnp.dtype(jnp.float64), (N, J), (1, 0)
+            ),
+        ),
+    )
 
 
 factor_p = core.Primitive("celerite2_factor")
@@ -156,6 +275,20 @@ factor_p.multiple_results = True
 factor_p.def_impl(factor_impl)
 factor_p.def_abstract_eval(factor_abstract_eval)
 xla.backend_specific_translations["cpu"][factor_p] = factor_translation_rule
+ad.primitive_jvps[factor_p] = factor_and_jvp
+
+factor_jvp_p = core.Primitive("celerite2_factor_jvp")
+factor_jvp_p.multiple_results = True
+factor_jvp_p.def_abstract_eval(factor_jvp_abstract_eval)
+ad.primitive_transposes[factor_jvp_p] = factor_jvp_transpose
+
+factor_rev_p = core.Primitive("celerite2_factor_rev")
+factor_rev_p.multiple_results = True
+factor_rev_p.def_impl(factor_rev_impl)
+factor_rev_p.def_abstract_eval(factor_rev_abstract_eval)
+xla.backend_specific_translations["cpu"][
+    factor_rev_p
+] = factor_rev_translation_rule
 
 
 def to_jax(x):
