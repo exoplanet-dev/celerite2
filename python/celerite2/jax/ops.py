@@ -32,10 +32,10 @@ from . import xla_ops
 xops = xla_client.ops
 
 xla_client.register_cpu_custom_call_target(
-    b"celerite2_factor", xla_ops.factor(), platform="cpu"
+    b"celerite2_factor", xla_ops.factor()
 )
 xla_client.register_cpu_custom_call_target(
-    b"celerite2_factor_rev", xla_ops.factor_rev(), platform="cpu"
+    b"celerite2_factor_rev", xla_ops.factor_rev()
 )
 
 

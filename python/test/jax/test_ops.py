@@ -14,6 +14,7 @@ else:
 
     config.update("jax_enable_x64", True)
 
+    from jax import jit
     from jax.test_util import check_grads
 
     from celerite2.jax import ops
@@ -38,6 +39,7 @@ def test_factor():
     a, U, V, P, Y = get_matrices()
     d, W = driver.factor(U, P, np.copy(a), np.copy(V))
     check_op(ops.factor, [a, U, V, P], [d, W])
+    check_op(jit(ops.factor), [a, U, V, P], [d, W])
 
 
 @pytest.mark.parametrize("vector", [True, False])
