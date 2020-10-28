@@ -66,7 +66,8 @@ def matmul(a, U, V, P, Y):
 
 
 def conditional_mean(U, V, P, z, U_star, V_star, inds):
-    return conditional_mean_prim.bind(U, V, P, z, U_star, V_star, inds)
+    (mu,) = conditional_mean_prim.bind(U, V, P, z, U_star, V_star, inds)
+    return mu
 
 
 def _abstract_eval(spec, *args):
