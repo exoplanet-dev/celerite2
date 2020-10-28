@@ -93,3 +93,9 @@ def test_conditional_mean():
         [mu],
         grad=False,
     )
+    check_op(
+        jit(ops.conditional_mean),
+        [U, V, P, z, U_star, V_star, inds],
+        [mu],
+        grad=False,
+    )

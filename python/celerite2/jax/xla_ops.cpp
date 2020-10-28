@@ -336,6 +336,31 @@ const void matmul_rev(void *out_tuple, const void **in) {
 #undef FIXED_SIZE_MAP
 }
 
+const void conditional_mean(void *out_tuple, const void **in) {
+  void **out  = reinterpret_cast<void **>(out_tuple);
+  const int N = *reinterpret_cast<const int *>(in[0]);
+  const int J = *reinterpret_cast<const int *>(in[1]);
+  const int M = *reinterpret_cast<const int *>(in[2]);
+
+  CONST_VECTOR(Z, 6, N);
+  const std::int64_t *inds_base = reinterpret_cast<const std::int64_t *>(in[9]);
+  Eigen::Map<const Eigen::Matrix<std::int64_t, Eigen::Dynamic, 1>> inds(inds_base, M, 1);
+
+  VECTOR(mu, 0, M);
+
+#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
+  {                                                                                                                                                  \
+    CONST_MATRIX(SIZE, U, 3, N, J);                                                                                                                  \
+    CONST_MATRIX(SIZE, V, 4, N, J);                                                                                                                  \
+    CONST_MATRIX(SIZE, P, 5, N - 1, J);                                                                                                              \
+    CONST_MATRIX(SIZE, U_star, 7, M, J);                                                                                                             \
+    CONST_MATRIX(SIZE, V_star, 8, M, J);                                                                                                             \
+    celerite2::core::conditional_mean(U, V, P, Z, U_star, V_star, inds, mu);                                                                         \
+  }
+  UNWRAP_CASES;
+#undef FIXED_SIZE_MAP
+}
+
 PYBIND11_MODULE(xla_ops, m) {
   m.def("factor", []() {
     const char *name = "xla._CUSTOM_CALL_TARGET";
@@ -376,5 +401,9 @@ PYBIND11_MODULE(xla_ops, m) {
   m.def("matmul_rev", []() {
     const char *name = "xla._CUSTOM_CALL_TARGET";
     return py::capsule((void *)&matmul_rev, name);
+  });
+  m.def("conditional_mean", []() {
+    const char *name = "xla._CUSTOM_CALL_TARGET";
+    return py::capsule((void *)&conditional_mean, name);
   });
 }

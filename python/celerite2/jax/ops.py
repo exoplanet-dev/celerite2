@@ -17,9 +17,8 @@ __all__ = [
     "conditional_mean",
 ]
 from collections import OrderedDict
-from functools import partial, wraps
+from functools import partial
 
-import jax
 import numpy as np
 from jax import core, lax
 from jax import numpy as jnp
@@ -27,37 +26,9 @@ from jax.abstract_arrays import ShapedArray
 from jax.interpreters import ad, xla
 from jax.lib import xla_client
 
-from .. import driver, ext
 from . import xla_ops
 
 xops = xla_client.ops
-
-xla_client.register_cpu_custom_call_target(
-    b"celerite2_factor", xla_ops.factor()
-)
-xla_client.register_cpu_custom_call_target(
-    b"celerite2_factor_rev", xla_ops.factor_rev()
-)
-xla_client.register_cpu_custom_call_target(b"celerite2_solve", xla_ops.solve())
-xla_client.register_cpu_custom_call_target(
-    b"celerite2_solve_rev", xla_ops.solve_rev()
-)
-xla_client.register_cpu_custom_call_target(b"celerite2_norm", xla_ops.norm())
-xla_client.register_cpu_custom_call_target(
-    b"celerite2_norm_rev", xla_ops.norm_rev()
-)
-xla_client.register_cpu_custom_call_target(
-    b"celerite2_dot_tril", xla_ops.dot_tril()
-)
-xla_client.register_cpu_custom_call_target(
-    b"celerite2_dot_tril_rev", xla_ops.dot_tril_rev()
-)
-xla_client.register_cpu_custom_call_target(
-    b"celerite2_matmul", xla_ops.matmul()
-)
-xla_client.register_cpu_custom_call_target(
-    b"celerite2_matmul_rev", xla_ops.matmul_rev()
-)
 
 
 def factor(a, U, V, P):
@@ -92,6 +63,10 @@ def matmul(a, U, V, P, Y):
     else:
         X, Z, F, G = matmul_prim.bind(a, U, V, P, Y)
     return X
+
+
+def conditional_mean(U, V, P, z, U_star, V_star, inds):
+    return conditional_mean_prim.bind(U, V, P, z, U_star, V_star, inds)
 
 
 def _abstract_eval(spec, *args):
@@ -221,23 +196,34 @@ def _rev_translation_rule(spec, c, *args):
     return _translation_rule(rev_spec, c, *args)
 
 
-def setup_spec(spec):
-    prim = core.Primitive(spec["name"])
-    prim.multiple_results = True
-    jvp = core.Primitive(spec["name"] + "_jvp")
-    jvp.multiple_results = True
-    rev = core.Primitive(spec["name"] + "_rev")
-    rev.multiple_results = True
+def setup_spec(spec, grad=True):
+    xla_client.register_cpu_custom_call_target(
+        spec["xla_name"], getattr(xla_ops, spec["name"])()
+    )
 
+    prim = core.Primitive("celerite2_" + spec["name"])
+    prim.multiple_results = True
     spec["base_primitive"] = prim
-    spec["jvp_primitive"] = jvp
-    spec["rev_primitive"] = rev
 
     prim.def_impl(partial(xla.apply_primitive, prim))
     prim.def_abstract_eval(partial(_abstract_eval, spec))
     xla.backend_specific_translations["cpu"][prim] = partial(
         _translation_rule, spec
     )
+
+    if not grad:
+        return prim
+
+    xla_client.register_cpu_custom_call_target(
+        spec["xla_name"] + b"_rev", getattr(xla_ops, spec["name"] + "_rev")()
+    )
+
+    jvp = core.Primitive("celerite2_" + spec["name"] + "_jvp")
+    jvp.multiple_results = True
+    rev = core.Primitive("celerite2_" + spec["name"] + "_rev")
+    rev.multiple_results = True
+    spec["jvp_primitive"] = jvp
+    spec["rev_primitive"] = rev
 
     ad.primitive_jvps[prim] = partial(_jvp, spec)
     jvp.def_abstract_eval(partial(_jvp_abstract_eval, spec))
@@ -254,7 +240,7 @@ def setup_spec(spec):
 
 factor_prim = setup_spec(
     dict(
-        name="celerite2_factor",
+        name="factor",
         xla_name=b"celerite2_factor",
         get_dims=lambda *args: OrderedDict(list(zip(("N", "J"), args[1]))),
         inputs=(
@@ -273,7 +259,7 @@ factor_prim = setup_spec(
 
 solve_prim = setup_spec(
     dict(
-        name="celerite2_solve",
+        name="solve",
         xla_name=b"celerite2_solve",
         get_dims=lambda *args: OrderedDict(
             list(zip(("N", "J"), args[0])) + [("nrhs", args[4][1])]
@@ -295,7 +281,7 @@ solve_prim = setup_spec(
 )
 solve_vector_prim = setup_spec(
     dict(
-        name="celerite2_solve",
+        name="solve",
         xla_name=b"celerite2_solve",
         get_dims=lambda *args: OrderedDict(
             list(zip(("N", "J"), args[0])) + [("nrhs", 1)]
@@ -318,7 +304,7 @@ solve_vector_prim = setup_spec(
 
 norm_prim = setup_spec(
     dict(
-        name="celerite2_norm",
+        name="norm",
         xla_name=b"celerite2_norm",
         get_dims=lambda *args: OrderedDict(list(zip(("N", "J"), args[0]))),
         inputs=(
@@ -338,7 +324,7 @@ norm_prim = setup_spec(
 
 dot_tril_prim = setup_spec(
     dict(
-        name="celerite2_dot_tril",
+        name="dot_tril",
         xla_name=b"celerite2_dot_tril",
         get_dims=lambda *args: OrderedDict(
             list(zip(("N", "J"), args[0])) + [("nrhs", args[4][1])]
@@ -356,7 +342,7 @@ dot_tril_prim = setup_spec(
 )
 dot_tril_vector_prim = setup_spec(
     dict(
-        name="celerite2_dot_tril",
+        name="dot_tril",
         xla_name=b"celerite2_dot_tril",
         get_dims=lambda *args: OrderedDict(
             list(zip(("N", "J"), args[0])) + [("nrhs", 1)]
@@ -375,7 +361,7 @@ dot_tril_vector_prim = setup_spec(
 
 matmul_prim = setup_spec(
     dict(
-        name="celerite2_matmul",
+        name="matmul",
         xla_name=b"celerite2_matmul",
         get_dims=lambda *args: OrderedDict(
             list(zip(("N", "J"), args[1])) + [("nrhs", args[4][1])]
@@ -397,7 +383,7 @@ matmul_prim = setup_spec(
 )
 matmul_vector_prim = setup_spec(
     dict(
-        name="celerite2_matmul",
+        name="matmul",
         xla_name=b"celerite2_matmul",
         get_dims=lambda *args: OrderedDict(
             list(zip(("N", "J"), args[1])) + [("nrhs", 1)]
@@ -418,89 +404,24 @@ matmul_vector_prim = setup_spec(
     )
 )
 
-
-def to_jax(x):
-    return jnp.asarray(x)
-
-
-def to_np(x):
-    return np.asarray(x)
-
-
-class wrap_impl:
-    def __init__(self, num_out=None):
-        self.num_out = num_out
-
-    def __call__(self, func):
-        if self.num_out == 1:
-
-            @wraps(func)
-            def wrapped(*args):
-                return to_jax(func(*map(to_np, args)))
-
-        else:
-
-            @wraps(func)
-            def wrapped(*args):
-                out = func(*map(to_np, args))
-                return tuple(map(to_jax, out))
-
-        return wrapped
-
-
-class wrap_fwd:
-    def __init__(self, num_out):
-        self.num_out = int(num_out)
-
-    def __call__(self, func):
-        if self.num_out == 1:
-
-            @wraps(func)
-            def wrapped(*args):
-                in_arrays = tuple(map(to_np, args))
-                out_arrays = func(*in_arrays)
-                out_tensors = tuple(map(to_jax, out_arrays[: self.num_out]))
-                return (
-                    out_tensors[0],
-                    in_arrays + out_arrays,
-                )
-
-        else:
-
-            @wraps(func)
-            def wrapped(*args):
-                in_arrays = tuple(map(to_np, args))
-                out_arrays = func(*in_arrays)
-                out_tensors = tuple(map(to_jax, out_arrays[: self.num_out]))
-                return (
-                    out_tensors,
-                    in_arrays + out_arrays,
-                )
-
-        return wrapped
-
-
-class wrap_rev:
-    def __init__(self, num_out):
-        self.num_out = int(num_out)
-
-    def __call__(self, func):
-        if self.num_out == 1:
-
-            @wraps(func)
-            def wrapped(args, grads):
-                return tuple(map(to_jax, func(*args, to_np(grads))))
-
-        else:
-
-            @wraps(func)
-            def wrapped(args, grads):
-                return tuple(map(to_jax, func(*args, *map(to_np, grads))))
-
-        return wrapped
-
-
-@wrap_impl(1)
-def conditional_mean(U, V, P, z, U_star, V_star, inds):
-    mu = np.empty(len(inds), dtype=np.float64)
-    return driver.conditional_mean(U, V, P, z, U_star, V_star, inds, mu)
+conditional_mean_prim = setup_spec(
+    dict(
+        name="conditional_mean",
+        xla_name=b"celerite2_conditional_mean",
+        get_dims=lambda *args: OrderedDict(
+            list(zip(("N", "J"), args[1])) + [("M", args[6][0])]
+        ),
+        inputs=(
+            dict(name="U", shape="(N, J)"),
+            dict(name="V", shape="(N, J)"),
+            dict(name="P", shape="(N - 1, J)"),
+            dict(name="Z", shape="(N,)"),
+            dict(name="U_star", shape="(M, J)"),
+            dict(name="V_star", shape="(M, J)"),
+            dict(name="inds", shape="(M,)", dtype=np.int64),
+        ),
+        outputs=(dict(name="mu", shape="(M,)"),),
+        extra_outputs=(),
+    ),
+    grad=False,
+)
