@@ -1,75 +1,148 @@
 #include <pybind11/pybind11.h>
 #include <Eigen/Core>
 #include <celerite2/celerite2.h>
+#include "../driver.hpp"
 
 #include <iostream>
+
+#define GET_SIZES                                                                                                                                    \
+  const int N = *reinterpret_cast<const int *>(in[0]);                                                                                               \
+  const int J = *reinterpret_cast<const int *>(in[1]);                                                                                               \
+  void **out  = reinterpret_cast<void **>(out_tuple);
+
+#define VECTOR(NAME, INDEX, ROWS)                                                                                                                    \
+  double *NAME##_base = reinterpret_cast<double *>(out[INDEX]);                                                                                      \
+  Eigen::Map<Eigen::VectorXd> NAME(NAME##_base, ROWS, 1);
+#define MATRIX(SIZE, NAME, INDEX, ROWS, COLS)                                                                                                        \
+  double *NAME##_base = reinterpret_cast<double *>(out[INDEX]);                                                                                      \
+  Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, celerite2::driver::order<SIZE>::value>> NAME(NAME##_base, ROWS, COLS);
+
+#define CONST_VECTOR(NAME, INDEX, ROWS)                                                                                                              \
+  const double *NAME##_base = reinterpret_cast<const double *>(in[INDEX]);                                                                           \
+  Eigen::Map<const Eigen::VectorXd> NAME(NAME##_base, ROWS, 1);
+#define CONST_MATRIX(SIZE, NAME, INDEX, ROWS, COLS)                                                                                                  \
+  const double *NAME##_base = reinterpret_cast<const double *>(in[INDEX]);                                                                           \
+  Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, celerite2::driver::order<SIZE>::value>> NAME(NAME##_base, ROWS, COLS);
 
 namespace py = pybind11;
 
 const void factor(void *out_tuple, const void **in) {
-  typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Matrix;
+  void **out  = reinterpret_cast<void **>(out_tuple);
+  const int N = *reinterpret_cast<const int *>(in[0]);
+  const int J = *reinterpret_cast<const int *>(in[1]);
 
-  void **out    = reinterpret_cast<void **>(out_tuple);
-  double *d_out = reinterpret_cast<double *>(out[0]);
-  double *W_out = reinterpret_cast<double *>(out[1]);
-  double *S_out = reinterpret_cast<double *>(out[2]);
-
-  const int N        = *reinterpret_cast<const int *>(in[0]);
-  const int J        = *reinterpret_cast<const int *>(in[1]);
-  const double *a_in = reinterpret_cast<const double *>(in[2]);
-  const double *U_in = reinterpret_cast<const double *>(in[3]);
-  const double *V_in = reinterpret_cast<const double *>(in[4]);
-  const double *P_in = reinterpret_cast<const double *>(in[5]);
-
-  Eigen::Map<const Eigen::VectorXd> a(a_in, N);
-  Eigen::Map<const Matrix> U(U_in, N, J);
-  Eigen::Map<const Matrix> V(V_in, N, J);
-  Eigen::Map<const Matrix> P(P_in, N - 1, J);
-  Eigen::Map<Eigen::VectorXd> d(d_out, N);
-  Eigen::Map<Matrix> W(W_out, N, J);
-  Eigen::Map<Matrix> S(S_out, N, J * J);
-
-  Eigen::Index flag = celerite2::core::factor(a, U, V, P, d, W, S);
-  if (flag) d.setZero();
+  CONST_VECTOR(a, 2, N);
+  VECTOR(d, 0, N);
+#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
+  {                                                                                                                                                  \
+    CONST_MATRIX(SIZE, U, 3, N, J);                                                                                                                  \
+    CONST_MATRIX(SIZE, V, 4, N, J);                                                                                                                  \
+    CONST_MATRIX(SIZE, P, 5, N - 1, J);                                                                                                              \
+    MATRIX(SIZE, W, 1, N, J);                                                                                                                        \
+    MATRIX((SIZE * SIZE), S, 2, N, J *J);                                                                                                            \
+    Eigen::Index flag = celerite2::core::factor(a, U, V, P, d, W, S);                                                                                \
+    if (flag) d.setZero();                                                                                                                           \
+  }
+  UNWRAP_CASES;
+#undef FIXED_SIZE_MAP
 }
 
 const void factor_rev(void *out_tuple, const void **in) {
-  typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Matrix;
+  void **out  = reinterpret_cast<void **>(out_tuple);
+  const int N = *reinterpret_cast<const int *>(in[0]);
+  const int J = *reinterpret_cast<const int *>(in[1]);
 
+  CONST_VECTOR(a, 2, N);
+  CONST_VECTOR(d, 6, N);
+  CONST_VECTOR(bd, 9, N);
+  VECTOR(ba, 0, N);
+#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
+  {                                                                                                                                                  \
+    CONST_MATRIX(SIZE, U, 3, N, J);                                                                                                                  \
+    CONST_MATRIX(SIZE, V, 4, N, J);                                                                                                                  \
+    CONST_MATRIX(SIZE, P, 5, N - 1, J);                                                                                                              \
+    CONST_MATRIX(SIZE, W, 7, N, J);                                                                                                                  \
+    CONST_MATRIX((SIZE * SIZE), S, 8, N, J *J);                                                                                                      \
+    CONST_MATRIX(SIZE, bW, 10, N, J);                                                                                                                \
+    MATRIX(SIZE, bU, 1, N, J);                                                                                                                       \
+    MATRIX(SIZE, bV, 2, N, J);                                                                                                                       \
+    MATRIX(SIZE, bP, 3, N - 1, J);                                                                                                                   \
+    celerite2::core::factor_rev(a, U, V, P, d, W, S, bd, bW, ba, bU, bV, bP);                                                                        \
+  }
+  UNWRAP_CASES;
+#undef FIXED_SIZE_MAP
+}
+
+const void solve(void *out_tuple, const void **in) {
   void **out     = reinterpret_cast<void **>(out_tuple);
-  double *ba_out = reinterpret_cast<double *>(out[0]);
-  double *bU_out = reinterpret_cast<double *>(out[1]);
-  double *bV_out = reinterpret_cast<double *>(out[2]);
-  double *bP_out = reinterpret_cast<double *>(out[3]);
+  const int N    = *reinterpret_cast<const int *>(in[0]);
+  const int J    = *reinterpret_cast<const int *>(in[1]);
+  const int nrhs = *reinterpret_cast<const int *>(in[2]);
 
-  const int N         = *reinterpret_cast<const int *>(in[0]);
-  const int J         = *reinterpret_cast<const int *>(in[1]);
-  const double *a_in  = reinterpret_cast<const double *>(in[2]);
-  const double *U_in  = reinterpret_cast<const double *>(in[3]);
-  const double *V_in  = reinterpret_cast<const double *>(in[4]);
-  const double *P_in  = reinterpret_cast<const double *>(in[5]);
-  const double *d_in  = reinterpret_cast<const double *>(in[6]);
-  const double *W_in  = reinterpret_cast<const double *>(in[7]);
-  const double *S_in  = reinterpret_cast<const double *>(in[8]);
-  const double *bd_in = reinterpret_cast<const double *>(in[9]);
-  const double *bW_in = reinterpret_cast<const double *>(in[10]);
+  CONST_VECTOR(d, 5, N);
+#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
+  {                                                                                                                                                  \
+    CONST_MATRIX(SIZE, U, 3, N, J);                                                                                                                  \
+    CONST_MATRIX(SIZE, P, 4, N - 1, J);                                                                                                              \
+    CONST_MATRIX(SIZE, W, 6, N, J);                                                                                                                  \
+    if (nrhs == 1) {                                                                                                                                 \
+      CONST_VECTOR(Y, 7, N);                                                                                                                         \
+      VECTOR(X, 0, N);                                                                                                                               \
+      VECTOR(Z, 1, N);                                                                                                                               \
+      MATRIX(SIZE, F, 2, N, J);                                                                                                                      \
+      MATRIX(SIZE, G, 3, N, J);                                                                                                                      \
+      celerite2::core::solve(U, P, d, W, Y, X, Z, F, G);                                                                                             \
+    } else {                                                                                                                                         \
+      CONST_MATRIX(Eigen::Dynamic, Y, 7, N, nrhs);                                                                                                   \
+      MATRIX(Eigen::Dynamic, X, 0, N, nrhs);                                                                                                         \
+      MATRIX(Eigen::Dynamic, Z, 1, N, nrhs);                                                                                                         \
+      MATRIX(Eigen::Dynamic, F, 2, N, (J * nrhs));                                                                                                   \
+      MATRIX(Eigen::Dynamic, G, 3, N, (J * nrhs));                                                                                                   \
+      celerite2::core::solve(U, P, d, W, Y, X, Z, F, G);                                                                                             \
+    }                                                                                                                                                \
+  }
+  UNWRAP_CASES;
+#undef FIXED_SIZE_MAP
+}
 
-  Eigen::Map<const Eigen::VectorXd> a(a_in, N);
-  Eigen::Map<const Matrix> U(U_in, N, J);
-  Eigen::Map<const Matrix> V(V_in, N, J);
-  Eigen::Map<const Matrix> P(P_in, N - 1, J);
-  Eigen::Map<const Eigen::VectorXd> d(d_in, N);
-  Eigen::Map<const Matrix> W(W_in, N, J);
-  Eigen::Map<const Matrix> S(S_in, N, J * J);
-  Eigen::Map<const Eigen::VectorXd> bd(bd_in, N);
-  Eigen::Map<const Matrix> bW(bW_in, N, J);
+const void solve_rev(void *out_tuple, const void **in) {
+  void **out     = reinterpret_cast<void **>(out_tuple);
+  const int N    = *reinterpret_cast<const int *>(in[0]);
+  const int J    = *reinterpret_cast<const int *>(in[1]);
+  const int nrhs = *reinterpret_cast<const int *>(in[2]);
 
-  Eigen::Map<Eigen::VectorXd> ba(ba_out, N);
-  Eigen::Map<Matrix> bU(bU_out, N, J);
-  Eigen::Map<Matrix> bV(bV_out, N, J);
-  Eigen::Map<Matrix> bP(bP_out, N - 1, J);
-
-  celerite2::core::factor_rev(a, U, V, P, d, W, S, bd, bW, ba, bU, bV, bP);
+  CONST_VECTOR(d, 5, N);
+  VECTOR(bd, 2, N);
+#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
+  {                                                                                                                                                  \
+    CONST_MATRIX(SIZE, U, 3, N, J);                                                                                                                  \
+    CONST_MATRIX(SIZE, P, 4, N - 1, J);                                                                                                              \
+    CONST_MATRIX(SIZE, W, 6, N, J);                                                                                                                  \
+    MATRIX(SIZE, bU, 0, N, J);                                                                                                                       \
+    MATRIX(SIZE, bP, 1, N - 1, J);                                                                                                                   \
+    MATRIX(SIZE, bW, 3, N, J);                                                                                                                       \
+    if (nrhs == 1) {                                                                                                                                 \
+      CONST_VECTOR(Y, 7, N);                                                                                                                         \
+      CONST_VECTOR(X, 8, N);                                                                                                                         \
+      CONST_VECTOR(Z, 9, N);                                                                                                                         \
+      CONST_MATRIX(SIZE, F, 10, N, J);                                                                                                               \
+      CONST_MATRIX(SIZE, G, 11, N, J);                                                                                                               \
+      CONST_VECTOR(bX, 12, N);                                                                                                                       \
+      VECTOR(bY, 4, N);                                                                                                                              \
+      celerite2::core::solve_rev(U, P, d, W, Y, X, Z, F, G, bX, bU, bP, bd, bW, bY);                                                                 \
+    } else {                                                                                                                                         \
+      CONST_MATRIX(Eigen::Dynamic, Y, 7, N, nrhs);                                                                                                   \
+      CONST_MATRIX(Eigen::Dynamic, X, 8, N, nrhs);                                                                                                   \
+      CONST_MATRIX(Eigen::Dynamic, Z, 9, N, nrhs);                                                                                                   \
+      CONST_MATRIX(Eigen::Dynamic, F, 10, N, (J * nrhs));                                                                                            \
+      CONST_MATRIX(Eigen::Dynamic, G, 11, N, (J * nrhs));                                                                                            \
+      CONST_MATRIX(Eigen::Dynamic, bX, 12, N, nrhs);                                                                                                 \
+      MATRIX(Eigen::Dynamic, bY, 4, N, nrhs);                                                                                                        \
+      celerite2::core::solve_rev(U, P, d, W, Y, X, Z, F, G, bX, bU, bP, bd, bW, bY);                                                                 \
+    }                                                                                                                                                \
+  }
+  UNWRAP_CASES;
+#undef FIXED_SIZE_MAP
 }
 
 PYBIND11_MODULE(xla_ops, m) {
@@ -80,5 +153,13 @@ PYBIND11_MODULE(xla_ops, m) {
   m.def("factor_rev", []() {
     const char *name = "xla._CUSTOM_CALL_TARGET";
     return py::capsule((void *)&factor_rev, name);
+  });
+  m.def("solve", []() {
+    const char *name = "xla._CUSTOM_CALL_TARGET";
+    return py::capsule((void *)&solve, name);
+  });
+  m.def("solve_rev", []() {
+    const char *name = "xla._CUSTOM_CALL_TARGET";
+    return py::capsule((void *)&solve_rev, name);
   });
 }

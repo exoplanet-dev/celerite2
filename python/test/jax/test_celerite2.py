@@ -84,11 +84,7 @@ def test_errors():
         gp.compute(x, diag=diag, yerr=np.sqrt(diag))
 
     # Not positive definite
-    with pytest.raises(celerite2.backprop.LinAlgError):
-        gp.compute(x, diag=-10 * diag)
-
-    # Not positive definite with `quiet`
-    gp.compute(x, diag=-10 * diag, quiet=True)
+    gp.compute(x, diag=-10 * diag)
     ld = gp._log_det
     assert np.isinf(ld)
     assert ld < 0

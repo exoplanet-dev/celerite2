@@ -103,8 +103,8 @@ auto solve_fwd(py::array_t<double, py::array::c_style> U, py::array_t<double, py
       CONST_MATRIX(Eigen::Dynamic, Y_, Ybuf, N, nrhs);                                                                                               \
       MATRIX(Eigen::Dynamic, X_, Xbuf, N, nrhs);                                                                                                     \
       MATRIX(Eigen::Dynamic, Z_, Zbuf, N, nrhs);                                                                                                     \
-      MATRIX(Eigen::Dynamic, F_, Fbuf, N, J *nrhs);                                                                                                  \
-      MATRIX(Eigen::Dynamic, G_, Gbuf, N, J *nrhs);                                                                                                  \
+      MATRIX(Eigen::Dynamic, F_, Fbuf, N, (J * nrhs));                                                                                               \
+      MATRIX(Eigen::Dynamic, G_, Gbuf, N, (J * nrhs));                                                                                               \
       celerite2::core::solve(U_, P_, d_, W_, Y_, X_, Z_, F_, G_);                                                                                    \
     }                                                                                                                                                \
   }
@@ -162,8 +162,8 @@ auto solve_rev(py::array_t<double, py::array::c_style> U, py::array_t<double, py
       CONST_MATRIX(Eigen::Dynamic, Y_, Ybuf, N, nrhs);                                                                                               \
       CONST_MATRIX(Eigen::Dynamic, X_, Xbuf, N, nrhs);                                                                                               \
       CONST_MATRIX(Eigen::Dynamic, Z_, Zbuf, N, nrhs);                                                                                               \
-      CONST_MATRIX(Eigen::Dynamic, F_, Fbuf, N, J *nrhs);                                                                                            \
-      CONST_MATRIX(Eigen::Dynamic, G_, Gbuf, N, J *nrhs);                                                                                            \
+      CONST_MATRIX(Eigen::Dynamic, F_, Fbuf, N, (J * nrhs));                                                                                         \
+      CONST_MATRIX(Eigen::Dynamic, G_, Gbuf, N, (J * nrhs));                                                                                         \
                                                                                                                                                      \
       CONST_MATRIX(Eigen::Dynamic, bX_, bXbuf, N, nrhs);                                                                                             \
       MATRIX(Eigen::Dynamic, bY_, bYbuf, N, nrhs);                                                                                                   \
@@ -200,7 +200,7 @@ auto dot_tril_fwd(py::array_t<double, py::array::c_style> U, py::array_t<double,
     } else {                                                                                                                                         \
       CONST_MATRIX(Eigen::Dynamic, Y_, Ybuf, N, nrhs);                                                                                               \
       MATRIX(Eigen::Dynamic, Z_, Zbuf, N, nrhs);                                                                                                     \
-      MATRIX(Eigen::Dynamic, F_, Fbuf, N, J *nrhs);                                                                                                  \
+      MATRIX(Eigen::Dynamic, F_, Fbuf, N, (J * nrhs));                                                                                               \
       celerite2::core::dot_tril(U_, P_, d_, W_, Y_, Z_, F_);                                                                                         \
     }                                                                                                                                                \
   }
@@ -370,8 +370,8 @@ auto matmul_fwd(py::array_t<double, py::array::c_style> d, py::array_t<double, p
       CONST_MATRIX(Eigen::Dynamic, Y_, Ybuf, N, nrhs);                                                                                               \
       MATRIX(Eigen::Dynamic, X_, Xbuf, N, nrhs);                                                                                                     \
       MATRIX(Eigen::Dynamic, Z_, Zbuf, N, nrhs);                                                                                                     \
-      MATRIX(Eigen::Dynamic, F_, Fbuf, N, J *nrhs);                                                                                                  \
-      MATRIX(Eigen::Dynamic, G_, Gbuf, N, J *nrhs);                                                                                                  \
+      MATRIX(Eigen::Dynamic, F_, Fbuf, N, (J * nrhs));                                                                                               \
+      MATRIX(Eigen::Dynamic, G_, Gbuf, N, (J * nrhs));                                                                                               \
       celerite2::core::matmul(d_, U_, W_, P_, Y_, X_, Z_, F_, G_);                                                                                   \
     }                                                                                                                                                \
   }
@@ -429,8 +429,8 @@ auto matmul_rev(py::array_t<double, py::array::c_style> d, py::array_t<double, p
       CONST_MATRIX(Eigen::Dynamic, Y_, Ybuf, N, nrhs);                                                                                               \
       CONST_MATRIX(Eigen::Dynamic, X_, Xbuf, N, nrhs);                                                                                               \
       CONST_MATRIX(Eigen::Dynamic, Z_, Zbuf, N, nrhs);                                                                                               \
-      CONST_MATRIX(Eigen::Dynamic, F_, Fbuf, N, J *nrhs);                                                                                            \
-      CONST_MATRIX(Eigen::Dynamic, G_, Gbuf, N, J *nrhs);                                                                                            \
+      CONST_MATRIX(Eigen::Dynamic, F_, Fbuf, N, (J * nrhs));                                                                                         \
+      CONST_MATRIX(Eigen::Dynamic, G_, Gbuf, N, (J * nrhs));                                                                                         \
                                                                                                                                                      \
       CONST_MATRIX(Eigen::Dynamic, bX_, bXbuf, N, nrhs);                                                                                             \
       MATRIX(Eigen::Dynamic, bY_, bYbuf, N, nrhs);                                                                                                   \
