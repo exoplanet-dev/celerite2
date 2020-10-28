@@ -46,6 +46,12 @@ xla_client.register_cpu_custom_call_target(b"celerite2_norm", xla_ops.norm())
 xla_client.register_cpu_custom_call_target(
     b"celerite2_norm_rev", xla_ops.norm_rev()
 )
+xla_client.register_cpu_custom_call_target(
+    b"celerite2_dot_tril", xla_ops.dot_tril()
+)
+xla_client.register_cpu_custom_call_target(
+    b"celerite2_dot_tril_rev", xla_ops.dot_tril_rev()
+)
 
 
 def factor(a, U, V, P):
@@ -63,6 +69,14 @@ def solve(U, P, d, W, Y):
 
 def norm(U, P, d, W, Y):
     X, Z, F = norm_prim.bind(U, P, d, W, Y)
+    return X
+
+
+def dot_tril(U, P, d, W, Y):
+    if Y.ndim == 1:
+        X, F = dot_tril_vector_prim.bind(U, P, d, W, Y)
+    else:
+        X, F = dot_tril_prim.bind(U, P, d, W, Y)
     return X
 
 
@@ -305,6 +319,42 @@ norm_prim = setup_spec(
         ),
     )
 )
+dot_tril_prim = setup_spec(
+    dict(
+        name="celerite2_dot_tril",
+        xla_name=b"celerite2_dot_tril",
+        get_dims=lambda *args: OrderedDict(
+            list(zip(("N", "J"), args[0])) + [("nrhs", args[4][1])]
+        ),
+        inputs=(
+            dict(name="U", shape="(N, J)"),
+            dict(name="P", shape="(N - 1, J)"),
+            dict(name="d", shape="(N,)"),
+            dict(name="W", shape="(N, J)"),
+            dict(name="Y", shape="(N, nrhs)"),
+        ),
+        outputs=(dict(name="X", shape="(N, nrhs)"),),
+        extra_outputs=(dict(name="F", shape="(N, J, nrhs)"),),
+    )
+)
+dot_tril_vector_prim = setup_spec(
+    dict(
+        name="celerite2_dot_tril",
+        xla_name=b"celerite2_dot_tril",
+        get_dims=lambda *args: OrderedDict(
+            list(zip(("N", "J"), args[0])) + [("nrhs", 1)]
+        ),
+        inputs=(
+            dict(name="U", shape="(N, J)"),
+            dict(name="P", shape="(N - 1, J)"),
+            dict(name="d", shape="(N,)"),
+            dict(name="W", shape="(N, J)"),
+            dict(name="Y", shape="(N,)"),
+        ),
+        outputs=(dict(name="X", shape="(N,)"),),
+        extra_outputs=(dict(name="F", shape="(N, J)"),),
+    )
+)
 
 
 def to_jax(x):
@@ -386,42 +436,6 @@ class wrap_rev:
                 return tuple(map(to_jax, func(*args, *map(to_np, grads))))
 
         return wrapped
-
-
-# @jax.custom_vjp
-# @wrap_impl(2)
-# def factor(a, U, V, P):
-#     return driver.factor(U, P, np.copy(a), np.copy(V))
-
-
-# factor.defvjp(wrap_fwd(2)(ext.factor_fwd), wrap_rev(2)(ext.factor_rev))
-
-
-# @jax.custom_vjp
-# @wrap_impl(1)
-# def solve(U, P, d, W, Y):
-#     return driver.solve(U, P, d, W, np.copy(Y))
-
-
-# solve.defvjp(wrap_fwd(1)(ext.solve_fwd), wrap_rev(1)(ext.solve_rev))
-
-
-# @jax.custom_vjp
-# @wrap_impl(1)
-# def norm(U, P, d, W, Y):
-#     return driver.norm(U, P, d, W, np.copy(Y))
-
-
-# norm.defvjp(wrap_fwd(1)(ext.norm_fwd), wrap_rev(1)(ext.norm_rev))
-
-
-@jax.custom_vjp
-@wrap_impl(1)
-def dot_tril(U, P, d, W, Y):
-    return driver.dot_tril(U, P, d, W, np.copy(Y))
-
-
-dot_tril.defvjp(wrap_fwd(1)(ext.dot_tril_fwd), wrap_rev(1)(ext.dot_tril_rev))
 
 
 @jax.custom_vjp

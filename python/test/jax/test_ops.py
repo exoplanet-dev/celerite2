@@ -65,6 +65,7 @@ def test_dot_tril(vector):
     d, W = driver.factor(U, P, a, V)
     X = driver.dot_tril(U, P, d, W, np.copy(Y))
     check_op(ops.dot_tril, [U, P, d, W, Y], [X])
+    check_op(jit(ops.dot_tril), [U, P, d, W, Y], [X])
 
 
 @pytest.mark.parametrize("vector", [True, False])

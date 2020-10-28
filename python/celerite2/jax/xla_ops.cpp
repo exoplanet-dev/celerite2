@@ -200,6 +200,70 @@ const void norm_rev(void *out_tuple, const void **in) {
 #undef FIXED_SIZE_MAP
 }
 
+const void dot_tril(void *out_tuple, const void **in) {
+  void **out     = reinterpret_cast<void **>(out_tuple);
+  const int N    = *reinterpret_cast<const int *>(in[0]);
+  const int J    = *reinterpret_cast<const int *>(in[1]);
+  const int nrhs = *reinterpret_cast<const int *>(in[2]);
+
+  CONST_VECTOR(d, 5, N);
+#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
+  {                                                                                                                                                  \
+    CONST_MATRIX(SIZE, U, 3, N, J);                                                                                                                  \
+    CONST_MATRIX(SIZE, P, 4, N - 1, J);                                                                                                              \
+    CONST_MATRIX(SIZE, W, 6, N, J);                                                                                                                  \
+    if (nrhs == 1) {                                                                                                                                 \
+      CONST_VECTOR(Y, 7, N);                                                                                                                         \
+      VECTOR(X, 0, N);                                                                                                                               \
+      MATRIX(SIZE, F, 1, N, J);                                                                                                                      \
+      celerite2::core::dot_tril(U, P, d, W, Y, X, F);                                                                                                \
+    } else {                                                                                                                                         \
+      CONST_MATRIX(Eigen::Dynamic, Y, 7, N, nrhs);                                                                                                   \
+      MATRIX(Eigen::Dynamic, X, 0, N, nrhs);                                                                                                         \
+      MATRIX(Eigen::Dynamic, F, 1, N, (J * nrhs));                                                                                                   \
+      celerite2::core::dot_tril(U, P, d, W, Y, X, F);                                                                                                \
+    }                                                                                                                                                \
+  }
+  UNWRAP_CASES;
+#undef FIXED_SIZE_MAP
+}
+
+const void dot_tril_rev(void *out_tuple, const void **in) {
+  void **out     = reinterpret_cast<void **>(out_tuple);
+  const int N    = *reinterpret_cast<const int *>(in[0]);
+  const int J    = *reinterpret_cast<const int *>(in[1]);
+  const int nrhs = *reinterpret_cast<const int *>(in[2]);
+
+  CONST_VECTOR(d, 5, N);
+  VECTOR(bd, 2, N);
+#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
+  {                                                                                                                                                  \
+    CONST_MATRIX(SIZE, U, 3, N, J);                                                                                                                  \
+    CONST_MATRIX(SIZE, P, 4, N - 1, J);                                                                                                              \
+    CONST_MATRIX(SIZE, W, 6, N, J);                                                                                                                  \
+    MATRIX(SIZE, bU, 0, N, J);                                                                                                                       \
+    MATRIX(SIZE, bP, 1, N - 1, J);                                                                                                                   \
+    MATRIX(SIZE, bW, 3, N, J);                                                                                                                       \
+    if (nrhs == 1) {                                                                                                                                 \
+      CONST_VECTOR(Y, 7, N);                                                                                                                         \
+      CONST_VECTOR(X, 8, N);                                                                                                                         \
+      CONST_MATRIX(SIZE, F, 9, N, J);                                                                                                                \
+      CONST_VECTOR(bX, 10, N);                                                                                                                       \
+      VECTOR(bY, 4, N);                                                                                                                              \
+      celerite2::core::dot_tril_rev(U, P, d, W, Y, X, F, bX, bU, bP, bd, bW, bY);                                                                    \
+    } else {                                                                                                                                         \
+      CONST_MATRIX(Eigen::Dynamic, Y, 7, N, nrhs);                                                                                                   \
+      CONST_MATRIX(Eigen::Dynamic, X, 8, N, nrhs);                                                                                                   \
+      CONST_MATRIX(Eigen::Dynamic, F, 9, N, (J * nrhs));                                                                                             \
+      CONST_MATRIX(Eigen::Dynamic, bX, 10, N, nrhs);                                                                                                 \
+      MATRIX(Eigen::Dynamic, bY, 4, N, nrhs);                                                                                                        \
+      celerite2::core::dot_tril_rev(U, P, d, W, Y, X, F, bX, bU, bP, bd, bW, bY);                                                                    \
+    }                                                                                                                                                \
+  }
+  UNWRAP_CASES;
+#undef FIXED_SIZE_MAP
+}
+
 PYBIND11_MODULE(xla_ops, m) {
   m.def("factor", []() {
     const char *name = "xla._CUSTOM_CALL_TARGET";
@@ -224,5 +288,13 @@ PYBIND11_MODULE(xla_ops, m) {
   m.def("norm_rev", []() {
     const char *name = "xla._CUSTOM_CALL_TARGET";
     return py::capsule((void *)&norm_rev, name);
+  });
+  m.def("dot_tril", []() {
+    const char *name = "xla._CUSTOM_CALL_TARGET";
+    return py::capsule((void *)&dot_tril, name);
+  });
+  m.def("dot_tril_rev", []() {
+    const char *name = "xla._CUSTOM_CALL_TARGET";
+    return py::capsule((void *)&dot_tril_rev, name);
   });
 }
