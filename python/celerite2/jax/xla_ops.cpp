@@ -145,6 +145,61 @@ const void solve_rev(void *out_tuple, const void **in) {
 #undef FIXED_SIZE_MAP
 }
 
+const void norm(void *out_tuple, const void **in) {
+  void **out  = reinterpret_cast<void **>(out_tuple);
+  const int N = *reinterpret_cast<const int *>(in[0]);
+  const int J = *reinterpret_cast<const int *>(in[1]);
+
+  CONST_VECTOR(d, 4, N);
+  CONST_VECTOR(Y, 6, N);
+  VECTOR(Z, 1, N);
+
+  double *X_base = reinterpret_cast<double *>(out[0]);
+  Eigen::Map<Eigen::Matrix<double, 1, 1>> X(X_base, 1, 1);
+
+#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
+  {                                                                                                                                                  \
+    CONST_MATRIX(SIZE, U, 2, N, J);                                                                                                                  \
+    CONST_MATRIX(SIZE, P, 3, N - 1, J);                                                                                                              \
+    CONST_MATRIX(SIZE, W, 5, N, J);                                                                                                                  \
+    MATRIX(SIZE, F, 2, N, J);                                                                                                                        \
+    celerite2::core::norm(U, P, d, W, Y, X, Z, F);                                                                                                   \
+  }
+  UNWRAP_CASES;
+#undef FIXED_SIZE_MAP
+}
+
+const void norm_rev(void *out_tuple, const void **in) {
+  void **out  = reinterpret_cast<void **>(out_tuple);
+  const int N = *reinterpret_cast<const int *>(in[0]);
+  const int J = *reinterpret_cast<const int *>(in[1]);
+
+  CONST_VECTOR(d, 4, N);
+  CONST_VECTOR(Y, 6, N);
+  CONST_VECTOR(Z, 8, N);
+  VECTOR(bd, 2, N);
+  VECTOR(bY, 4, N);
+
+  const double *X_base = reinterpret_cast<const double *>(in[7]);
+  Eigen::Map<const Eigen::Matrix<double, 1, 1>> X(X_base, 1, 1);
+  const double *bX_base = reinterpret_cast<const double *>(in[10]);
+  Eigen::Map<const Eigen::Matrix<double, 1, 1>> bX(bX_base, 1, 1);
+
+#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
+  {                                                                                                                                                  \
+    CONST_MATRIX(SIZE, U, 2, N, J);                                                                                                                  \
+    CONST_MATRIX(SIZE, P, 3, N - 1, J);                                                                                                              \
+    CONST_MATRIX(SIZE, W, 5, N, J);                                                                                                                  \
+    CONST_MATRIX(SIZE, F, 9, N, J);                                                                                                                  \
+    MATRIX(SIZE, bU, 0, N, J);                                                                                                                       \
+    MATRIX(SIZE, bP, 1, N - 1, J);                                                                                                                   \
+    MATRIX(SIZE, bW, 3, N, J);                                                                                                                       \
+    celerite2::core::norm_rev(U, P, d, W, Y, X, Z, F, bX, bU, bP, bd, bW, bY);                                                                       \
+  }
+  UNWRAP_CASES;
+#undef FIXED_SIZE_MAP
+}
+
 PYBIND11_MODULE(xla_ops, m) {
   m.def("factor", []() {
     const char *name = "xla._CUSTOM_CALL_TARGET";
@@ -161,5 +216,13 @@ PYBIND11_MODULE(xla_ops, m) {
   m.def("solve_rev", []() {
     const char *name = "xla._CUSTOM_CALL_TARGET";
     return py::capsule((void *)&solve_rev, name);
+  });
+  m.def("norm", []() {
+    const char *name = "xla._CUSTOM_CALL_TARGET";
+    return py::capsule((void *)&norm, name);
+  });
+  m.def("norm_rev", []() {
+    const char *name = "xla._CUSTOM_CALL_TARGET";
+    return py::capsule((void *)&norm_rev, name);
   });
 }

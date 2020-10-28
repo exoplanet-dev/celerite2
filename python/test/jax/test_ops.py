@@ -56,6 +56,7 @@ def test_norm():
     d, W = driver.factor(U, P, a, V)
     X = driver.norm(U, P, d, W, np.copy(Y))
     check_op(ops.norm, [U, P, d, W, Y], [X])
+    check_op(jit(ops.norm), [U, P, d, W, Y], [X])
 
 
 @pytest.mark.parametrize("vector", [True, False])

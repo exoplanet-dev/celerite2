@@ -42,6 +42,10 @@ xla_client.register_cpu_custom_call_target(b"celerite2_solve", xla_ops.solve())
 xla_client.register_cpu_custom_call_target(
     b"celerite2_solve_rev", xla_ops.solve_rev()
 )
+xla_client.register_cpu_custom_call_target(b"celerite2_norm", xla_ops.norm())
+xla_client.register_cpu_custom_call_target(
+    b"celerite2_norm_rev", xla_ops.norm_rev()
+)
 
 
 def factor(a, U, V, P):
@@ -54,6 +58,11 @@ def solve(U, P, d, W, Y):
         X, Z, F, G = solve_vector_prim.bind(U, P, d, W, Y)
     else:
         X, Z, F, G = solve_prim.bind(U, P, d, W, Y)
+    return X
+
+
+def norm(U, P, d, W, Y):
+    X, Z, F = norm_prim.bind(U, P, d, W, Y)
     return X
 
 
@@ -277,6 +286,25 @@ solve_vector_prim = setup_spec(
         ),
     )
 )
+norm_prim = setup_spec(
+    dict(
+        name="celerite2_norm",
+        xla_name=b"celerite2_norm",
+        get_dims=lambda *args: OrderedDict(list(zip(("N", "J"), args[0]))),
+        inputs=(
+            dict(name="U", shape="(N, J)"),
+            dict(name="P", shape="(N - 1, J)"),
+            dict(name="d", shape="(N,)"),
+            dict(name="W", shape="(N, J)"),
+            dict(name="Y", shape="(N,)"),
+        ),
+        outputs=(dict(name="X", shape="()"),),
+        extra_outputs=(
+            dict(name="Z", shape="(N,)"),
+            dict(name="F", shape="(N, J)"),
+        ),
+    )
+)
 
 
 def to_jax(x):
@@ -378,13 +406,13 @@ class wrap_rev:
 # solve.defvjp(wrap_fwd(1)(ext.solve_fwd), wrap_rev(1)(ext.solve_rev))
 
 
-@jax.custom_vjp
-@wrap_impl(1)
-def norm(U, P, d, W, Y):
-    return driver.norm(U, P, d, W, np.copy(Y))
+# @jax.custom_vjp
+# @wrap_impl(1)
+# def norm(U, P, d, W, Y):
+#     return driver.norm(U, P, d, W, np.copy(Y))
 
 
-norm.defvjp(wrap_fwd(1)(ext.norm_fwd), wrap_rev(1)(ext.norm_rev))
+# norm.defvjp(wrap_fwd(1)(ext.norm_fwd), wrap_rev(1)(ext.norm_rev))
 
 
 @jax.custom_vjp
