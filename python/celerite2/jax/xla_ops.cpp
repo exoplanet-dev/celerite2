@@ -10,10 +10,9 @@ const void factor(void *out_tuple, const void **in) {
   typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Matrix;
 
   void **out    = reinterpret_cast<void **>(out_tuple);
-  int *flag     = reinterpret_cast<int *>(out[0]);
-  double *d_out = reinterpret_cast<double *>(out[1]);
-  double *W_out = reinterpret_cast<double *>(out[2]);
-  double *S_out = reinterpret_cast<double *>(out[3]);
+  double *d_out = reinterpret_cast<double *>(out[0]);
+  double *W_out = reinterpret_cast<double *>(out[1]);
+  double *S_out = reinterpret_cast<double *>(out[2]);
 
   const int N        = *reinterpret_cast<const int *>(in[0]);
   const int J        = *reinterpret_cast<const int *>(in[1]);
@@ -30,7 +29,8 @@ const void factor(void *out_tuple, const void **in) {
   Eigen::Map<Matrix> W(W_out, N, J);
   Eigen::Map<Matrix> S(S_out, N, J * J);
 
-  *flag = static_cast<int>(celerite2::core::factor(a, U, V, P, d, W, S));
+  Eigen::Index flag = celerite2::core::factor(a, U, V, P, d, W, S);
+  if (flag) d.setZero();
 }
 
 const void factor_rev(void *out_tuple, const void **in) {

@@ -16,7 +16,7 @@ __all__ = [
     "matmul",
     "conditional_mean",
 ]
-from functools import wraps
+from functools import partial, wraps
 
 import jax
 import numpy as np
@@ -40,255 +40,189 @@ xla_client.register_cpu_custom_call_target(
 
 
 def factor(a, U, V, P):
-    flag, d, W, S = factor_p.bind(a, U, V, P)
+    d, W, S = factor_p.bind(a, U, V, P)
     return d, W
 
 
-def factor_impl(a, U, V, P):
-    return xla.apply_primitive(factor_p, a, U, V, P)
+def _abstract_eval(spec, *args):
+    N, J = args[1].shape
+    vals = dict(N=N, J=J)
+    for s, arg in zip(spec["inputs"], args):
+        if arg.dtype != s.get("dtype", np.float64):
+            raise ValueError(
+                f"Invalid dtype for '{s['name']}'; "
+                f"expected {s.get('dtype', np.float64)}, got {arg.dtype}"
+            )
+        shape = eval(s["shape"], vals)
+        if arg.shape != shape:
+            raise ValueError(
+                f"Invalid shape for '{s['name']}'; "
+                f"expected {shape}, got {arg.shape}"
+            )
+
+    return tuple(
+        ShapedArray(eval(s["shape"], vals), s.get("dtype", np.float64))
+        for s in spec["outputs"] + spec["extra_outputs"]
+    )
 
 
-def factor_abstract_eval(a, U, V, P):
-    N, J = U.shape
-    if a.shape != (N,):
-        raise ValueError(
-            f"Invalid shape for 'a'; expected {(N,)}, got {a.shape}"
-        )
-    if V.shape != (N, J):
-        raise ValueError(
-            f"Invalid shape for 'V'; expected {(N, J)}, got {V.shape}"
-        )
-    if P.shape != (N - 1, J):
-        raise ValueError(
-            f"Invalid shape for 'P'; expected {(N - 1, J)}, got {P.shape}"
-        )
-    if (
-        a.dtype != jnp.float64
-        or U.dtype != jnp.float64
-        or V.dtype != jnp.float64
-        or P.dtype != jnp.float64
-    ):
-        raise ValueError("Invalid dtype; must be float64")
-    return [
-        ShapedArray((), jnp.int32),
-        ShapedArray(a.shape, jnp.float64),
-        ShapedArray(V.shape, jnp.float64),
-        ShapedArray((N, J, J), jnp.float64),
-    ]
-
-
-def factor_translation_rule(c, a, U, V, P):
-    shape = c.get_shape(U)
-
+def _translation_rule(spec, c, *args):
+    shape = c.get_shape(args[1])
     N, J = shape.dimensions()
+    vals = dict(N=N, J=J)
     dtype = shape.element_type()
     if dtype != np.float64:
         raise ValueError("Invalid dtype; must be float64")
 
     return xops.CustomCallWithLayout(
         c,
-        b"celerite2_factor",
+        spec["xla_name"],
         operands=(
             xops.ConstantLiteral(c, np.int32(N)),
             xops.ConstantLiteral(c, np.int32(J)),
-            a,
-            U,
-            V,
-            P,
+            *args,
         ),
         shape_with_layout=xla_client.Shape.tuple_shape(
-            (
+            tuple(
                 xla_client.Shape.array_shape(
-                    jnp.dtype(jnp.int32),
-                    (),
-                    (),
-                ),
-                xla_client.Shape.array_shape(
-                    jnp.dtype(jnp.float64),
-                    (N,),
-                    (0,),
-                ),
-                xla_client.Shape.array_shape(
-                    jnp.dtype(jnp.float64),
-                    (N, J),
-                    (1, 0),
-                ),
-                xla_client.Shape.array_shape(
-                    jnp.dtype(jnp.float64),
-                    (N, J, J),
+                    jnp.dtype(dtype),
+                    shape,
+                    tuple(range(len(shape) - 1, -1, -1)),
+                )
+                for dtype, shape in (
                     (
-                        2,
-                        1,
-                        0,
-                    ),
-                ),
+                        s.get("dtype", np.float64),
+                        eval(s["shape"], vals),
+                    )
+                    for s in spec["outputs"] + spec["extra_outputs"]
+                )
             )
         ),
         operand_shapes_with_layout=(
             xla_client.Shape.array_shape(jnp.dtype(jnp.int32), (), ()),
             xla_client.Shape.array_shape(jnp.dtype(jnp.int32), (), ()),
-            xla_client.Shape.array_shape(jnp.dtype(jnp.float64), (N,), (0,)),
+        )
+        + tuple(
             xla_client.Shape.array_shape(
-                jnp.dtype(jnp.float64), (N, J), (1, 0)
-            ),
-            xla_client.Shape.array_shape(
-                jnp.dtype(jnp.float64), (N, J), (1, 0)
-            ),
-            xla_client.Shape.array_shape(
-                jnp.dtype(jnp.float64), (N - 1, J), (1, 0)
-            ),
-        ),
-    )
-
-
-def factor_and_jvp(arg_values, arg_tangents):
-    a, U, V, P = arg_values
-    at, Ut, Vt, Pt = arg_tangents
-    flag, d, W, S = factor_p.bind(a, U, V, P)
-
-    def make_zero(x, tan):
-        return lax.zeros_like_array(x) if type(tan) is ad.Zero else tan
-
-    at, Ut, Vt, Pt = (
-        make_zero(a, at),
-        make_zero(U, Ut),
-        make_zero(V, Vt),
-        make_zero(P, Pt),
-    )
-    dt, Wt = factor_jvp_p.bind(a, U, V, P, d, W, S, at, Ut, Vt, Pt)
-    return ((flag, d, W, S), (None, dt, Wt, None))
-
-
-def factor_jvp_abstract_eval(a, U, V, P, d, W, S, at, Ut, Vt, Pt):
-    return [
-        ShapedArray(d.shape, jnp.float64),
-        ShapedArray(W.shape, jnp.float64),
-    ]
-
-
-def factor_jvp_transpose(ct, a, U, V, P, d, W, S, at, Ut, Vt, Pt):
-    def make_zero(x, tan):
-        return lax.zeros_like_array(x) if type(tan) is ad.Zero else tan
-
-    bd, bW = ct
-    bd = make_zero(d, bd)
-    bW = make_zero(W, bW)
-    ba, bU, bV, bP = factor_rev_p.bind(a, U, V, P, d, W, S, bd, bW)
-    return None, None, None, None, None, None, None, ba, bU, bV, bP
-
-
-def factor_rev_impl(a, U, V, P, d, W, S, bd, bW):
-    a, U, V, P, d, W, S, bd, bW = map(to_np, (a, U, V, P, d, W, S, bd, bW))
-    S = np.reshape(S, (len(S), -1))
-    ba, bU, bV, bW = ext.factor_rev(a, U, V, P, d, W, S, bd, bW)
-    return tuple(map(to_jax, (ba, bU, bV, bW)))
-
-
-def factor_rev_abstract_eval(a, U, V, P, d, W, S, bd, bW):
-    return [
-        ShapedArray(a.shape, jnp.float64),
-        ShapedArray(U.shape, jnp.float64),
-        ShapedArray(V.shape, jnp.float64),
-        ShapedArray(P.shape, jnp.float64),
-    ]
-
-
-def factor_rev_translation_rule(c, a, U, V, P, d, W, S, bd, bW):
-    shape = c.get_shape(U)
-    N, J = shape.dimensions()
-    dtype = shape.element_type()
-    if dtype != np.float64:
-        raise ValueError("Invalid dtype; must be float64")
-    return xops.CustomCallWithLayout(
-        c,
-        b"celerite2_factor_rev",
-        operands=(
-            xops.ConstantLiteral(c, np.int32(N)),
-            xops.ConstantLiteral(c, np.int32(J)),
-            a,
-            U,
-            V,
-            P,
-            d,
-            W,
-            S,
-            bd,
-            bW,
-        ),
-        shape_with_layout=xla_client.Shape.tuple_shape(
-            (
-                xla_client.Shape.array_shape(
-                    jnp.dtype(jnp.float64),
-                    (N,),
-                    (0,),
-                ),
-                xla_client.Shape.array_shape(
-                    jnp.dtype(jnp.float64),
-                    (N, J),
-                    (1, 0),
-                ),
-                xla_client.Shape.array_shape(
-                    jnp.dtype(jnp.float64),
-                    (N, J),
-                    (1, 0),
-                ),
-                xla_client.Shape.array_shape(
-                    jnp.dtype(jnp.float64),
-                    (N - 1, J),
-                    (
-                        1,
-                        0,
-                    ),
-                ),
+                jnp.dtype(dtype),
+                shape,
+                tuple(range(len(shape) - 1, -1, -1)),
+            )
+            for dtype, shape in (
+                (s.get("dtype", np.float64), eval(s["shape"], vals))
+                for s in spec["inputs"]
             )
         ),
-        operand_shapes_with_layout=(
-            xla_client.Shape.array_shape(jnp.dtype(jnp.int32), (), ()),
-            xla_client.Shape.array_shape(jnp.dtype(jnp.int32), (), ()),
-            xla_client.Shape.array_shape(jnp.dtype(jnp.float64), (N,), (0,)),
-            xla_client.Shape.array_shape(
-                jnp.dtype(jnp.float64), (N, J), (1, 0)
-            ),
-            xla_client.Shape.array_shape(
-                jnp.dtype(jnp.float64), (N, J), (1, 0)
-            ),
-            xla_client.Shape.array_shape(
-                jnp.dtype(jnp.float64), (N - 1, J), (1, 0)
-            ),
-            xla_client.Shape.array_shape(jnp.dtype(jnp.float64), (N,), (0,)),
-            xla_client.Shape.array_shape(
-                jnp.dtype(jnp.float64), (N, J), (1, 0)
-            ),
-            xla_client.Shape.array_shape(
-                jnp.dtype(jnp.float64), (N, J, J), (2, 1, 0)
-            ),
-            xla_client.Shape.array_shape(jnp.dtype(jnp.float64), (N,), (0,)),
-            xla_client.Shape.array_shape(
-                jnp.dtype(jnp.float64), (N, J), (1, 0)
-            ),
-        ),
     )
 
 
-factor_p = core.Primitive("celerite2_factor")
-factor_p.multiple_results = True
-factor_p.def_impl(factor_impl)
-factor_p.def_abstract_eval(factor_abstract_eval)
-xla.backend_specific_translations["cpu"][factor_p] = factor_translation_rule
-ad.primitive_jvps[factor_p] = factor_and_jvp
+def _jvp(spec, arg_values, arg_tangents):
+    def make_zero(x, t):
+        return lax.zeros_like_array(x) if type(t) is ad.Zero else t
 
-factor_jvp_p = core.Primitive("celerite2_factor_jvp")
-factor_jvp_p.multiple_results = True
-factor_jvp_p.def_abstract_eval(factor_jvp_abstract_eval)
-ad.primitive_transposes[factor_jvp_p] = factor_jvp_transpose
+    out_values = tuple(spec["base_primitive"].bind(*arg_values))
+    arg_tangents = tuple(
+        make_zero(x, t) for x, t in zip(arg_values, arg_tangents)
+    )
+    out_tangents = tuple(
+        spec["jvp_primitive"].bind(*(arg_values + out_values + arg_tangents))
+    )
+    return out_values, out_tangents + tuple(
+        None for _ in spec["extra_outputs"]
+    )
 
-factor_rev_p = core.Primitive("celerite2_factor_rev")
-factor_rev_p.multiple_results = True
-factor_rev_p.def_impl(factor_rev_impl)
-factor_rev_p.def_abstract_eval(factor_rev_abstract_eval)
-xla.backend_specific_translations["cpu"][
-    factor_rev_p
-] = factor_rev_translation_rule
+
+def _jvp_abstract_eval(spec, *args):
+    return tuple(
+        ShapedArray(arg.shape, arg.dtype)
+        for arg in args[
+            len(spec["inputs"]) : len(spec["inputs"]) + len(spec["outputs"])
+        ]
+    )
+
+
+def _jvp_transpose(spec, c_out, *args):
+    def make_zero(x, t):
+        return lax.zeros_like_array(x) if type(t) is ad.Zero else t
+
+    nin = len(spec["inputs"])
+    nout = len(spec["outputs"])
+    nargs = nin + nout + len(spec["extra_outputs"])
+    c_out = tuple(
+        make_zero(x, t) for x, t in zip(args[nin : nin + nout], c_out)
+    )
+    c_in = tuple(spec["rev_primitive"].bind(*(args[:nargs] + c_out)))
+    return tuple(None for _ in range(nargs)) + c_in
+
+
+def _rev_abstract_eval(spec, *args):
+    return tuple(
+        ShapedArray(arg.shape, arg.dtype)
+        for arg in args[: len(spec["inputs"])]
+    )
+
+
+def _rev_translation_rule(spec, c, *args):
+    rev_spec = dict(
+        xla_name=spec["xla_name"] + b"_rev",
+        inputs=spec["inputs"]
+        + spec["outputs"]
+        + spec["extra_outputs"]
+        + spec["outputs"],
+        outputs=spec["inputs"],
+        extra_outputs=(),
+    )
+    return _translation_rule(rev_spec, c, *args)
+
+
+def setup_spec(spec):
+    prim = core.Primitive(spec["name"])
+    prim.multiple_results = True
+    jvp = core.Primitive(spec["name"] + "_jvp")
+    jvp.multiple_results = True
+    rev = core.Primitive(spec["name"] + "_rev")
+    rev.multiple_results = True
+
+    spec["base_primitive"] = prim
+    spec["jvp_primitive"] = jvp
+    spec["rev_primitive"] = rev
+
+    prim.def_impl(partial(xla.apply_primitive, prim))
+    prim.def_abstract_eval(partial(_abstract_eval, spec))
+    xla.backend_specific_translations["cpu"][prim] = partial(
+        _translation_rule, spec
+    )
+
+    ad.primitive_jvps[prim] = partial(_jvp, spec)
+    jvp.def_abstract_eval(partial(_jvp_abstract_eval, spec))
+    ad.primitive_transposes[jvp] = partial(_jvp_transpose, spec)
+
+    rev.def_impl(partial(xla.apply_primitive, rev))
+    rev.def_abstract_eval(partial(_rev_abstract_eval, spec))
+    xla.backend_specific_translations["cpu"][rev] = partial(
+        _rev_translation_rule, spec
+    )
+
+    return prim
+
+
+factor_p = setup_spec(
+    dict(
+        name="celerite2_factor",
+        xla_name=b"celerite2_factor",
+        inputs=(
+            dict(name="a", shape="(N,)"),
+            dict(name="U", shape="(N, J)"),
+            dict(name="V", shape="(N, J)"),
+            dict(name="P", shape="(N - 1, J)"),
+        ),
+        outputs=(
+            dict(name="d", shape="(N,)"),
+            dict(name="W", shape="(N, J)"),
+        ),
+        extra_outputs=(dict(name="S", shape="(N, J, J)"),),
+    )
+)
 
 
 def to_jax(x):
