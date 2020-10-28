@@ -15,6 +15,8 @@ else:
 
     config.update("jax_enable_x64", True)
 
+    from jax import jit
+
     from celerite2.jax import GaussianProcess, terms
 
 
@@ -70,10 +72,6 @@ def test_errors():
     # Need to call compute first
     with pytest.raises(RuntimeError):
         gp.log_likelihood(y)
-
-    # Sorted
-    with pytest.raises(ValueError):
-        gp.compute(np.copy(x[::-1]), diag=diag)
 
     # 1D
     with pytest.raises(ValueError):

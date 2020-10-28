@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.5.2
+#       jupytext_version: 1.6.0
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -36,7 +36,10 @@ import matplotlib.pyplot as plt
 np.random.seed(42)
 
 t = np.sort(
-    np.append(np.random.uniform(0, 3.8, 57), np.random.uniform(5.5, 10, 68),)
+    np.append(
+        np.random.uniform(0, 3.8, 57),
+        np.random.uniform(5.5, 10, 68),
+    )
 )  # The input coordinates must be sorted
 yerr = np.random.uniform(0.08, 0.22, len(t))
 y = (
@@ -263,7 +266,8 @@ with pm.Model() as model:
         draws=1000,
         target_accept=0.95,
         init="adapt_full",
-        cores=1,
+        cores=2,
+        chains=2,
         random_seed=34923,
     )
 # -
@@ -286,3 +290,59 @@ _ = plt.title("posterior psd using PyMC3")
 
 # In this particular case, the runtime with PyMC3 is somewhat longer than with emcee, but it also produced more effective samples.
 # If we were to run a higher dimensional model (with more parameters) then PyMC3 will generally be substantially faster.
+
+# ## Posterior inference using numpyro
+#
+
+# +
+from jax.config import config
+
+config.update("jax_enable_x64", True)
+
+from jax import random
+
+import numpyro
+import numpyro.distributions as dist
+from numpyro.infer import MCMC, NUTS
+
+import celerite2.jax
+from celerite2.jax import terms as jax_terms
+
+
+class CeleriteDist(dist.Distribution):
+    support = dist.constraints.real
+
+    def __init__(self, gp, validate_args=None):
+        self.gp = gp
+        super().__init__(validate_args=validate_args)
+
+    @dist.util.validate_sample
+    def log_prob(self, value):
+        return self.gp.log_likelihood(value)
+
+
+def numpyro_model(t, yerr, y=None):
+    mean = numpyro.sample("mean", dist.Normal(0.0, 5.0))
+    jitter = numpyro.sample("jitter", dist.LogNormal(0.0, 5.0))
+
+    sigma1 = numpyro.sample("sigma1", dist.LogNormal(0.0, 5.0))
+    rho1 = numpyro.sample("rho1", dist.LogNormal(0.0, 5.0))
+    tau = numpyro.sample("tau", dist.LogNormal(0.0, 5.0))
+    term1 = jax_terms.UnderdampedSHOTerm(sigma=sigma1, rho=rho1, tau=tau)
+
+    sigma2 = numpyro.sample("sigma2", dist.LogNormal(0.0, 5.0))
+    rho2 = numpyro.sample("rho2", dist.LogNormal(0.0, 5.0))
+    term2 = jax_terms.OverdampedSHOTerm(sigma=sigma2, rho=rho2, Q=0.25)
+
+    kernel = term1 + term2
+    gp = celerite2.jax.GaussianProcess(kernel, mean=mean)
+    gp.compute(t, diag=yerr ** 2 + jitter, check_sorted=False)
+
+    numpyro.sample("obs", CeleriteDist(gp), obs=y)
+
+
+nuts_kernel = NUTS(numpyro_model, dense_mass=True)
+mcmc = MCMC(nuts_kernel, num_warmup=1000, num_samples=1000, num_chains=2)
+rng_key = random.PRNGKey(34923)
+# %time mcmc.run(rng_key, t, yerr, y=y)
+# -

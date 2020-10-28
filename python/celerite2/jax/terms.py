@@ -14,6 +14,7 @@ __all__ = [
 ]
 from itertools import chain, product
 
+from jax import lax
 from jax import numpy as np
 
 from .. import terms as base_terms
@@ -401,14 +402,22 @@ class ComplexTerm(Term):
         )
 
 
-class SHOTerm(Term):
+def SHOTerm(*args, **kwargs):
+    over = OverdampedSHOTerm(*args, **kwargs)
+    under = UnderdampedSHOTerm(*args, **kwargs)
+    if over.Q < 0.5:
+        return over
+    return under
+
+
+class OverdampedSHOTerm(Term):
     __parameter_spec__ = base_terms.SHOTerm.__parameter_spec__
 
     @base_terms.handle_parameter_spec(np.float64)
     def __init__(self, *, eps=1e-5, **kwargs):
         self.eps = np.float64(eps)
 
-    def overdamped(self):
+    def get_coefficients(self):
         Q = self.Q
         f = np.sqrt(np.maximum(1.0 - 4.0 * Q ** 2, self.eps))
         e = np.empty(0)
@@ -425,7 +434,15 @@ class SHOTerm(Term):
             e,
         )
 
-    def underdamped(self):
+
+class UnderdampedSHOTerm(Term):
+    __parameter_spec__ = base_terms.SHOTerm.__parameter_spec__
+
+    @base_terms.handle_parameter_spec(np.float64)
+    def __init__(self, *, eps=1e-5, **kwargs):
+        self.eps = np.float64(eps)
+
+    def get_coefficients(self):
         Q = self.Q
         f = np.sqrt(np.maximum(4.0 * Q ** 2 - 1.0, self.eps))
         a = self.S0 * self.w0 * Q
@@ -439,9 +456,6 @@ class SHOTerm(Term):
             np.array([c]),
             np.array([c * f]),
         )
-
-    def get_coefficients(self):
-        return self.overdamped() if self.Q < 0.5 else self.underdamped()
 
 
 class Matern32Term(Term):
@@ -485,5 +499,6 @@ class RotationTerm(TermSum):
         S2 = self.f * self.amp / (w2 * Q2)
 
         super().__init__(
-            SHOTerm(S0=S1, w0=w1, Q=Q1), SHOTerm(S0=S2, w0=w2, Q=Q2)
+            UnderdampedSHOTerm(S0=S1, w0=w1, Q=Q1),
+            UnderdampedSHOTerm(S0=S2, w0=w2, Q=Q2),
         )

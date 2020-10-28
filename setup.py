@@ -62,6 +62,7 @@ EXTRA_REQUIRE = {
         "emcee",
         "pymc3",
         "tqdm",
+        "numpyro",
     ],
 }
 EXTRA_REQUIRE["dev"] = (

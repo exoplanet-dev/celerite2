@@ -33,8 +33,6 @@ class GaussianProcess(BaseGaussianProcess):
             )
 
     def check_sorted(self, t):
-        if np.any(np.diff(t) < 0.0):
-            raise ValueError("the input coordinates must be sorted")
         return t
 
     def do_solve(self, y):
