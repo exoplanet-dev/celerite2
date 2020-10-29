@@ -71,10 +71,6 @@ def test_errors():
     with pytest.raises(RuntimeError):
         gp.log_likelihood(y)
 
-    # Sorted
-    with pytest.raises(ValueError):
-        gp.compute(np.copy(x[::-1]), diag=diag)
-
     # 1D
     with pytest.raises(ValueError):
         gp.compute(np.tile(x[:, None], (1, 5)), diag=diag)
@@ -84,11 +80,7 @@ def test_errors():
         gp.compute(x, diag=diag, yerr=np.sqrt(diag))
 
     # Not positive definite
-    with pytest.raises(celerite2.backprop.LinAlgError):
-        gp.compute(x, diag=-10 * diag)
-
-    # Not positive definite with `quiet`
-    gp.compute(x, diag=-10 * diag, quiet=True)
+    gp.compute(x, diag=-10 * diag)
     ld = gp._log_det
     assert np.isinf(ld)
     assert ld < 0

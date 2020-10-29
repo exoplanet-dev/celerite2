@@ -14,6 +14,7 @@ else:
 
     config.update("jax_enable_x64", True)
 
+    from jax import jit
     from jax.test_util import check_grads
 
     from celerite2.jax import ops
@@ -38,6 +39,7 @@ def test_factor():
     a, U, V, P, Y = get_matrices()
     d, W = driver.factor(U, P, np.copy(a), np.copy(V))
     check_op(ops.factor, [a, U, V, P], [d, W])
+    check_op(jit(ops.factor), [a, U, V, P], [d, W])
 
 
 @pytest.mark.parametrize("vector", [True, False])
@@ -46,6 +48,7 @@ def test_solve(vector):
     d, W = driver.factor(U, P, a, V)
     X = driver.solve(U, P, d, W, np.copy(Y))
     check_op(ops.solve, [U, P, d, W, Y], [X])
+    check_op(jit(ops.solve), [U, P, d, W, Y], [X])
 
 
 def test_norm():
@@ -53,6 +56,7 @@ def test_norm():
     d, W = driver.factor(U, P, a, V)
     X = driver.norm(U, P, d, W, np.copy(Y))
     check_op(ops.norm, [U, P, d, W, Y], [X])
+    check_op(jit(ops.norm), [U, P, d, W, Y], [X])
 
 
 @pytest.mark.parametrize("vector", [True, False])
@@ -61,6 +65,7 @@ def test_dot_tril(vector):
     d, W = driver.factor(U, P, a, V)
     X = driver.dot_tril(U, P, d, W, np.copy(Y))
     check_op(ops.dot_tril, [U, P, d, W, Y], [X])
+    check_op(jit(ops.dot_tril), [U, P, d, W, Y], [X])
 
 
 @pytest.mark.parametrize("vector", [True, False])
@@ -68,6 +73,7 @@ def test_matmul(vector):
     a, U, V, P, Y = get_matrices(vector=vector)
     X = driver.matmul(a, U, V, P, Y, np.copy(Y))
     check_op(ops.matmul, [a, U, V, P, Y], [X])
+    check_op(jit(ops.matmul), [a, U, V, P, Y], [X])
 
 
 def test_conditional_mean():
@@ -83,6 +89,12 @@ def test_conditional_mean():
 
     check_op(
         ops.conditional_mean,
+        [U, V, P, z, U_star, V_star, inds],
+        [mu],
+        grad=False,
+    )
+    check_op(
+        jit(ops.conditional_mean),
         [U, V, P, z, U_star, V_star, inds],
         [mu],
         grad=False,

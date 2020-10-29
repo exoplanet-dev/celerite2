@@ -62,6 +62,7 @@ EXTRA_REQUIRE = {
         "emcee",
         "pymc3",
         "tqdm",
+        "numpyro",
     ],
 }
 EXTRA_REQUIRE["dev"] = (
@@ -179,6 +180,12 @@ else:
         Extension(
             "celerite2.backprop",
             ["python/celerite2/backprop.cpp"],
+            include_dirs=include_dirs,
+            language="c++",
+        ),
+        Extension(
+            "celerite2.jax.xla_ops",
+            ["python/celerite2/jax/xla_ops.cpp"],
             include_dirs=include_dirs,
             language="c++",
         ),
