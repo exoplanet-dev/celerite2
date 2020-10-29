@@ -15,8 +15,6 @@ else:
 
     config.update("jax_enable_x64", True)
 
-    from jax import jit
-
     from celerite2.jax import GaussianProcess, terms
 
 

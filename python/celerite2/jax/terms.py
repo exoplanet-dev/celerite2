@@ -9,12 +9,13 @@ __all__ = [
     "RealTerm",
     "ComplexTerm",
     "SHOTerm",
+    "OverdampedSHOTerm",
+    "UnderdampedSHOTerm",
     "Matern32Term",
     "RotationTerm",
 ]
 from itertools import chain, product
 
-from jax import lax
 from jax import numpy as np
 
 from .. import terms as base_terms

@@ -5,7 +5,7 @@ from jax import numpy as np
 
 from .. import backprop, driver
 from ..ext import BaseGaussianProcess
-from . import ops
+from . import distribution, ops
 
 
 class GaussianProcess(BaseGaussianProcess):
@@ -52,3 +52,6 @@ class GaussianProcess(BaseGaussianProcess):
 
     def diagdot(self, a, b):
         return np.einsum("ij,ij->j", a, b)
+
+    def numpyro_dist(self):
+        return distribution.CeleriteNormal(self)

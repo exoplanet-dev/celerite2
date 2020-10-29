@@ -15,7 +15,8 @@ if not config.read("jax_enable_x64"):
     )
 
 
-__all__ = ["terms", "GaussianProcess"]
+__all__ = ["terms", "GaussianProcess", "CeleriteNormal"]
 
 from . import terms  # noqa isort:skip
 from .celerite2 import GaussianProcess  # noqa isort:skip
+from .distribution import CeleriteNormal
