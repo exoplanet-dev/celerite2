@@ -182,7 +182,6 @@ plot_prediction(opt_gp)
 
 # +
 import emcee
-from multiprocessing import Pool
 
 prior_sigma = 2.0
 
