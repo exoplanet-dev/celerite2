@@ -38,6 +38,7 @@ class GaussianProcess:
         self._t = None
         self._mean_value = None
         self._diag = None
+        self._mask = None
         self._size = None
         self._shape = None
         self._log_det = -np.inf
@@ -72,7 +73,14 @@ class GaussianProcess:
         return self._mean_value
 
     def compute(
-        self, t, *, yerr=None, diag=None, check_sorted=True, quiet=False
+        self,
+        t,
+        *,
+        yerr=None,
+        diag=None,
+        mask=None,
+        check_sorted=True,
+        quiet=False,
     ):
         """Compute the Cholesky factorization of the GP covariance matrix
 
@@ -117,7 +125,7 @@ class GaussianProcess:
             self._shape = (N,)
 
         self._diag = np.empty(self._shape)
-        self._size = self._diag.size
+        self._full_size = self._diag.size
         if yerr is None and diag is None:
             self._diag[:] = 0.0
 
@@ -138,6 +146,10 @@ class GaussianProcess:
                 )
             self._diag[:] = diag
 
+        self._mask = None
+        if mask is not None:
+            self._mask = np.ascontiguousarray(mask, dtype=bool)
+
         # Fill the celerite matrices
         (
             self._d,
@@ -145,8 +157,17 @@ class GaussianProcess:
             self._V,
             self._P,
         ) = self.kernel.get_celerite_matrices(
-            self._t, self._diag, a=self._d, U=self._U, V=self._V, P=self._P
+            self._t,
+            self._diag,
+            a=self._d,
+            U=self._U,
+            V=self._V,
+            P=self._P,
+            mask=self._mask,
         )
+
+        # Get the correct size even with a mask
+        self._size = self._d.size
 
         # Compute the Cholesky factorization
         try:
@@ -183,7 +204,11 @@ class GaussianProcess:
                 "You must call 'compute' directly  at least once"
             )
         return self.compute(
-            self._t, diag=self._diag, check_sorted=False, quiet=quiet
+            self._t,
+            diag=self._diag,
+            mask=self._mask,
+            check_sorted=False,
+            quiet=quiet,
         )
 
     def _process_input(self, y, *, inplace=False, require_vector=False):
@@ -212,9 +237,9 @@ class GaussianProcess:
             )
 
         if len(self._shape) == 2:
-            y = np.reshape(y, (self._size,) + y.shape[2:])
+            y = np.reshape(y, (self._full_size,) + y.shape[2:])
 
-        if require_vector and (self._size,) != y.shape:
+        if require_vector and (self._full_size,) != y.shape:
             raise ValueError("'y' must be one dimensional")
 
         return y
@@ -269,9 +294,16 @@ class GaussianProcess:
             ValueError: When the inputs are not valid (shape, number, etc.).
         """
         y = self._process_input(y, inplace=inplace)
-        return self._reshape_output(
-            driver.dot_tril(self._U, self._P, self._d, self._W, y)
-        )
+
+        if self._mask is None:
+            alpha = driver.dot_tril(self._U, self._P, self._d, self._W, y)
+        else:
+            alpha = np.zeros((self._full_size,) + y.shape[1:])
+            alpha[self._mask.flatten()] = driver.dot_tril(
+                self._U, self._P, self._d, self._W, y[self._mask.flatten()]
+            )
+
+        return self._reshape_output(alpha)
 
     def log_likelihood(self, y, *, inplace=False):
         """Compute the marginalized likelihood of the GP model
@@ -298,9 +330,14 @@ class GaussianProcess:
         )
         if not np.isfinite(self._log_det):
             return -np.inf
-        loglike = self._norm - 0.5 * driver.norm(
-            self._U, self._P, self._d, self._W, y
-        )
+        if self._mask is None:
+            loglike = self._norm - 0.5 * driver.norm(
+                self._U, self._P, self._d, self._W, y
+            )
+        else:
+            loglike = self._norm - 0.5 * driver.norm(
+                self._U, self._P, self._d, self._W, y[self._mask.flatten()]
+            )
         if not np.isfinite(loglike):
             return -np.inf
         return loglike
@@ -349,7 +386,18 @@ class GaussianProcess:
         y = self._process_input(
             y - mean_value, inplace=True, require_vector=True
         )
-        alpha = driver.solve(self._U, self._P, self._d, self._W, np.copy(y))
+        if self._mask is None:
+            alpha = driver.solve(
+                self._U, self._P, self._d, self._W, np.copy(y)
+            )
+        else:
+            alpha = driver.solve(
+                self._U,
+                self._P,
+                self._d,
+                self._W,
+                np.copy(y[self._mask.flatten()]),
+            )
 
         if t is None:
             xs = self._t
@@ -364,7 +412,7 @@ class GaussianProcess:
         if kernel is None:
             kernel = self.kernel
 
-            if t is None:
+            if t is None and self._mask is None:
                 mu = self._reshape_output(y - self._diag.flatten() * alpha)
                 if include_mean:
                     mu += mean_value
@@ -399,6 +447,8 @@ class GaussianProcess:
 
         if mu is None:
             KxsT = kernel.get_value(xs[None, :] - self._t[:, None])
+            if self._mask is not None:
+                KxsT = KxsT[self._mask.flatten(), :]
             mu = self._reshape_output(np.dot(KxsT.T, alpha))
             if include_mean:
                 mu += self._mean(xs)
@@ -409,6 +459,8 @@ class GaussianProcess:
         # Predictive variance.
         if KxsT is None:
             KxsT = kernel.get_value(xs[None, :] - self._t[:, None])
+            if self._mask is not None:
+                KxsT = KxsT[self._mask.flatten(), :]
         if return_var:
             var = np.squeeze(
                 np.diag(kernel.get_value(0.0))
@@ -451,11 +503,18 @@ class GaussianProcess:
         if self._t is None:
             raise RuntimeError("you must call 'compute' first")
         if size is None:
-            n = np.random.randn(*self._shape)
+            n = np.random.randn(self._size)
         else:
-            n = np.random.randn(*(self._shape + (size,)))
+            n = np.random.randn(self._size, size)
 
-        result = self.dot_tril(n, inplace=True)
+        n = driver.dot_tril(self._U, self._P, self._d, self._W, n)
+
+        if self._mask is not None:
+            tmp = np.zeros((self._full_size,) + n.shape[1:])
+            tmp[self._mask.flatten()] = n
+            n = tmp
+
+        result = np.reshape(n, self._shape + n.shape[1:])
         if size is not None:
             result = np.moveaxis(result, -1, 0)
         if include_mean:

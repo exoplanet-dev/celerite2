@@ -73,9 +73,6 @@ def test_consistency(oterm, mean, data):
         dict(return_cov=False, return_var=True),
         dict(return_cov=True, return_var=False),
     ]:
-        print(args)
-        print(original_gp.predict(y, **args))
-        print(gp.predict(y, **args))
         assert all(
             np.allclose(a, b)
             for a, b in zip(

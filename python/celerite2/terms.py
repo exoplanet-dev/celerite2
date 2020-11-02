@@ -71,7 +71,7 @@ class Term:
         K[np.diag_indices_from(K)] += diag
         return K
 
-    def dot(self, x, diag, y):
+    def dot(self, x, diag, y, **kwargs):
         """Apply a matrix-vector or matrix-matrix product
 
         Args:
@@ -80,7 +80,7 @@ class Term:
             y (shape[N] or shape[N, K]): The target of vector or matrix for
                 this operation.
         """
-        a, U, V, P = self.get_celerite_matrices(x, diag)
+        a, U, V, P = self.get_celerite_matrices(x, diag, **kwargs)
 
         y = np.atleast_1d(y)
         if y.shape[0] != len(a):
@@ -153,7 +153,15 @@ class Term:
         return np.sqrt(2 / np.pi) * psd
 
     def get_celerite_matrices(
-        self, x, diag, *, a=None, U=None, V=None, P=None
+        self,
+        x,
+        diag,
+        *,
+        a=None,
+        U=None,
+        V=None,
+        P=None,
+        mask=None,
     ):
         """Get the matrices needed to solve the celerite system
 
@@ -175,6 +183,11 @@ class Term:
         Raises:
             ValueError: When the inputs are not valid.
         """
+        if mask is not None:
+            raise NotImplementedError(
+                "Missing data is only implemented for KronTerm models"
+            )
+
         x = np.atleast_1d(x)
         diag = np.atleast_1d(diag)
         if len(x.shape) != 1:
@@ -319,7 +332,15 @@ class TermSumGeneral(Term):
         return p
 
     def get_celerite_matrices(
-        self, x, diag, *, a=None, U=None, V=None, P=None
+        self,
+        x,
+        diag,
+        *,
+        a=None,
+        U=None,
+        V=None,
+        P=None,
+        mask=None,
     ):
         """Get the matrices needed to solve the celerite system
 
@@ -343,7 +364,13 @@ class TermSumGeneral(Term):
         """
         x = np.atleast_1d(x)
         diag = np.atleast_1d(diag)
-        N = diag.size
+
+        if mask is None:
+            N = diag.size
+        else:
+            mask = np.ascontiguousarray(mask, dtype=bool)
+            N = mask.sum()
+
         sizes = [len(term) for term in self.terms]
         J = sum(sizes)
 
@@ -369,6 +396,7 @@ class TermSumGeneral(Term):
             x,
             diag,
             a=a,
+            mask=mask,
         )
         for dj, term in zip(sizes[1:], self.terms[1:]):
             (
@@ -379,6 +407,7 @@ class TermSumGeneral(Term):
             ) = term.get_celerite_matrices(
                 x,
                 np.zeros_like(diag),
+                mask=mask,
             )
             a[:] += da
             j += dj
@@ -524,7 +553,15 @@ class TermConvolution(Term):
         return len(self.term)
 
     def get_celerite_matrices(
-        self, x, diag, *, a=None, U=None, V=None, P=None
+        self,
+        x,
+        diag,
+        *,
+        a=None,
+        U=None,
+        V=None,
+        P=None,
+        mask=None,
     ):
         dt = self.delta
         ar, cr, a, b, c, d = self.term.get_coefficients()
@@ -555,7 +592,9 @@ class TermConvolution(Term):
 
         new_diag = diag + delta_diag
 
-        return super().get_celerite_matrices(x, new_diag, a=a, U=U, V=V, P=P)
+        return super().get_celerite_matrices(
+            x, new_diag, a=a, U=U, V=V, P=P, mask=mask
+        )
 
     def get_coefficients(self):
         ar, cr, a, b, c, d = self.term.get_coefficients()

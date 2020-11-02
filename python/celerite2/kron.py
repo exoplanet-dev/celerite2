@@ -4,6 +4,7 @@ __all__ = ["KronTerm", "KronTermSum"]
 
 import numpy as np
 
+from . import driver
 from .terms import Term, TermSumGeneral
 
 
@@ -114,7 +115,15 @@ class KronTerm(Term):
         return self.term.get_psd(omega)
 
     def get_celerite_matrices(
-        self, x, diag, *, a=None, U=None, V=None, P=None
+        self,
+        x,
+        diag,
+        *,
+        a=None,
+        U=None,
+        V=None,
+        P=None,
+        mask=None,
     ):
         """Get the matrices needed to solve the celerite system
 
@@ -143,7 +152,14 @@ class KronTerm(Term):
         N0, M = diag.shape
         if len(x) != N0 or M != self.M:
             raise ValueError("'diag' must have the shape (N, M)")
-        N = N0 * M
+
+        if mask is None:
+            N = N0 * M
+        else:
+            mask = np.ascontiguousarray(mask, dtype=bool)
+            if mask.shape != (N0, M):
+                raise ValueError("'mask' must have the shape (N, M)")
+            N = mask.sum()
 
         # Compute the coefficients and kernel for the celerite subproblem
         ar, cr, ac, _, cc, _ = self.term.get_coefficients()
@@ -171,16 +187,22 @@ class KronTerm(Term):
         else:
             P.resize((N - 1, J), refcheck=False)
 
-        # Expand the times appropriately
-        x_full = np.tile(x[:, None], (1, self.M)).flatten()
+        if mask is None:
+            x_full = np.tile(x[:, None], (1, self.M)).flatten()
+            a[:] = (
+                diag + self.alpha2[None, :] * (np.sum(ar) + np.sum(ac))
+            ).flatten()
+            U[:] = np.kron(U_sub, self.L)
+            V[:] = np.kron(V_sub, self.L)
+        else:
+            x_full = np.tile(x[:, None], (1, self.M))[mask].flatten()
+            a[:] = (diag + self.alpha2[None, :] * (np.sum(ar) + np.sum(ac)))[
+                mask
+            ].flatten()
+            U[:] = np.kron(U_sub, self.L)[mask.flatten()]
+            V[:] = np.kron(V_sub, self.L)[mask.flatten()]
+
         dx = x_full[1:] - x_full[:-1]
-
-        a[:] = (
-            diag + self.alpha2[None, :] * (np.sum(ar) + np.sum(ac))
-        ).flatten()
-        U[:] = np.kron(U_sub, self.L)
-        V[:] = np.kron(V_sub, self.L)
-
         c = np.concatenate((cr, cc, cc))
         P0 = np.exp(-c[None, :] * dx[:, None], out=P[:, :J0])
         if self.K > 1:

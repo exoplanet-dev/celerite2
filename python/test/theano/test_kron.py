@@ -149,3 +149,23 @@ def test_citations(data):
         gp = GaussianProcess(term, t=x, diag=diag)
         gp.marginal("obs", observed=y[:, 0].reshape((N, M)))
         assert model.__citations__["celerite2:kernel"] == kron.CITATIONS
+
+
+def test_missing_values(data):
+    N, M, x, diag, y, t = data
+    mask = np.random.rand(N, M) > 0.1
+    assert np.all(mask.sum(axis=1) > 0)
+
+    R = np.random.randn(M, M)
+    R[np.diag_indices_from(R)] = np.exp(R[np.diag_indices_from(R)])
+    R[np.triu_indices_from(R, 1)] = 0.0
+    R = np.dot(R, R.T)
+
+    term0 = terms.SHOTerm(sigma=1.5, rho=1.3, Q=0.3)
+    term = kron.KronTerm(term0, R=R)
+
+    K = term.get_value(x[:, None] - x[None, :]).eval()
+    K[np.diag_indices_from(K)] += diag.flatten()
+    K = K[mask.flatten(), :][:, mask.flatten()]
+    K0 = term.dot(x, diag, np.eye(mask.sum()), mask=mask).eval()
+    assert np.allclose(K0.shape, K.shape)

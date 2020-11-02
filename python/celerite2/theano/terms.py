@@ -85,7 +85,12 @@ class Term(base_terms.Term):
         K += tt.diag(diag)
         return K
 
-    def get_celerite_matrices(self, x, diag):
+    def get_celerite_matrices(self, x, diag, *, mask=None):
+        if mask is not None:
+            raise NotImplementedError(
+                "Missing data is only implemented for KronTerm models"
+            )
+
         x = tt.as_tensor_variable(x)
         diag = tt.as_tensor_variable(diag)
         ar, cr, ac, bc, cc, dc = self.coefficients
@@ -132,8 +137,8 @@ class Term(base_terms.Term):
 
         return U_star, V_star, inds
 
-    def dot(self, x, diag, y):
-        a, U, V, P = self.get_celerite_matrices(x, diag)
+    def dot(self, x, diag, y, **kwargs):
+        a, U, V, P = self.get_celerite_matrices(x, diag, **kwargs)
         return ops.matmul(a, U, V, P, tt.as_tensor_variable(y))[0]
 
 
@@ -195,7 +200,7 @@ class TermSumGeneral(Term):
             p += term.get_psd(omega)
         return p
 
-    def get_celerite_matrices(self, x, diag):
+    def get_celerite_matrices(self, x, diag, *, mask=None):
         x = tt.as_tensor_variable(x)
         diag = tt.as_tensor_variable(diag)
         zeros = tt.zeros_like(diag)
@@ -205,7 +210,7 @@ class TermSumGeneral(Term):
         V = []
         P = []
         for term in self.terms:
-            args = term.get_celerite_matrices(x, zeros)
+            args = term.get_celerite_matrices(x, zeros, mask=mask)
             a.append(args[0])
             U.append(args[1])
             V.append(args[2])
@@ -344,7 +349,7 @@ class TermConvolution(Term):
         self.delta = tt.as_tensor_variable(delta).astype("float64")
         super().__init__(**kwargs)
 
-    def get_celerite_matrices(self, x, diag):
+    def get_celerite_matrices(self, x, diag, *, mask=None):
         dt = self.delta
         ar, cr, a, b, c, d = self.term.coefficients
 
@@ -373,7 +378,7 @@ class TermConvolution(Term):
         )
 
         new_diag = diag + delta_diag
-        return super().get_celerite_matrices(x, new_diag)
+        return super().get_celerite_matrices(x, new_diag, mask=mask)
 
     def get_coefficients(self):
         ar, cr, a, b, c, d = self.term.coefficients

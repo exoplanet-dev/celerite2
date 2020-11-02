@@ -101,7 +101,7 @@ class KronTerm(Term):
     def get_psd(self, omega):
         return self.term.get_psd(omega)
 
-    def get_celerite_matrices(self, x, diag):
+    def get_celerite_matrices(self, x, diag, mask=None):
         # Check the input dimensions
         x = tt.as_tensor_variable(x)
         diag = tt.as_tensor_variable(diag)
@@ -114,16 +114,25 @@ class KronTerm(Term):
             x, tt.zeros_like(x)
         )
 
-        # Expand the times appropriately
-        x_full = tt.reshape(tt.tile(x[:, None], (1, self.M)), (-1,))
-        dx = x_full[1:] - x_full[:-1]
-
-        a = tt.reshape(
-            diag + self.alpha2[None, :] * (tt.sum(ar) + tt.sum(ac)), (-1,)
-        )
+        # Pad everything out ignoring the mask
+        x_full = tt.tile(x[:, None], (1, self.M))
+        a = diag + self.alpha2[None, :] * (tt.sum(ar) + tt.sum(ac))
         U = kron(U_sub, self.L)
         V = kron(V_sub, self.L)
 
+        # Apply the mask or flatten
+        if mask is None:
+            x_full = tt.reshape(x_full, (-1,))
+            a = tt.reshape(a, (-1,))
+        else:
+            mask = tt.as_tensor_variable(mask)
+            mask_flat = tt.reshape(mask, (-1,))
+            x_full = x_full[mask]
+            a = a[mask]
+            U = U[mask_flat]
+            V = V[mask_flat]
+
+        dx = x_full[1:] - x_full[:-1]
         c = tt.concatenate((cr, cc, cc))
         P0 = tt.exp(-c[None, :] * dx[:, None])
         P = tt.tile(P0[:, :, None], (1, 1, self.K)).reshape((P0.shape[0], -1))
