@@ -4,22 +4,8 @@ import pytest
 
 import celerite2
 from celerite2 import terms as pyterms
+from celerite2.jax import GaussianProcess, terms
 from celerite2.testing import check_gp_models
-
-try:
-    from jax.config import config
-except ImportError:
-    HAS_JAX = False
-else:
-    HAS_JAX = True
-
-    config.update("jax_enable_x64", True)
-
-    from celerite2.jax import GaussianProcess, terms
-
-
-pytestmark = pytest.mark.skipif(not HAS_JAX, reason="jax is not installed")
-
 
 term_mark = pytest.mark.parametrize(
     "name,args",

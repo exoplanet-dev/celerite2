@@ -38,6 +38,7 @@ class GaussianProcess:
         self._t = None
         self._mean_value = None
         self._diag = None
+        self._size = None
         self._log_det = -np.inf
         self._norm = np.inf
 
@@ -64,7 +65,7 @@ class GaussianProcess:
     @property
     def mean_value(self):
         if self._mean_value is None:
-            raise AttributeError(
+            raise RuntimeError(
                 "'compute' must be executed before accessing mean_value"
             )
         return self._mean_value
@@ -94,14 +95,15 @@ class GaussianProcess:
             LinAlgError: When the matrix is not numerically positive definite.
         """
         # Check the input coordinates
-        t = np.atleast_1d(t)
+        t = np.ascontiguousarray(t, dtype=np.float64)
         if check_sorted and np.any(np.diff(t) < 0.0):
-            raise ValueError("the input coordinates must be sorted")
-        if len(t.shape) != 1:
-            raise ValueError("the input coordinates must be one dimensional")
+            raise ValueError("The input coordinates must be sorted")
+        if t.ndim != 1:
+            raise ValueError("The input coordinates must be one dimensional")
 
         # Save the diagonal
-        self._t = np.ascontiguousarray(t, dtype=np.float64)
+        self._t = t
+        self._size = self._t.shape[0]
         self._mean_value = self._mean(self._t)
         self._diag = np.empty_like(self._t)
         if yerr is None and diag is None:
@@ -140,7 +142,7 @@ class GaussianProcess:
         else:
             self._log_det = np.sum(np.log(self._d))
             self._norm = -0.5 * (
-                self._log_det + len(self._t) * np.log(2 * np.pi)
+                self._log_det + self._size * np.log(2 * np.pi)
             )
 
     def recompute(self, *, quiet=False):
@@ -256,7 +258,7 @@ class GaussianProcess:
         if not np.isfinite(self._log_det):
             return -np.inf
         loglike = self._norm - 0.5 * driver.norm(
-            self._U, self._P, self._d, self._W, y - self._mean(self._t)
+            self._U, self._P, self._d, self._W, y - self._mean_value
         )
         if not np.isfinite(loglike):
             return -np.inf
@@ -303,9 +305,8 @@ class GaussianProcess:
             ValueError: When the inputs are not valid (shape, number, etc.).
         """
         y = self._process_input(y, inplace=True, require_vector=True)
-        mean_value = self._mean(self._t)
         alpha = driver.solve(
-            self._U, self._P, self._d, self._W, y - mean_value
+            self._U, self._P, self._d, self._W, y - self._mean_value
         )
 
         if t is None:
@@ -323,7 +324,7 @@ class GaussianProcess:
             if t is None:
                 mu = y - self._diag * alpha
                 if not include_mean:
-                    mu -= mean_value
+                    mu -= self._mean_value
             else:
 
                 (
@@ -386,12 +387,12 @@ class GaussianProcess:
         if self._t is None:
             raise RuntimeError("you must call 'compute' first")
         if size is None:
-            n = np.random.randn(len(self._t))
+            n = np.random.randn(self._size)
         else:
-            n = np.random.randn(len(self._t), size)
+            n = np.random.randn(self._size, size)
         result = self.dot_tril(n, inplace=True).T
         if include_mean:
-            result += self._mean(self._t)
+            result += self._mean_value
         return result
 
     def sample_conditional(

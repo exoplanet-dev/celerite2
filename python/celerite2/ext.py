@@ -129,6 +129,7 @@ class BaseGaussianProcess(GaussianProcess):
         self._t = None
         self._mean_value = None
         self._diag = None
+        self._size = None
         self._log_det = -np.inf
         self._norm = np.inf
 
@@ -175,7 +176,8 @@ class BaseGaussianProcess(GaussianProcess):
             t = self.check_sorted(t)
 
         # Save the diagonal
-        self._t = self.as_tensor(t)
+        self._t = t
+        self._size = self._t.shape[0]
         self._mean_value = self._mean(self._t)
         self._diag = self.zeros_like(self._t)
         if yerr is not None:

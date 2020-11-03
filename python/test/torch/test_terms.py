@@ -3,22 +3,11 @@ from functools import partial
 
 import numpy as np
 import pytest
+import torch
 
 from celerite2 import terms as pyterms
 from celerite2.testing import check_tensor_term
-
-try:
-    import torch  # noqa
-except ImportError:
-    HAS_TORCH = False
-else:
-    HAS_TORCH = True
-    from celerite2.torch import terms
-
-
-pytestmark = pytest.mark.skipif(
-    not HAS_TORCH, reason="PyTorch is not installed"
-)
+from celerite2.torch import terms
 
 
 def evaluate(x):

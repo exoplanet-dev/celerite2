@@ -29,7 +29,7 @@ class GaussianProcess(BaseGaussianProcess):
         else:
             self._log_det = np.sum(np.log(self._d))
             self._norm = -0.5 * (
-                self._log_det + len(self._t) * np.log(2 * np.pi)
+                self._log_det + self._size * np.log(2 * np.pi)
             )
 
     def check_sorted(self, t):

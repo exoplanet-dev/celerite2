@@ -1,24 +1,12 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import pytest
+import torch
+from torch.autograd import gradcheck
 
 from celerite2 import driver
 from celerite2.testing import get_matrices
-
-try:
-    import torch
-except ImportError:
-    HAS_TORCH = False
-else:
-    HAS_TORCH = True
-    from torch.autograd import gradcheck
-
-    from celerite2.torch import ops
-
-
-pytestmark = pytest.mark.skipif(
-    not HAS_TORCH, reason="PyTorch is not installed"
-)
+from celerite2.torch import ops
 
 
 def check_op(op, input_arrays, expected_outputs, grad=True):
