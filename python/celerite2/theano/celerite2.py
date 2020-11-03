@@ -14,9 +14,13 @@ except ImportError:
     pm = None
 
 CITATIONS = (
-    ("celerite2:foremanmackey17", "celerite2:foremanmackey18"),
+    (
+        "celerite2:foremanmackey17",
+        "celerite2:foremanmackey18",
+        "celerite2:gordon20",
+    ),
     r"""
-@article{exoplanet:foremanmackey17,
+@article{celerite2:foremanmackey17,
    author = {{Foreman-Mackey}, D. and {Agol}, E. and {Ambikasaran}, S. and
              {Angus}, R.},
     title = "{Fast and Scalable Gaussian Process Modeling with Applications to
@@ -30,7 +34,7 @@ CITATIONS = (
    adsurl = {http://adsabs.harvard.edu/abs/2017AJ....154..220F},
   adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
-@article{exoplanet:foremanmackey18,
+@article{celerite2:foremanmackey18,
    author = {{Foreman-Mackey}, D.},
     title = "{Scalable Backpropagation for Gaussian Processes using Celerite}",
   journal = {Research Notes of the American Astronomical Society},
@@ -42,6 +46,23 @@ CITATIONS = (
       doi = {10.3847/2515-5172/aaaf6c},
    adsurl = {http://adsabs.harvard.edu/abs/2018RNAAS...2a..31F},
   adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+@article{celerite2:gordon20,
+       author = {{Gordon}, Tyler and {Agol}, Eric and
+                 {Foreman-Mackey}, Daniel},
+        title = "{A Fast, 2D Gaussian Process Method Based on Celerite:
+                  Applications to Transiting Exoplanet Discovery and
+                  Characterization}",
+      journal = {arXiv e-prints},
+         year = 2020,
+        month = jul,
+          eid = {arXiv:2007.05799},
+        pages = {arXiv:2007.05799},
+archivePrefix = {arXiv},
+       eprint = {2007.05799},
+ primaryClass = {astro-ph.IM},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2020arXiv200705799G},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 """,
 )

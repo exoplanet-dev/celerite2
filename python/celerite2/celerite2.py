@@ -8,6 +8,7 @@ import numpy as np
 
 from . import driver
 from .driver import LinAlgError
+from .latent import apply_latent
 
 
 class ConstantMean:
@@ -30,12 +31,14 @@ class GaussianProcess:
             :func:`GaussianProcess.compute` if the argument ``t`` is specified.
     """
 
-    def __init__(self, kernel, t=None, *, mean=0.0, **kwargs):
+    def __init__(self, kernel, t=None, *, mean=0.0, latent=None, **kwargs):
         self.kernel = kernel
         self.mean = mean
+        self.latent = latent
 
         # Placeholders for storing data
         self._t = None
+        self._X = None
         self._mean_value = None
         self._diag = None
         self._size = None
@@ -71,7 +74,14 @@ class GaussianProcess:
         return self._mean_value
 
     def compute(
-        self, t, *, yerr=None, diag=None, check_sorted=True, quiet=False
+        self,
+        t,
+        *,
+        yerr=None,
+        diag=None,
+        X=None,
+        check_sorted=True,
+        quiet=False,
     ):
         """Compute the Cholesky factorization of the GP covariance matrix
 
@@ -104,7 +114,6 @@ class GaussianProcess:
         # Save the diagonal
         self._t = t
         self._size = self._t.shape[0]
-        self._mean_value = self._mean(self._t)
         self._diag = np.empty_like(self._t)
         if yerr is None and diag is None:
             self._diag[:] = 0.0
@@ -126,10 +135,43 @@ class GaussianProcess:
             self._V,
             self._P,
         ) = self.kernel.get_celerite_matrices(
-            self._t, self._diag, a=self._d, U=self._U, V=self._V, P=self._P
+            self._t,
+            np.zeros_like(self._t),
+            a=self._d,
+            U=self._U,
+            V=self._V,
+            P=self._P,
         )
 
+        # Handle the mean and latent models
+        self._mean_value = self._mean(self._t)
+        if self.latent is not None:
+            if X is None:
+                raise ValueError(
+                    "'X' must be defined for a model with a latent dimension"
+                )
+            self._X = np.ascontiguousarray(X)
+            if self._X.shape[0] != self._size:
+                raise ValueError("'X' must be the same length as 't'")
+
+            self._d, self._U, self._V, self._P = apply_latent(
+                self.latent(self._t, self._X),
+                a=self._d,
+                U=self._U,
+                V=self._V,
+                P=self._P,
+            )
+
+        else:
+            if X is not None:
+                raise ValueError(
+                    "'X' can only be defined for a model with a latent "
+                    "dimension"
+                )
+            self._X = None
+
         # Compute the Cholesky factorization
+        self._d[:] += self._diag
         try:
             self._d, self._W = driver.factor(
                 self._U, self._P, self._d, np.copy(self._V)
