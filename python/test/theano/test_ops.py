@@ -1,24 +1,12 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import pytest
+import theano
+from theano import tensor as tt
 
 from celerite2 import backprop, driver
 from celerite2.testing import get_matrices
-
-try:
-    import theano
-except ImportError:
-    HAS_THEANO = False
-else:
-    HAS_THEANO = True
-    from theano import tensor as tt
-
-    from celerite2.theano import ops
-
-
-pytestmark = pytest.mark.skipif(
-    not HAS_THEANO, reason="Theano is not installed"
-)
+from celerite2.theano import ops
 
 
 def convert_values_to_types(values):
@@ -34,6 +22,7 @@ def convert_values_to_types(values):
             types.append(tt.dmatrix())
         else:
             raise ValueError("unknown type")
+        types[-1].tag.test_value = v
     return types
 
 

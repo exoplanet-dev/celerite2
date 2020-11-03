@@ -79,6 +79,19 @@ jobs:
           conda install -q numpy scipy theano mkl-service
           python -m pip install -U pip
           python -m pip install --use-feature=2020-resolver -e ".[test,theano]"
+      - name: Get theano compiledir
+        id: compiledir
+        shell: bash -l {0}
+        run: |
+          python -c "import theano; print('::set-output name=compiledir::' + theano.config.compiledir.split('/')[-1])"
+      - name: "Cache ~/.theano"
+        uses: actions/cache@v2
+        with:
+          path: ~/.theano
+          key: theano-${{ steps.compiledir.outputs.compiledir }}-${{ hashFiles('python/test/theano/*.py') }}
+          restore-keys: |
+            theano-${{ steps.compiledir.outputs.compiledir }}-
+            theano-
       - name: Run the unit tests
         shell: bash -l {0}
         run: python -m pytest --cov celerite2 python/test/theano

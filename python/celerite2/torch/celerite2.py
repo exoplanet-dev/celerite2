@@ -44,7 +44,7 @@ class GaussianProcess(nn.Module, BaseGaussianProcess):
         else:
             self._log_det = torch.sum(torch.log(self._d))
             self._norm = -0.5 * (
-                self._log_det + self._t.shape[0] * np.log(2 * np.pi)
+                self._log_det + self._size * np.log(2 * np.pi)
             )
 
     def check_sorted(self, t):

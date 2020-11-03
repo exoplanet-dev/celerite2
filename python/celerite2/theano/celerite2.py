@@ -69,9 +69,7 @@ class GaussianProcess(BaseGaussianProcess):
             )
             self._log_det = tt.sum(tt.log(self._d))
 
-        self._norm = -0.5 * (
-            self._log_det + self._t.shape[0] * np.log(2 * np.pi)
-        )
+        self._norm = -0.5 * (self._log_det + self._size * np.log(2 * np.pi))
 
     def check_sorted(self, t):
         return tt.opt.Assert()(t, tt.all(t[1:] - t[:-1] >= 0))

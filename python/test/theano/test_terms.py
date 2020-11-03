@@ -6,20 +6,7 @@ import pytest
 
 from celerite2 import terms as pyterms
 from celerite2.testing import check_tensor_term
-
-try:
-    import theano  # noqa
-except ImportError:
-    HAS_THEANO = False
-else:
-    HAS_THEANO = True
-    from celerite2.theano import terms
-
-
-pytestmark = pytest.mark.skipif(
-    not HAS_THEANO, reason="Theano is not installed"
-)
-
+from celerite2.theano import terms
 
 compare_terms = partial(check_tensor_term, lambda x: x.eval())
 

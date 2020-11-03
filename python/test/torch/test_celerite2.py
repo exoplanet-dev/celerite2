@@ -5,21 +5,7 @@ import pytest
 import celerite2
 from celerite2 import terms as pyterms
 from celerite2.testing import check_gp_models
-
-try:
-    import torch  # noqa
-except ImportError:
-    HAS_TORCH = False
-else:
-    from celerite2.torch import GaussianProcess, terms
-
-    HAS_TORCH = True
-
-
-pytestmark = pytest.mark.skipif(
-    not HAS_TORCH, reason="PyTorch is not installed"
-)
-
+from celerite2.torch import GaussianProcess, terms
 
 term_mark = pytest.mark.parametrize(
     "name,args",
