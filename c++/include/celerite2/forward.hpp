@@ -15,11 +15,12 @@ namespace core {
  * @param P     (N-1, J): The exponential difference matrix
  * @param K_out (N, N): The dense matrix
  */
-template <typename Diag, typename LowRank, typename Dense>
-void to_dense(const Eigen::MatrixBase<Diag> &a,     // (N,)
+template <typename Input, typename Coeffs, typename Diag, typename LowRank, typename Dense>
+void to_dense(const Eigen::MatrixBase<Input> &t,    // (N,)
+              const Eigen::MatrixBase<Coeffs> &c,   // (J,)
+              const Eigen::MatrixBase<Diag> &a,     // (N,)
               const Eigen::MatrixBase<LowRank> &U,  // (N, J)
               const Eigen::MatrixBase<LowRank> &V,  // (N, J)
-              const Eigen::MatrixBase<LowRank> &P,  // (N-1, J)
               Eigen::MatrixBase<Dense> const &K_out // (N,)
 ) {
   typedef typename Eigen::internal::plain_row_type<LowRank>::type RowVector;
@@ -32,7 +33,7 @@ void to_dense(const Eigen::MatrixBase<Diag> &a,     // (N,)
     p.setConstant(1.0);
     K(m, m) = a(m);
     for (Eigen::Index n = m + 1; n < N; ++n) {
-      p.array() *= P.row(n - 1).array();
+      p.array() *= exp(-c.array() * (t(n) - t(n - 1)));
       K(n, m) = (U.row(n).array() * V.row(m).array() * p.array()).sum();
       K(m, n) = K(n, m);
     }
@@ -63,11 +64,13 @@ void to_dense(const Eigen::MatrixBase<Diag> &a,     // (N,)
  * @param W_out (N, J): The second low rank component of the Cholesky factor
  * @param S_out (N, J*J): The cached value of the S matrix at each step
  */
-template <bool update_workspace = true, typename Diag, typename LowRank, typename DiagOut, typename LowRankOut, typename Work>
-Eigen::Index factor(const Eigen::MatrixBase<Diag> &a,           // (N,)
+template <bool update_workspace = true, typename Input, typename Coeffs, typename Diag, typename LowRank, typename DiagOut, typename LowRankOut,
+          typename Work>
+Eigen::Index factor(const Eigen::MatrixBase<Input> &t,          // (N,)
+                    const Eigen::MatrixBase<Coeffs> &c,         // (J,)
+                    const Eigen::MatrixBase<Diag> &a,           // (N,)
                     const Eigen::MatrixBase<LowRank> &U,        // (N, J)
                     const Eigen::MatrixBase<LowRank> &V,        // (N, J)
-                    const Eigen::MatrixBase<LowRank> &P,        // (N-1, J)
                     Eigen::MatrixBase<DiagOut> const &d_out,    // (N,)
                     Eigen::MatrixBase<LowRankOut> const &W_out, // (N, J)
                     Eigen::MatrixBase<Work> const &S_out        // (N, J*J)
@@ -76,6 +79,7 @@ Eigen::Index factor(const Eigen::MatrixBase<Diag> &a,           // (N,)
 
   typedef typename Diag::Scalar Scalar;
   typedef typename Eigen::internal::plain_row_type<LowRank>::type RowVector;
+  typedef typename Eigen::internal::plain_col_type<Coeffs>::type CoeffVector;
 
   Eigen::Index N = U.rows(), J = U.cols();
   CAST_VEC(DiagOut, d, N);
@@ -88,6 +92,7 @@ Eigen::Index factor(const Eigen::MatrixBase<Diag> &a,           // (N,)
 
   // This is a temporary vector used to minimize computations internally
   RowVector tmp;
+  CoeffVector p;
 
   // This holds the accumulated value of the S matrix at each step
   Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, LowRank::ColsAtCompileTime, Eigen::ColMajor> Sn(J, J);
@@ -102,16 +107,18 @@ Eigen::Index factor(const Eigen::MatrixBase<Diag> &a,           // (N,)
 
   // The rest of the rows
   for (Eigen::Index n = 1; n < N; ++n) {
+    p = exp(c.array() * (t(n - 1) - t(n)));
+
     // Update S_n = diag(P) * (S_n-1 + d*W*W.T) * diag(P)
     Sn.noalias() += d(n - 1) * W.row(n - 1).transpose() * W.row(n - 1);
-    Sn = P.row(n - 1).asDiagonal() * Sn;
+    Sn = p.asDiagonal() * Sn;
 
     // Save the current value of Sn to the workspace
     // Note: This is actually `diag(P) * (S + d*W*W.T)` without the final `* diag(P)`
     internal::update_workspace<update_workspace>::apply(n, ptr, S);
 
     // Incorporate the second diag(P) that we didn't include above for bookkeeping
-    Sn *= P.row(n - 1).asDiagonal();
+    Sn *= p.asDiagonal();
 
     // Update d = a - U * S * U.T
     tmp  = U.row(n) * Sn;
@@ -191,10 +198,11 @@ void solve(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
  * @param Z_out (N, Nrhs): An intermediate result of the operation
  * @param F_out (N, J*Nrhs): The workspace for the forward sweep
  */
-template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename Norm, typename RightHandSideOut,
-          typename Work>
-void norm(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
-          const Eigen::MatrixBase<LowRank> &P,              // (N-1, J)
+template <bool update_workspace = true, typename Input, typename Coeffs, typename Diag, typename LowRank, typename RightHandSide, typename Norm,
+          typename RightHandSideOut, typename Work>
+void norm(const Eigen::MatrixBase<Input> &t,                // (N,)
+          const Eigen::MatrixBase<Coeffs> &c,               // (J,)
+          const Eigen::MatrixBase<LowRank> &U,              // (N, J)
           const Eigen::MatrixBase<Diag> &d,                 // (N,)
           const Eigen::MatrixBase<LowRank> &W,              // (N, J)
           const Eigen::MatrixBase<RightHandSide> &Y,        // (N, nrhs)
@@ -209,7 +217,7 @@ void norm(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
   CAST_BASE(RightHandSideOut, Z);
 
   Z = Y;
-  internal::forward<true, update_workspace>(U, W, P, Y, Z, F_out);
+  internal::forward<true, update_workspace>(t, c, U, W, Y, Z, F_out);
 
   X = Z.transpose() * d.asDiagonal().inverse() * Z;
 }

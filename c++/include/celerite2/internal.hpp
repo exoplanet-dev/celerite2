@@ -102,10 +102,12 @@ struct update_z<true> {
   }
 };
 
-template <bool is_solve, bool do_update = true, typename LowRank, typename RightHandSide, typename RightHandSideOut, typename Work>
-void forward(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
+template <bool is_solve, bool do_update = true, typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename RightHandSideOut,
+          typename Work>
+void forward(const Eigen::MatrixBase<Input> &t,                // (N,)
+             const Eigen::MatrixBase<Coeffs> &c,               // (J,)
+             const Eigen::MatrixBase<LowRank> &U,              // (N, J)
              const Eigen::MatrixBase<LowRank> &V,              // (N, J)
-             const Eigen::MatrixBase<LowRank> &P,              // (N-1, J)
              const Eigen::MatrixBase<RightHandSide> &Y,        // (N, Nrhs)
              Eigen::MatrixBase<RightHandSideOut> const &Z_out, // (N, Nrhs)
              Eigen::MatrixBase<Work> const &F_out              // (N, J * Nrhs)
@@ -114,6 +116,7 @@ void forward(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
 
   typedef typename LowRank::Scalar Scalar;
   typedef typename Eigen::internal::plain_row_type<RightHandSide>::type RowVector;
+  typedef typename Eigen::internal::plain_col_type<Coeffs>::type CoeffVector;
   typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
 
   Eigen::Index N = U.rows(), J = U.cols(), nrhs = Y.cols();
@@ -124,6 +127,7 @@ void forward(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
     F.row(0).setZero();
   }
 
+  CoeffVector p(J);
   Inner Fn(J, nrhs);
   Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Fn.data(), 1, J * nrhs);
 
@@ -132,10 +136,11 @@ void forward(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
 
   Fn.setZero();
   for (Eigen::Index n = 1; n < N; ++n) {
+    p = exp(c.array() * (t(n - 1) - t(n)));
     update_f<is_solve>::apply(V.row(n - 1).transpose(), tmp, Z.row(n - 1), Fn);
     tmp = Y.row(n);
     update_workspace<do_update>::apply(n, ptr, F);
-    Fn = P.row(n - 1).asDiagonal() * Fn;
+    Fn = p.asDiagonal() * Fn;
     update_z<is_solve>::apply(U.row(n) * Fn, Z.row(n));
   }
 }
@@ -178,46 +183,57 @@ void backward(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
   }
 }
 
-template <bool is_solve, typename LowRank, typename RightHandSide, typename RightHandSideOptional, typename Work, typename RightHandSideInternal,
-          typename LowRankOut,
-          typename RightHandSideOut>
-void forward_rev(const Eigen::MatrixBase<LowRank> &U,                    // (N, J)
+template <bool is_solve, typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename RightHandSideOptional, typename Work,
+          typename RightHandSideInternal, typename InputOut, typename CoeffsOut, typename LowRankOut, typename RightHandSideOut>
+void forward_rev(const Eigen::MatrixBase<Input> &t,                      // (N,)
+                 const Eigen::MatrixBase<Coeffs> &c,                     // (J,)
+                 const Eigen::MatrixBase<LowRank> &U,                    // (N, J)
                  const Eigen::MatrixBase<LowRank> &V,                    // (N, J)
-                 const Eigen::MatrixBase<LowRank> &P,                    // (N-1, J)
                  const Eigen::MatrixBase<RightHandSideOptional> &Y,      // (N, Nrhs)
                  const Eigen::MatrixBase<RightHandSide> &Z,              // (N, Nrhs)
                  const Eigen::MatrixBase<Work> &F,                       // (N, J * Nrhs)
                  Eigen::MatrixBase<RightHandSideInternal> const &bZ_out, // (N, Nrhs)
+                 Eigen::MatrixBase<InputOut> const &bt_out,              // (N,)
+                 Eigen::MatrixBase<CoeffsOut> const &bc_out,             // (J,)
                  Eigen::MatrixBase<LowRankOut> const &bU_out,            // (N, J)
                  Eigen::MatrixBase<LowRankOut> const &bV_out,            // (N, J)
-                 Eigen::MatrixBase<LowRankOut> const &bP_out,            // (N-1, J)
                  Eigen::MatrixBase<RightHandSideOut> const &bY_out       // (N, Nrhs)  -  Must be the right shape already (and zeroed)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
   typedef typename LowRank::Scalar Scalar;
+  typedef typename Eigen::internal::plain_col_type<Coeffs>::type CoeffVector;
   typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
 
   Eigen::Index N = U.rows(), J = U.cols(), nrhs = Y.cols();
+  CAST_VEC(InputOut, bt, N);
+  CAST_VEC(CoeffsOut, bc, J);
   CAST_MAT(LowRankOut, bU, N, J);
   CAST_MAT(LowRankOut, bV, N, J);
-  CAST_MAT(LowRankOut, bP, N - 1, J);
   CAST_BASE(RightHandSideOut, bY);
   CAST_BASE(RightHandSideInternal, bZ);
 
+  Scalar dt, factor;
+  CoeffVector p(J), bp(J);
   Inner Fn(J, nrhs), bF(J, nrhs);
   Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Fn.data(), 1, J * nrhs);
   bF.setZero();
   for (Eigen::Index n = N - 1; n >= 1; --n) {
+    dt  = t(n - 1) - t(n);
+    p   = exp(c.array() * dt);
     ptr = F.row(n);
 
     // Reverse: update_z<is_solve>::apply(U.row(n) * Fn, Z.row(n));
-    update_z<is_solve>::apply(bZ.row(n) * (P.row(n - 1).asDiagonal() * Fn).transpose(), bU.row(n));
+    update_z<is_solve>::apply(bZ.row(n) * (p.asDiagonal() * Fn).transpose(), bU.row(n));
     update_z<is_solve>::apply(U.row(n).transpose() * bZ.row(n), bF);
 
     // Reverse: Fn = P.row(n - 1).asDiagonal() * Fn;
-    bP.row(n - 1).noalias() += (Fn * bF.transpose()).diagonal();
-    bF = P.row(n - 1).asDiagonal() * bF;
+    bp.array() = (Fn * bF.transpose()).diagonal().array() * p.array();
+    bc.noalias() += dt * bp;
+    factor = (c.array() * bp.array()).sum();
+    bt(n) -= factor;
+    bt(n - 1) += factor;
+    bF = p.asDiagonal() * bF;
 
     // Reverse: update_f<is_solve>::apply(V.row(n - 1).transpose(), Y.row(n - 1), Z.row(n - 1), Fn);
     update_f<is_solve>::reverse(V.row(n - 1), Y.row(n - 1), Z.row(n - 1), bF, bV.row(n - 1), bY.row(n - 1), bZ.row(n - 1));

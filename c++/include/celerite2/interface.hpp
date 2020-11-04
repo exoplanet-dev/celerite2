@@ -33,16 +33,17 @@ namespace core {
  * @param d_out (N,): The diagonal component of the Cholesky factor
  * @param W_out (N, J): The second low rank component of the Cholesky factor
  */
-template <typename Diag, typename LowRank, typename DiagOut, typename LowRankOut>
-Eigen::Index factor(const Eigen::MatrixBase<Diag> &a,          // (N,)
+template <typename Input, typename Coeffs, typename Diag, typename LowRank, typename DiagOut, typename LowRankOut>
+Eigen::Index factor(const Eigen::MatrixBase<Input> &x,         // (N,)
+                    const Eigen::MatrixBase<Coeffs> &c,        // (J,)
+                    const Eigen::MatrixBase<Diag> &a,          // (N,)
                     const Eigen::MatrixBase<LowRank> &U,       // (N, J)
                     const Eigen::MatrixBase<LowRank> &V,       // (N, J)
-                    const Eigen::MatrixBase<LowRank> &P,       // (N-1, J)
                     Eigen::MatrixBase<DiagOut> const &d_out,   // (N,)
                     Eigen::MatrixBase<LowRankOut> const &W_out // (N, J)
 ) {
   MakeEmptyWork(Diag) S;
-  return factor<false>(a, U, V, P, d_out, W_out, S);
+  return factor<false>(x, c, a, U, V, d_out, W_out, S);
 }
 
 /**
@@ -93,9 +94,10 @@ void solve(const Eigen::MatrixBase<LowRank> &U,             // (N, J)
  * @param norm_out (Nrhs, Nrhs): The norm of `Y`
  * @param X_out (N, Nrhs): An intermediate result of the operation
  */
-template <typename Diag, typename LowRank, typename RightHandSide, typename Norm, typename RightHandSideOut>
-void norm(const Eigen::MatrixBase<LowRank> &U,             // (N, J)
-          const Eigen::MatrixBase<LowRank> &P,             // (N-1, J)
+template <typename Input, typename Coeffs, typename Diag, typename LowRank, typename RightHandSide, typename Norm, typename RightHandSideOut>
+void norm(const Eigen::MatrixBase<Input> &t,               // (N,)
+          const Eigen::MatrixBase<Coeffs> &c,              // (J,)
+          const Eigen::MatrixBase<LowRank> &U,             // (N, J)
           const Eigen::MatrixBase<Diag> &d,                // (N,)
           const Eigen::MatrixBase<LowRank> &W,             // (N, J)
           const Eigen::MatrixBase<RightHandSide> &Y,       // (N, nrhs)
@@ -103,7 +105,7 @@ void norm(const Eigen::MatrixBase<LowRank> &U,             // (N, J)
           Eigen::MatrixBase<RightHandSideOut> const &X_out // (N, nrhs)
 ) {
   MakeEmptyWork(Diag) F;
-  norm<false>(U, P, d, W, Y, norm_out, X_out, F);
+  norm<false>(t, c, U, d, W, Y, norm_out, X_out, F);
 }
 
 /**

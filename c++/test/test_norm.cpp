@@ -12,10 +12,10 @@ TEMPLATE_LIST_TEST_CASE("check the results of norm", "[norm]", TestKernels) {
   SETUP_TEST(50);
 
   Matrix K, S, F, Z, result;
-  to_dense(a, U, V, P, K);
+  to_dense(x, c, a, U, V, K);
 
   // Do the solve using celerite
-  int flag = factor(a, U, V, P, a, V, S);
+  int flag = factor(x, c, a, U, V, a, V, S);
   REQUIRE(flag == 0);
 
   // Brute force the solve
@@ -23,20 +23,20 @@ TEMPLATE_LIST_TEST_CASE("check the results of norm", "[norm]", TestKernels) {
   Matrix expect = Y.transpose() * LDLT.solve(Y);
 
   SECTION("general") {
-    norm(U, P, a, V, Y, result, Z, F);
+    norm(x, c, U, a, V, Y, result, Z, F);
     double resid = (expect - result).array().abs().maxCoeff();
     REQUIRE(resid < 1e-12);
   }
 
   SECTION("no grad") {
-    norm(U, P, a, V, Y, result, Z);
+    norm(x, c, U, a, V, Y, result, Z);
     double resid = (expect - result).array().abs().maxCoeff();
     REQUIRE(resid < 1e-12);
   }
 
   SECTION("inplace") {
     Z = Y;
-    norm(U, P, a, V, Z, result, Z, F);
+    norm(x, c, U, a, V, Z, result, Z, F);
     double resid = (expect - result).array().abs().maxCoeff();
     REQUIRE(resid < 1e-12);
   }

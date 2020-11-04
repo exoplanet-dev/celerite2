@@ -49,6 +49,12 @@ class Term {
   typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Width, Order> LowRank;
 
   /**
+   * \typedef CoeffVector
+   * The `Eigen` type for a fixed width vector of coefficients
+   */
+  typedef Eigen::Matrix<Scalar, Width, 1> CoeffVector;
+
+  /**
    * \typedef Coeffs
    * A tuple of vectors giving the coefficients for the celerite model
    */
@@ -58,7 +64,7 @@ class Term {
    * \typedef Matrices
    * A tuple of matrices representing this celerite process
    */
-  typedef std::tuple<Vector, LowRank, LowRank, LowRank> Matrices;
+  typedef std::tuple<CoeffVector, Vector, LowRank, LowRank> Matrices;
 
   Term(){};
 
@@ -112,14 +118,14 @@ class Term {
     Eigen::Index J  = nr + 2 * nc;
     if (Width != Eigen::Dynamic && Width != J) throw dimension_mismatch();
 
+    CoeffVector c(J);
     Vector a = diag.array() + (ar_.sum() + ac_.sum());
-    LowRank U(N, J), V(N, J), P(N - 1, J);
+    LowRank U(N, J), V(N, J);
 
-    Vector dx = x.segment(1, N - 1) - x.head(N - 1);
+    c << cr_, cc_, cc_;
 
     U.block(0, 0, N, nr).rowwise() = ar_.transpose();
     V.block(0, 0, N, nr).setConstant(Scalar(1));
-    P.block(0, 0, N - 1, nr) = exp(-(dx * cr_.transpose()).array());
 
     auto arg                   = (x * dc_.transpose()).array().eval();
     auto ca                    = cos(arg).eval();
@@ -128,9 +134,8 @@ class Term {
     U.block(0, nr + nc, N, nc) = sa.array().rowwise() * ac_.transpose().array() - ca.array().rowwise() * bc_.transpose().array();
     V.block(0, nr, N, nc)      = ca;
     V.block(0, nr + nc, N, nc) = sa;
-    P.block(0, nr, N - 1, nc) = P.block(0, nr + nc, N - 1, nc) = exp(-(dx * cc_.transpose()).array());
 
-    return std::make_tuple(a, U, V, P);
+    return std::make_tuple(c, a, U, V);
   }
 
   /**

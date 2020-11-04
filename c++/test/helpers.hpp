@@ -246,6 +246,7 @@ bool check_grad(Func &&func, Rev &&rev, ArgsIn args_in, ArgsExtra args_extra, Re
 #define SETUP_TEST(NUM)                                                                                                                              \
   auto kernel = TestType::get_kernel();                                                                                                              \
   typedef typename decltype(kernel)::LowRank LowRank;                                                                                                \
+  typedef typename decltype(kernel)::CoeffVector CoeffVector;                                                                                        \
                                                                                                                                                      \
   /* DATA */                                                                                                                                         \
   Vector x, diag;                                                                                                                                    \
@@ -256,8 +257,9 @@ bool check_grad(Func &&func, Rev &&rev, ArgsIn args_in, ArgsExtra args_extra, Re
                                                                                                                                                      \
   /* CELERITE MATRICES */                                                                                                                            \
   Vector a;                                                                                                                                          \
-  LowRank U, V, P;                                                                                                                                   \
-  std::tie(a, U, V, P) = kernel.get_celerite_matrices(x, diag);                                                                                      \
+  CoeffVector c;                                                                                                                                     \
+  LowRank U, V;                                                                                                                                      \
+  std::tie(c, a, U, V) = kernel.get_celerite_matrices(x, diag);                                                                                      \
   const Eigen::Index J = U.cols();                                                                                                                   \
                                                                                                                                                      \
   UNUSED(N);                                                                                                                                         \
