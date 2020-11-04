@@ -10,23 +10,25 @@ using namespace celerite2::core;
 TEMPLATE_LIST_TEST_CASE("check the results of matmul_rev", "[matmul_rev]", TestKernels) {
   SETUP_TEST(10);
 
-  Vector ba(N);
+  CoeffVector bc(J);
+  Vector ba(N), bx(N);
   LowRank bV(N, J), bU(N, J), bP(N - 1, J);
   Matrix Z, X, F, G, bZ(N, nrhs), bY(N, nrhs);
 
   // Required to compute the initial values
-  matmul(a, U, V, P, Y, Z, X, F, G);
+  matmul(x, c, a, U, V, Y, Z, X, F, G);
 
-  auto func = [](auto a, auto U, auto V, auto P, auto Y, auto Z, auto X, auto F, auto G) {
-    matmul(a, U, V, P, Y, Z, X, F, G);
+  auto func = [](auto x, auto c, auto a, auto U, auto V, auto Y, auto Z, auto X, auto F, auto G) {
+    matmul(x, c, a, U, V, Y, Z, X, F, G);
     return std::make_tuple(Z);
   };
 
-  auto rev = [](auto a, auto U, auto V, auto P, auto Y, auto Z, auto X, auto F, auto G, auto bZ, auto ba, auto bU, auto bV, auto bP, auto bY) {
-    matmul_rev(a, U, V, P, Y, Z, X, F, G, bZ, ba, bU, bV, bP, bY);
-    return std::make_tuple(ba, bU, bV, bP, bY);
+  auto rev = [](auto x, auto c, auto a, auto U, auto V, auto Y, auto Z, auto X, auto F, auto G, auto bZ, auto bx, auto bc, auto ba, auto bU, auto bV,
+                auto bY) {
+    matmul_rev(x, c, a, U, V, Y, Z, X, F, G, bZ, bx, bc, ba, bU, bV, bY);
+    return std::make_tuple(bx, bc, ba, bU, bV, bY);
   };
 
-  REQUIRE(
-     check_grad(func, rev, std::make_tuple(a, U, V, P, Y), std::make_tuple(Z, X, F, G), std::make_tuple(bZ), std::make_tuple(ba, bU, bV, bP, bY)));
+  REQUIRE(check_grad(func, rev, std::make_tuple(x, c, a, U, V, Y), std::make_tuple(Z, X, F, G), std::make_tuple(bZ),
+                     std::make_tuple(bx, bc, ba, bU, bV, bY)));
 }

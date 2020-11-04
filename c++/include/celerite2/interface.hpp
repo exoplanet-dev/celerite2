@@ -34,7 +34,7 @@ namespace core {
  * @param W_out (N, J): The second low rank component of the Cholesky factor
  */
 template <typename Input, typename Coeffs, typename Diag, typename LowRank, typename DiagOut, typename LowRankOut>
-Eigen::Index factor(const Eigen::MatrixBase<Input> &x,         // (N,)
+Eigen::Index factor(const Eigen::MatrixBase<Input> &t,         // (N,)
                     const Eigen::MatrixBase<Coeffs> &c,        // (J,)
                     const Eigen::MatrixBase<Diag> &a,          // (N,)
                     const Eigen::MatrixBase<LowRank> &U,       // (N, J)
@@ -43,7 +43,7 @@ Eigen::Index factor(const Eigen::MatrixBase<Input> &x,         // (N,)
                     Eigen::MatrixBase<LowRankOut> const &W_out // (N, J)
 ) {
   MakeEmptyWork(Diag) S;
-  return factor<false>(x, c, a, U, V, d_out, W_out, S);
+  return factor<false>(t, c, a, U, V, d_out, W_out, S);
 }
 
 /**
@@ -65,16 +65,17 @@ Eigen::Index factor(const Eigen::MatrixBase<Input> &x,         // (N,)
  * @param Y     (N, Nrhs): The right hand side vector or matrix
  * @param X_out (N, Nrhs): The solution to the linear system
  */
-template <typename Diag, typename LowRank, typename RightHandSide, typename RightHandSideOut>
-void solve(const Eigen::MatrixBase<LowRank> &U,             // (N, J)
-           const Eigen::MatrixBase<LowRank> &P,             // (N-1, J)
+template <typename Input, typename Coeffs, typename Diag, typename LowRank, typename RightHandSide, typename RightHandSideOut>
+void solve(const Eigen::MatrixBase<Input> &t,               // (N,)
+           const Eigen::MatrixBase<Coeffs> &c,              // (J,)
+           const Eigen::MatrixBase<LowRank> &U,             // (N, J)
            const Eigen::MatrixBase<Diag> &d,                // (N,)
            const Eigen::MatrixBase<LowRank> &W,             // (N, J)
            const Eigen::MatrixBase<RightHandSide> &Y,       // (N, nrhs)
            Eigen::MatrixBase<RightHandSideOut> const &X_out // (N, nrhs)
 ) {
   MakeEmptyWork(Diag) F;
-  solve<false>(U, P, d, W, Y, X_out, X_out, F, F);
+  solve<false>(t, c, U, d, W, Y, X_out, X_out, F, F);
 }
 
 /**
@@ -123,16 +124,17 @@ void norm(const Eigen::MatrixBase<Input> &t,               // (N,)
  * @param Y     (N, Nrhs): The target vector or matrix
  * @param Z_out (N, Nrhs): The result of the operation
  */
-template <typename Diag, typename LowRank, typename RightHandSide, typename RightHandSideOut>
-void dot_tril(const Eigen::MatrixBase<LowRank> &U,             // (N, J)
-              const Eigen::MatrixBase<LowRank> &P,             // (N-1, J)
+template <typename Input, typename Coeffs, typename Diag, typename LowRank, typename RightHandSide, typename RightHandSideOut>
+void dot_tril(const Eigen::MatrixBase<Input> &t,               // (N,)
+              const Eigen::MatrixBase<Coeffs> &c,              // (J,)
+              const Eigen::MatrixBase<LowRank> &U,             // (N, J)
               const Eigen::MatrixBase<Diag> &d,                // (N,)
               const Eigen::MatrixBase<LowRank> &W,             // (N, J)
               const Eigen::MatrixBase<RightHandSide> &Y,       // (N, nrhs)
               Eigen::MatrixBase<RightHandSideOut> const &Z_out // (N, nrhs)
 ) {
   MakeEmptyWork(Diag) F;
-  dot_tril<false>(U, P, d, W, Y, Z_out, F);
+  dot_tril<false>(t, c, U, d, W, Y, Z_out, F);
 }
 
 /**
@@ -149,16 +151,17 @@ void dot_tril(const Eigen::MatrixBase<LowRank> &U,             // (N, J)
  * @param Y      (N, Nrhs): The matrix that will be left multiplied by the celerite model
  * @param X_out  (N, Nrhs): The result of the operation
  */
-template <typename Diag, typename LowRank, typename RightHandSide, typename RightHandSideOut>
-void matmul(const Eigen::MatrixBase<Diag> &a,                // (N,)
+template <typename Input, typename Coeffs, typename Diag, typename LowRank, typename RightHandSide, typename RightHandSideOut>
+void matmul(const Eigen::MatrixBase<Input> &t,               // (N,)
+            const Eigen::MatrixBase<Coeffs> &c,              // (J,)
+            const Eigen::MatrixBase<Diag> &a,                // (N,)
             const Eigen::MatrixBase<LowRank> &U,             // (N, J)
             const Eigen::MatrixBase<LowRank> &V,             // (N, J)
-            const Eigen::MatrixBase<LowRank> &P,             // (N-1, J)
             const Eigen::MatrixBase<RightHandSide> &Y,       // (N, nrhs)
             Eigen::MatrixBase<RightHandSideOut> const &X_out // (N, nrhs)
 ) {
   MakeEmptyWork(Diag) F;
-  matmul<false>(a, U, V, P, Y, X_out, X_out, F, F);
+  matmul<false>(t, c, a, U, V, Y, X_out, X_out, F, F);
 }
 
 } // namespace core

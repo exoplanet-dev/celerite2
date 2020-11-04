@@ -155,9 +155,11 @@ Eigen::Index factor(const Eigen::MatrixBase<Input> &t,          // (N,)
  * @param F_out (N, J*Nrhs): The workspace for the forward sweep
  * @param G_out (N, J*Nrhs): The workspace for the backward sweep
  */
-template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename RightHandSideOut, typename Work>
-void solve(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
-           const Eigen::MatrixBase<LowRank> &P,              // (N-1, J)
+template <bool update_workspace = true, typename Input, typename Coeffs, typename Diag, typename LowRank, typename RightHandSide,
+          typename RightHandSideOut, typename Work>
+void solve(const Eigen::MatrixBase<Input> &t,                // (N,)
+           const Eigen::MatrixBase<Coeffs> &c,               // (J,)
+           const Eigen::MatrixBase<LowRank> &U,              // (N, J)
            const Eigen::MatrixBase<Diag> &d,                 // (N,)
            const Eigen::MatrixBase<LowRank> &W,              // (N, J)
            const Eigen::MatrixBase<RightHandSide> &Y,        // (N, nrhs)
@@ -172,11 +174,11 @@ void solve(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
   CAST_BASE(RightHandSideOut, Z);
 
   Z = Y;
-  internal::forward<true, update_workspace>(U, W, P, Y, Z, F_out);
+  internal::forward<true, update_workspace>(t, c, U, W, Y, Z, F_out);
 
   X = Z;
   X.array().colwise() /= d.array();
-  internal::backward<true, update_workspace>(U, W, P, Z, X, G_out);
+  internal::backward<true, update_workspace>(t, c, U, W, Z, X, G_out);
 }
 
 /**
@@ -239,9 +241,11 @@ void norm(const Eigen::MatrixBase<Input> &t,                // (N,)
  * @param Z_out (N, Nrhs): The result of the operation
  * @param F_out (N, J*Nrhs): The workspace for the forward sweep
  */
-template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename RightHandSideOut, typename Work>
-void dot_tril(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
-              const Eigen::MatrixBase<LowRank> &P,              // (N-1, J)
+template <bool update_workspace = true, typename Input, typename Coeffs, typename Diag, typename LowRank, typename RightHandSide,
+          typename RightHandSideOut, typename Work>
+void dot_tril(const Eigen::MatrixBase<Input> &t,                // (N,)
+              const Eigen::MatrixBase<Coeffs> &c,               // (J,)
+              const Eigen::MatrixBase<LowRank> &U,              // (N, J)
               const Eigen::MatrixBase<Diag> &d,                 // (N,)
               const Eigen::MatrixBase<LowRank> &W,              // (N, J)
               const Eigen::MatrixBase<RightHandSide> &Y,        // (N, nrhs)
@@ -252,7 +256,7 @@ void dot_tril(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
   CAST_BASE(RightHandSideOut, Z);
   Z = Y;
   Z.array().colwise() *= sqrt(d.array());
-  internal::forward<false, update_workspace>(U, W, P, Z, Z, F_out);
+  internal::forward<false, update_workspace>(t, c, U, W, Z, Z, F_out);
 }
 
 /**
@@ -272,11 +276,13 @@ void dot_tril(const Eigen::MatrixBase<LowRank> &U,              // (N, J)
  * @param F_out (N, J*Nrhs): The workspace for the forward sweep
  * @param G_out (N, J*Nrhs): The workspace for the backward sweep
  */
-template <bool update_workspace = true, typename Diag, typename LowRank, typename RightHandSide, typename RightHandSideOut, typename Work>
-void matmul(const Eigen::MatrixBase<Diag> &a,                 // (N,)
+template <bool update_workspace = true, typename Input, typename Coeffs, typename Diag, typename LowRank, typename RightHandSide,
+          typename RightHandSideOut, typename Work>
+void matmul(const Eigen::MatrixBase<Input> &t,                // (N,)
+            const Eigen::MatrixBase<Coeffs> &c,               // (J,)
+            const Eigen::MatrixBase<Diag> &a,                 // (N,)
             const Eigen::MatrixBase<LowRank> &U,              // (N, J)
             const Eigen::MatrixBase<LowRank> &V,              // (N, J)
-            const Eigen::MatrixBase<LowRank> &P,              // (N-1, J)
             const Eigen::MatrixBase<RightHandSide> &Y,        // (N, nrhs)
             Eigen::MatrixBase<RightHandSideOut> const &X_out, // (N, nrhs)
             Eigen::MatrixBase<RightHandSideOut> const &M_out, // (N, nrhs)
@@ -290,11 +296,11 @@ void matmul(const Eigen::MatrixBase<Diag> &a,                 // (N,)
 
   // M = diag(a) * Y + tril(U V^T) * Y
   M = a.asDiagonal() * Y;
-  internal::forward<false, update_workspace>(U, V, P, Y, M, F_out);
+  internal::forward<false, update_workspace>(t, c, U, V, Y, M, F_out);
 
   // X = M + triu(V U^T) * Y
   X = M;
-  internal::backward<false, update_workspace>(U, V, P, Y, X, G_out);
+  internal::backward<false, update_workspace>(t, c, U, V, Y, X, G_out);
 }
 
 /**
