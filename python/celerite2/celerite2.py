@@ -40,6 +40,7 @@ class GaussianProcess:
         self._t = None
         self._X = None
         self._mean_value = None
+        self._latent_value = None
         self._diag = None
         self._size = None
         self._log_det = -np.inf
@@ -154,8 +155,9 @@ class GaussianProcess:
             if self._X.shape[0] != self._size:
                 raise ValueError("'X' must be the same length as 't'")
 
+            self._latent_value = self.latent(self._t, self._X)
             self._d, self._U, self._V, self._P = apply_latent(
-                self.latent(self._t, self._X),
+                self._latent_value,
                 a=self._d,
                 U=self._U,
                 V=self._V,
@@ -315,6 +317,7 @@ class GaussianProcess:
         return_var=False,
         include_mean=True,
         kernel=None,
+        X=None,
     ):
         """Compute the conditional distribution
 
@@ -351,13 +354,26 @@ class GaussianProcess:
             self._U, self._P, self._d, self._W, y - self._mean_value
         )
 
+        latent_value = None
         if t is None:
             xs = self._t
+            latent_value = self._latent_value
 
         else:
             xs = np.ascontiguousarray(t, dtype=np.float64)
             if xs.ndim != 1:
                 raise ValueError("dimension mismatch")
+
+            if self.latent is not None:
+                if X is None:
+                    raise ValueError(
+                        "'X' must be defined for a model with a latent "
+                        "dimension"
+                    )
+                X = np.ascontiguousarray(X)
+                if X.shape[0] != xs.shape[0]:
+                    raise ValueError("'X' must be the same length as 'x'")
+                latent_value = self.latent(xs, X)
 
         KxsT = None
         if kernel is None:
@@ -368,12 +384,17 @@ class GaussianProcess:
                 if not include_mean:
                     mu -= self._mean_value
             else:
-
                 (
                     U_star,
                     V_star,
                     inds,
                 ) = self.kernel.get_conditional_mean_matrices(self._t, xs)
+
+                if self.latent is not None:
+                    _, U_star, V_star, _ = apply_latent(
+                        latent_value, U=U_star, V=V_star
+                    )
+
                 mu = np.empty_like(xs)
                 mu = driver.conditional_mean(
                     self._U, self._V, self._P, alpha, U_star, V_star, inds, mu
@@ -383,7 +404,17 @@ class GaussianProcess:
                     mu += self._mean(xs)
 
         else:
-            KxsT = kernel.get_value(xs[None, :] - self._t[:, None])
+
+            if latent_value is None:
+                KxsT = kernel.get_value(xs[None, :] - self._t[:, None])
+            else:
+                KxsT = np.einsum(
+                    "nmj,njr,mjr->nm",
+                    kernel._get_values(xs[None, :] - self._t[:, None]),
+                    self._latent_value,
+                    latent_value,
+                )
+
             mu = np.dot(KxsT.T, alpha)
             if include_mean:
                 mu += self._mean(xs)
@@ -393,15 +424,39 @@ class GaussianProcess:
 
         # Predictive variance.
         if KxsT is None:
-            KxsT = kernel.get_value(xs[None, :] - self._t[:, None])
+            if latent_value is None:
+                KxsT = kernel.get_value(xs[None, :] - self._t[:, None])
+            else:
+                KxsT = np.einsum(
+                    "nmj,njr,mjr->nm",
+                    kernel._get_values(xs[None, :] - self._t[:, None]),
+                    self._latent_value,
+                    latent_value,
+                )
+
         if return_var:
-            var = kernel.get_value(0.0) - np.einsum(
+            if latent_value is None:
+                var0 = kernel.get_value(0.0)
+            else:
+                var0 = np.sum(
+                    kernel._get_values(0.0)[:, :, None] * latent_value ** 2,
+                    axis=(1, 2),
+                )
+            var = var0 - np.einsum(
                 "ij,ij->j", KxsT, self.apply_inverse(KxsT, inplace=False)
             )
             return mu, var
 
         # Predictive covariance
-        cov = kernel.get_value(xs[:, None] - xs[None, :])
+        if latent_value is None:
+            cov = kernel.get_value(xs[:, None] - xs[None, :])
+        else:
+            cov = np.einsum(
+                "nmj,njr,mjr->nm",
+                kernel._get_values(xs[:, None] - xs[None, :]),
+                latent_value,
+                latent_value,
+            )
         cov -= np.tensordot(
             KxsT, self.apply_inverse(KxsT, inplace=False), axes=(0, 0)
         )

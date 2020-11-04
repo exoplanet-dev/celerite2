@@ -5,7 +5,7 @@ __all__ = ["apply_latent", "prepare_rectangular_data", "KronLatent"]
 import numpy as np
 
 
-def apply_latent(latent_value, *, a, U, V, P):
+def apply_latent(latent_value, *, a=None, U, V, P=None):
     latent_value = np.atleast_3d(latent_value)
 
     N, J = U.shape
@@ -19,14 +19,16 @@ def apply_latent(latent_value, *, a, U, V, P):
             f"got {latent_value.shape}"
         )
 
-    a[:] *= np.sum(latent_value ** 2, axis=(1, 2))
+    if a is not None:
+        a[:] *= np.sum(latent_value ** 2, axis=(1, 2))
     if M == 1:
         U[:] *= latent_value[:, :, 0]
         V[:] *= latent_value[:, :, 0]
     else:
         U = (U[:, :, None] * latent_value).reshape((N, -1))
         V = (V[:, :, None] * latent_value).reshape((N, -1))
-        P = np.tile(P[:, :, None], (1, 1, M)).reshape(N - 1, -1)
+        if P is not None:
+            P = np.tile(P[:, :, None], (1, 1, M)).reshape(N - 1, -1)
 
     return a, U, V, P
 
