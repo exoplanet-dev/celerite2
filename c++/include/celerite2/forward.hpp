@@ -9,10 +9,11 @@ namespace core {
 /**
  * \brief Get the dense representation of a celerite matrix
  *
+ * @param t     (N,): The input coordinates (must be sorted)
+ * @param c     (J,): The transport coefficients
  * @param a     (N,): The diagonal component
  * @param U     (N, J): The first low rank matrix
  * @param V     (N, J): The second low rank matrix
- * @param P     (N-1, J): The exponential difference matrix
  * @param K_out (N, N): The dense matrix
  */
 template <typename Input, typename Coeffs, typename Diag, typename LowRank, typename Dense>
@@ -56,10 +57,11 @@ void to_dense(const Eigen::MatrixBase<Input> &t,    // (N,)
  * `celerite2::core::factor_rev` function doesn't use `a` and `V`, but this
  * won't be true for all `_rev` functions.
  *
+ * @param t     (N,): The input coordinates (must be sorted)
+ * @param c     (J,): The transport coefficients
  * @param a     (N,): The diagonal component
  * @param U     (N, J): The first low rank matrix
  * @param V     (N, J): The second low rank matrix
- * @param P     (N-1, J): The exponential difference matrix
  * @param d_out (N,): The diagonal component of the Cholesky factor
  * @param W_out (N, J): The second low rank component of the Cholesky factor
  * @param S_out (N, J*J): The cached value of the S matrix at each step
@@ -145,8 +147,9 @@ Eigen::Index factor(const Eigen::MatrixBase<Input> &t,          // (N,)
  * This can be safely applied in place *as long as you don't need to compute the
  * reverse pass*. To compute the solve in place, set `X_out = Y` and `Z_out = Y`.
  *
+ * @param t     (N,): The input coordinates (must be sorted)
+ * @param c     (J,): The transport coefficients
  * @param U     (N, J): The first low rank matrix
- * @param P     (N-1, J): The exponential difference matrix
  * @param d     (N,): The diagonal component of the Cholesky factor
  * @param W     (N, J): The second low rank component of the Cholesky factor
  * @param Y     (N, Nrhs): The right hand side vector or matrix
@@ -191,8 +194,9 @@ void solve(const Eigen::MatrixBase<Input> &t,                // (N,)
  * This can be safely applied in place *as long as you don't need to compute the
  * reverse pass*. To compute the solve in place, set `Z_out = Y`.
  *
+ * @param t     (N,): The input coordinates (must be sorted)
+ * @param c     (J,): The transport coefficients
  * @param U     (N, J): The first low rank matrix
- * @param P     (N-1, J): The exponential difference matrix
  * @param d     (N,): The diagonal component of the Cholesky factor
  * @param W     (N, J): The second low rank component of the Cholesky factor
  * @param Y     (N, Nrhs): The target vector or matrix
@@ -233,8 +237,9 @@ void norm(const Eigen::MatrixBase<Input> &t,                // (N,)
  * This can be safely applied in place *as long as you don't need to compute the
  * reverse pass*. To compute the solve in place, set `Z_out = Y`.
  *
+ * @param t     (N,): The input coordinates (must be sorted)
+ * @param c     (J,): The transport coefficients
  * @param U     (N, J): The first low rank matrix
- * @param P     (N-1, J): The exponential difference matrix
  * @param d     (N,): The diagonal component of the Cholesky factor
  * @param W     (N, J): The second low rank component of the Cholesky factor
  * @param Y     (N, Nrhs): The target vector or matrix
@@ -266,10 +271,11 @@ void dot_tril(const Eigen::MatrixBase<Input> &t,                // (N,)
  *
  * Note that this operation *cannot* be safely applied in place.
  *
+ * @param t     (N,): The input coordinates (must be sorted)
+ * @param c     (J,): The transport coefficients
  * @param a     (N,): The diagonal component
  * @param U     (N, J): The first low rank matrix
  * @param V     (N, J): The second low rank matrix
- * @param P     (N-1, J): The exponential difference matrix
  * @param Y     (N, Nrhs): The target vector or matrix
  * @param X_out (N, Nrhs): The result of the operation
  * @param M_out (N, Nrhs): The intermediate state of the system
@@ -301,6 +307,110 @@ void matmul(const Eigen::MatrixBase<Input> &t,                // (N,)
   // X = M + triu(V U^T) * Y
   X = M;
   internal::backward<false, update_workspace>(t, c, U, V, Y, X, G_out);
+}
+
+template <bool do_update = true, typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename RightHandSideOut,
+          typename Work>
+void general_lower_dot(const Eigen::MatrixBase<Input> &t1,               // (N,)
+                       const Eigen::MatrixBase<Input> &t2,               // (M,)
+                       const Eigen::MatrixBase<Coeffs> &c,               // (J,)
+                       const Eigen::MatrixBase<LowRank> &U,              // (N, J)
+                       const Eigen::MatrixBase<LowRank> &V,              // (M, J)
+                       const Eigen::MatrixBase<RightHandSide> &Y,        // (M, nrhs)
+                       Eigen::MatrixBase<RightHandSideOut> const &Z_out, // (N, nrhs)
+                       Eigen::MatrixBase<Work> const &F_out              // (M, J*nrhs)
+) {
+  ASSERT_ROW_MAJOR(Work);
+
+  typedef typename LowRank::Scalar Scalar;
+  typedef typename Eigen::internal::plain_col_type<Coeffs>::type CoeffVector;
+  typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
+
+  Eigen::Index N = t1.rows(), M = t2.rows(), J = c.rows(), nrhs = Y.cols();
+
+  CAST_MAT(RightHandSideOut, Z, N, nrhs);
+  CAST_BASE(Work, F);
+  if (do_update) {
+    F.derived().resize(M, J * nrhs);
+    F.row(0).setZero();
+  }
+
+  CoeffVector p(J);
+  Inner Fm(J, nrhs);
+  Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Fm.data(), 1, J * nrhs);
+
+  Eigen::Index n = 0, m = 0;
+  Fm.setZero();
+  Z.setZero();
+  while (n < N) {
+    if (m < M && t2(m) <= t1(n)) {
+      if (m > 0) {
+        p  = exp(c.array() * (t2(m - 1) - t2(m)));
+        Fm = p.asDiagonal() * Fm;
+      }
+      internal::update_f<false>::apply(V.row(m).transpose(), Y.row(m), Y.row(m), Fm);
+      internal::update_workspace<do_update>::apply(m, ptr, F);
+      m++;
+    } else {
+      if (m > 0) {
+        p = exp(c.array() * (t2(m - 1) - t1(n)));
+        internal::update_z<false>::apply(U.row(n) * p.asDiagonal() * Fm, Z.row(n));
+      }
+      n++;
+    }
+  }
+}
+
+template <bool do_update = true, typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename RightHandSideOut,
+          typename Work>
+void general_upper_dot(const Eigen::MatrixBase<Input> &t1,               // (N,)
+                       const Eigen::MatrixBase<Input> &t2,               // (M,)
+                       const Eigen::MatrixBase<Coeffs> &c,               // (J,)
+                       const Eigen::MatrixBase<LowRank> &U,              // (N, J)
+                       const Eigen::MatrixBase<LowRank> &V,              // (M, J)
+                       const Eigen::MatrixBase<RightHandSide> &Y,        // (M, nrhs)
+                       Eigen::MatrixBase<RightHandSideOut> const &Z_out, // (N, nrhs)
+                       Eigen::MatrixBase<Work> const &F_out              // (M, J*nrhs)
+) {
+  ASSERT_ROW_MAJOR(Work);
+
+  typedef typename LowRank::Scalar Scalar;
+  typedef typename Eigen::internal::plain_col_type<Coeffs>::type CoeffVector;
+  typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
+
+  Eigen::Index N = t1.rows(), M = t2.rows(), J = c.rows(), nrhs = Y.cols();
+
+  CAST_MAT(RightHandSideOut, Z, N, nrhs);
+  CAST_BASE(Work, F);
+  if (do_update) {
+    F.derived().resize(M, J * nrhs);
+    F.row(0).setZero();
+  }
+
+  CoeffVector p(J);
+  Inner Fm(J, nrhs);
+  Eigen::Map<typename Eigen::internal::plain_row_type<Work>::type> ptr(Fm.data(), 1, J * nrhs);
+
+  Eigen::Index n = N - 1, m = M - 1;
+  Fm.setZero();
+  Z.setZero();
+  while (n >= 0) {
+    if (m >= 0 && t2(m) > t1(n)) {
+      if (m < M - 1) {
+        p  = exp(c.array() * (t2(m) - t2(m + 1)));
+        Fm = p.asDiagonal() * Fm;
+      }
+      internal::update_f<false>::apply(V.row(m).transpose(), Y.row(m), Y.row(m), Fm);
+      internal::update_workspace<do_update>::apply(m, ptr, F);
+      m--;
+    } else {
+      if (m < M - 1) {
+        p = exp(c.array() * (t1(n) - t2(m + 1)));
+        internal::update_z<false>::apply(U.row(n) * p.asDiagonal() * Fm, Z.row(n));
+      }
+      n--;
+    }
+  }
 }
 
 /**

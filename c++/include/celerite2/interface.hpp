@@ -26,10 +26,11 @@ namespace core {
  * This can be safely applied in place: `d_out` can point to `a` and `W_out` can
  * point to `V`, and the memory will be reused.
  *
+ * @param t     (N,): The input coordinates (must be sorted)
+ * @param c     (J,): The transport coefficients
  * @param a     (N,): The diagonal component
  * @param U     (N, J): The first low rank matrix
  * @param V     (N, J): The second low rank matrix
- * @param P     (N-1, J): The exponential difference matrix
  * @param d_out (N,): The diagonal component of the Cholesky factor
  * @param W_out (N, J): The second low rank component of the Cholesky factor
  */
@@ -58,8 +59,9 @@ Eigen::Index factor(const Eigen::MatrixBase<Input> &t,         // (N,)
  *
  * This can be safely applied in place by setting `X_out = Y`.
  *
+ * @param t     (N,): The input coordinates (must be sorted)
+ * @param c     (J,): The transport coefficients
  * @param U     (N, J): The first low rank matrix
- * @param P     (N-1, J): The exponential difference matrix
  * @param d     (N,): The diagonal component of the Cholesky factor
  * @param W     (N, J): The second low rank component of the Cholesky factor
  * @param Y     (N, Nrhs): The right hand side vector or matrix
@@ -87,8 +89,9 @@ void solve(const Eigen::MatrixBase<Input> &t,               // (N,)
  *
  * This can be safely applied in place by setting `X_out = Y`.
  *
+ * @param t     (N,): The input coordinates (must be sorted)
+ * @param c     (J,): The transport coefficients
  * @param U     (N, J): The first low rank matrix
- * @param P     (N-1, J): The exponential difference matrix
  * @param d     (N,): The diagonal component of the Cholesky factor
  * @param W     (N, J): The second low rank component of the Cholesky factor
  * @param Y     (N, Nrhs): The right hand side vector or matrix
@@ -117,8 +120,9 @@ void norm(const Eigen::MatrixBase<Input> &t,               // (N,)
  *
  * This can be safely applied in place by setting `Z_out = Y`.
  *
+ * @param t     (N,): The input coordinates (must be sorted)
+ * @param c     (J,): The transport coefficients
  * @param U     (N, J): The first low rank matrix
- * @param P     (N-1, J): The exponential difference matrix
  * @param d     (N,): The diagonal component of the Cholesky factor
  * @param W     (N, J): The second low rank component of the Cholesky factor
  * @param Y     (N, Nrhs): The target vector or matrix
@@ -144,10 +148,11 @@ void dot_tril(const Eigen::MatrixBase<Input> &t,               // (N,)
  *
  * Note that this operation *cannot* be safely applied in place.
  *
+ * @param t      (N,): The input coordinates (must be sorted)
+ * @param c      (J,): The transport coefficients
  * @param a      (N,): The diagonal component
  * @param U      (N, J): The first low rank matrix
  * @param V      (N, J): The second low rank matrix
- * @param P      (N-1, J): The exponential difference matrix
  * @param Y      (N, Nrhs): The matrix that will be left multiplied by the celerite model
  * @param X_out  (N, Nrhs): The result of the operation
  */
@@ -162,6 +167,54 @@ void matmul(const Eigen::MatrixBase<Input> &t,               // (N,)
 ) {
   MakeEmptyWork(Diag) F;
   matmul<false>(t, c, a, U, V, Y, X_out, X_out, F, F);
+}
+
+/**
+ * \brief The general lower-triangular dot product of a rectangular celerite system
+ *
+ * @param t1     (N,): The left input coordinates (must be sorted)
+ * @param t2     (M,): The right input coordinates (must be sorted)
+ * @param c      (J,): The transport coefficients
+ * @param U      (N, J): The first low rank matrix
+ * @param V      (M, J): The second low rank matrix
+ * @param Y      (M, Nrhs): The matrix that will be left multiplied by the celerite model
+ * @param Z_out  (N, Nrhs): The result of the operation
+ */
+template <typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename RightHandSideOut>
+void general_lower_dot(const Eigen::MatrixBase<Input> &t1,              // (N,)
+                       const Eigen::MatrixBase<Input> &t2,              // (M,)
+                       const Eigen::MatrixBase<Coeffs> &c,              // (J,)
+                       const Eigen::MatrixBase<LowRank> &U,             // (N, J)
+                       const Eigen::MatrixBase<LowRank> &V,             // (M, J)
+                       const Eigen::MatrixBase<RightHandSide> &Y,       // (M, nrhs)
+                       Eigen::MatrixBase<RightHandSideOut> const &Z_out // (N, nrhs)
+) {
+  MakeEmptyWork(Input) F;
+  general_lower_dot<false>(t1, t2, c, U, V, Y, Z_out, F);
+}
+
+/**
+ * \brief The general upper-triangular dot product of a rectangular celerite system
+ *
+ * @param t1     (N,): The left input coordinates (must be sorted)
+ * @param t2     (M,): The right input coordinates (must be sorted)
+ * @param c      (J,): The transport coefficients
+ * @param U      (N, J): The first low rank matrix
+ * @param V      (M, J): The second low rank matrix
+ * @param Y      (M, Nrhs): The matrix that will be left multiplied by the celerite model
+ * @param Z_out  (N, Nrhs): The result of the operation
+ */
+template <typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename RightHandSideOut>
+void general_upper_dot(const Eigen::MatrixBase<Input> &t1,              // (N,)
+                       const Eigen::MatrixBase<Input> &t2,              // (M,)
+                       const Eigen::MatrixBase<Coeffs> &c,              // (J,)
+                       const Eigen::MatrixBase<LowRank> &U,             // (N, J)
+                       const Eigen::MatrixBase<LowRank> &V,             // (M, J)
+                       const Eigen::MatrixBase<RightHandSide> &Y,       // (M, nrhs)
+                       Eigen::MatrixBase<RightHandSideOut> const &Z_out // (N, nrhs)
+) {
+  MakeEmptyWork(Input) F;
+  general_upper_dot<false>(t1, t2, c, U, V, Y, Z_out, F);
 }
 
 } // namespace core
