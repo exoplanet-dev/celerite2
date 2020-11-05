@@ -359,9 +359,7 @@ class GaussianProcess:
 
         # Predictive covariance
         cov = kernel.get_value(xs[:, None] - xs[None, :])
-        cov -= np.tensordot(
-            KxsT, self.apply_inverse(KxsT, inplace=False), axes=(0, 0)
-        )
+        cov -= np.tensordot(KxsT, soln, axes=(0, 0))
         return mu, cov
 
     def sample(self, *, size=None, include_mean=True):
