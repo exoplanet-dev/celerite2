@@ -328,7 +328,7 @@ void general_lower_dot(const Eigen::MatrixBase<Input> &t1,               // (N,)
 
   Eigen::Index N = t1.rows(), M = t2.rows(), J = c.rows(), nrhs = Y.cols();
 
-  CAST_MAT(RightHandSideOut, Z, N, nrhs);
+  CAST_BASE(RightHandSideOut, Z);
   CAST_BASE(Work, F);
   if (do_update) {
     F.derived().resize(M, J * nrhs);
@@ -341,7 +341,6 @@ void general_lower_dot(const Eigen::MatrixBase<Input> &t1,               // (N,)
 
   Eigen::Index n = 0, m = 0;
   Fm.setZero();
-  Z.setZero();
   while (n < N) {
     if (m < M && t2(m) <= t1(n)) {
       if (m > 0) {
@@ -380,7 +379,7 @@ void general_upper_dot(const Eigen::MatrixBase<Input> &t1,               // (N,)
 
   Eigen::Index N = t1.rows(), M = t2.rows(), J = c.rows(), nrhs = Y.cols();
 
-  CAST_MAT(RightHandSideOut, Z, N, nrhs);
+  CAST_BASE(RightHandSideOut, Z);
   CAST_BASE(Work, F);
   if (do_update) {
     F.derived().resize(M, J * nrhs);
@@ -393,7 +392,6 @@ void general_upper_dot(const Eigen::MatrixBase<Input> &t1,               // (N,)
 
   Eigen::Index n = N - 1, m = M - 1;
   Fm.setZero();
-  Z.setZero();
   while (n >= 0) {
     if (m >= 0 && t2(m) > t1(n)) {
       if (m < M - 1) {

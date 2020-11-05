@@ -43,9 +43,9 @@ class GaussianProcess:
         self._norm = np.inf
 
         # Placeholders to celerite matrices
+        self._c = np.empty(0, dtype=np.float64)
         self._U = np.empty((0, 0), dtype=np.float64)
         self._V = np.empty((0, 0), dtype=np.float64)
-        self._P = np.empty((0, 0), dtype=np.float64)
         self._d = np.empty(0, dtype=np.float64)
 
         if t is not None:
@@ -121,18 +121,18 @@ class GaussianProcess:
 
         # Fill the celerite matrices
         (
+            self._c,
             self._d,
             self._U,
             self._V,
-            self._P,
         ) = self.kernel.get_celerite_matrices(
-            self._t, self._diag, a=self._d, U=self._U, V=self._V, P=self._P
+            self._t, self._diag, c=self._c, a=self._d, U=self._U, V=self._V
         )
 
         # Compute the Cholesky factorization
         try:
             self._d, self._W = driver.factor(
-                self._U, self._P, self._d, np.copy(self._V)
+                self._t, self._c, self._U, self._d, np.copy(self._V)
             )
         except LinAlgError:
             if not quiet:
@@ -210,7 +210,7 @@ class GaussianProcess:
             ValueError: When the inputs are not valid (shape, number, etc.).
         """
         y = self._process_input(y, inplace=inplace)
-        return driver.solve(self._U, self._P, self._d, self._W, y)
+        return driver.solve(self._t, self._c, self._U, self._d, self._W, y)
 
     def dot_tril(self, y, *, inplace=False):
         """Dot the Cholesky factor of the GP system into a vector or matrix
@@ -232,7 +232,7 @@ class GaussianProcess:
             ValueError: When the inputs are not valid (shape, number, etc.).
         """
         y = self._process_input(y, inplace=inplace)
-        return driver.dot_tril(self._U, self._P, self._d, self._W, y)
+        return driver.dot_tril(self._t, self._c, self._U, self._d, self._W, y)
 
     def log_likelihood(self, y, *, inplace=False):
         """Compute the marginalized likelihood of the GP model
@@ -258,7 +258,7 @@ class GaussianProcess:
         if not np.isfinite(self._log_det):
             return -np.inf
         loglike = self._norm - 0.5 * driver.norm(
-            self._U, self._P, self._d, self._W, y - self._mean_value
+            self._t, self._c, self._U, self._d, self._W, y - self._mean_value
         )
         if not np.isfinite(loglike):
             return -np.inf
@@ -306,7 +306,7 @@ class GaussianProcess:
         """
         y = self._process_input(y, inplace=True, require_vector=True)
         alpha = driver.solve(
-            self._U, self._P, self._d, self._W, y - self._mean_value
+            self._t, self._c, self._U, self._d, self._W, y - self._mean_value
         )
 
         if t is None:
@@ -325,18 +325,18 @@ class GaussianProcess:
                 mu = y - self._diag * alpha
                 if not include_mean:
                     mu -= self._mean_value
+
             else:
-
-                (
-                    U_star,
-                    V_star,
-                    inds,
-                ) = self.kernel.get_conditional_mean_matrices(self._t, xs)
-                mu = np.empty_like(xs)
-                mu = driver.conditional_mean(
-                    self._U, self._V, self._P, alpha, U_star, V_star, inds, mu
+                _, _, U2, V2 = self.kernel.get_celerite_matrices(
+                    xs, np.zeros_like(xs)
                 )
-
+                mu = np.zeros_like(xs)
+                mu = driver.general_lower_dot(
+                    xs, self._t, self._c, U2, self._V, alpha, mu
+                )
+                mu = driver.general_upper_dot(
+                    xs, self._t, self._c, V2, self._U, alpha, mu
+                )
                 if include_mean:
                     mu += self._mean(xs)
 
@@ -352,10 +352,9 @@ class GaussianProcess:
         # Predictive variance.
         if KxsT is None:
             KxsT = kernel.get_value(xs[None, :] - self._t[:, None])
+        soln = self.apply_inverse(KxsT, inplace=False)
         if return_var:
-            var = kernel.get_value(0.0) - np.einsum(
-                "ij,ij->j", KxsT, self.apply_inverse(KxsT, inplace=False)
-            )
+            var = kernel.get_value(0.0) - np.einsum("ij,ij->j", KxsT, soln)
             return mu, var
 
         # Predictive covariance

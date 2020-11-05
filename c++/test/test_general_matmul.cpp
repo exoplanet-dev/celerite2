@@ -14,6 +14,8 @@ TEMPLATE_LIST_TEST_CASE("check the results of general matmul", "[general_matmul]
   Matrix K, Z1, Z2, F;
   to_dense(x, c, a - diag, U, V, K);
 
+  Z1.setZero();
+  Z2.setZero();
   general_lower_dot(x, x, c, U, V, Y, Z1, F);
   general_upper_dot(x, x, c, V, U, Y, Z2, F);
 

@@ -150,19 +150,21 @@ struct order<1> {
   if (Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
 
 // This gets the buffer info for a right hand side input and checks the dimensions
-#define SETUP_RHS_MATRIX(NAME)                                                                                                                       \
+#define SETUP_RHS_MATRIX_WITH_SIZE(NAME, SIZE)                                                                                                       \
   py::buffer_info NAME##buf = NAME.request();                                                                                                        \
   ssize_t NAME##_nrhs       = 1;                                                                                                                     \
   if (NAME##buf.ndim == 2) {                                                                                                                         \
     NAME##_nrhs = NAME##buf.shape[1];                                                                                                                \
   } else if (NAME##buf.ndim != 1)                                                                                                                    \
     throw std::invalid_argument(#NAME " must be a matrix");                                                                                          \
-  if (NAME##buf.shape[0] != N) throw std::invalid_argument("Invalid shape: " #NAME);                                                                 \
+  if (NAME##buf.shape[0] != SIZE) throw std::invalid_argument("Invalid shape: " #NAME);                                                              \
   if (nrhs > 0 && nrhs != NAME##_nrhs) {                                                                                                             \
     throw std::invalid_argument("dimension mismatch: " #NAME);                                                                                       \
   } else {                                                                                                                                           \
     nrhs = NAME##_nrhs;                                                                                                                              \
   }
+
+#define SETUP_RHS_MATRIX(NAME) SETUP_RHS_MATRIX_WITH_SIZE(NAME, N)
 
 };     // namespace driver
 };     // namespace celerite2

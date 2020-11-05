@@ -19,7 +19,7 @@ def get_matrices(
         )
     diag = np.random.uniform(0.1, 0.3, len(x))
     kernel = kernel if kernel else terms.SHOTerm(S0=5.0, w0=0.1, Q=3.45)
-    a, U, V, P = kernel.get_celerite_matrices(x, diag)
+    c, a, U, V = kernel.get_celerite_matrices(x, diag)
 
     if include_dense:
         K = kernel.get_value(x[:, None] - x[None, :])
@@ -27,17 +27,17 @@ def get_matrices(
 
     if not conditional:
         if include_dense:
-            return a, U, V, P, K, Y
-        return a, U, V, P, Y
+            return x, c, a, U, V, K, Y
+        return x, c, a, U, V, Y
 
     t = np.sort(np.random.uniform(-1, 12, 200))
-    U_star, V_star, inds = kernel.get_conditional_mean_matrices(x, t)
+    _, _, U2, V2 = kernel.get_celerite_matrices(t, np.zeros_like(t))
 
     if include_dense:
         K_star = kernel.get_value(t[:, None] - x[None, :])
-        return a, U, V, P, K, Y, U_star, V_star, inds, K_star
+        return x, c, a, U, V, K, Y, t, U2, V2, K_star
 
-    return a, U, V, P, Y, U_star, V_star, inds
+    return x, c, a, U, V, Y, t, U2, V2
 
 
 def allclose(a, b, **kwargs):

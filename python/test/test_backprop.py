@@ -43,38 +43,38 @@ def check_grad(fwd, rev, in_args, out_args, extra_args, eps=1.234e-8):
 
 
 def test_factor_fwd():
-    a, U, V, P, Y = get_matrices()
+    x, c, a, U, V, Y = get_matrices()
 
     d = np.empty_like(a)
     W = np.empty_like(V)
     S = np.empty((len(a), U.shape[1] ** 2))
 
-    d0, W0 = driver.factor(U, P, np.copy(a), np.copy(V))
-    d, W, S = backprop.factor_fwd(a, U, V, P, d, W, S)
+    d0, W0 = driver.factor(x, c, U, np.copy(a), np.copy(V))
+    d, W, S = backprop.factor_fwd(x, c, a, U, V, d, W, S)
 
     assert np.allclose(d, d0)
     assert np.allclose(W, W0)
 
 
 def test_factor_rev():
-    a, U, V, P, Y = get_matrices()
+    x, c, a, U, V, Y = get_matrices()
 
     d = np.empty_like(a)
     W = np.empty_like(V)
     S = np.empty((len(a), U.shape[1] ** 2))
-    d, W, S = backprop.factor_fwd(a, U, V, P, d, W, S)
+    d, W, S = backprop.factor_fwd(x, c, a, U, V, d, W, S)
 
     check_grad(
-        backprop.factor_fwd, backprop.factor_rev, [a, U, V, P], [d, W], [S]
+        backprop.factor_fwd, backprop.factor_rev, [x, c, a, U, V], [d, W], [S]
     )
 
 
 @pytest.mark.parametrize("vector", [True, False])
 def test_solve_fwd(vector):
-    a, U, V, P, Y = get_matrices(vector=vector)
-    d, W = driver.factor(U, P, a, V)
+    x, c, a, U, V, Y = get_matrices(vector=vector)
+    d, W = driver.factor(x, c, U, a, V)
 
-    X0 = driver.solve(U, P, d, W, np.copy(Y))
+    X0 = driver.solve(x, c, U, d, W, np.copy(Y))
 
     X = np.empty_like(Y)
     Z = np.empty_like(Y)
@@ -84,14 +84,14 @@ def test_solve_fwd(vector):
         F = np.empty((U.shape[0], U.shape[1] * Y.shape[1]))
     G = np.empty_like(F)
 
-    X, Z, F, G = backprop.solve_fwd(U, P, d, W, Y, X, Z, F, G)
+    X, Z, F, G = backprop.solve_fwd(x, c, U, d, W, Y, X, Z, F, G)
     assert np.allclose(X0, X)
 
 
 @pytest.mark.parametrize("vector", [True, False])
 def test_solve_rev(vector):
-    a, U, V, P, Y = get_matrices(vector=vector)
-    d, W = driver.factor(U, P, a, V)
+    x, c, a, U, V, Y = get_matrices(vector=vector)
+    d, W = driver.factor(x, c, U, a, V)
 
     X = np.empty_like(Y)
     Z = np.empty_like(Y)
@@ -101,48 +101,52 @@ def test_solve_rev(vector):
         F = np.empty((U.shape[0], U.shape[1] * Y.shape[1]))
     G = np.empty_like(F)
 
-    X, Z, F, G = backprop.solve_fwd(U, P, d, W, Y, X, Z, F, G)
+    X, Z, F, G = backprop.solve_fwd(x, c, U, d, W, Y, X, Z, F, G)
 
     check_grad(
-        backprop.solve_fwd, backprop.solve_rev, [U, P, d, W, Y], [X], [Z, F, G]
+        backprop.solve_fwd,
+        backprop.solve_rev,
+        [x, c, U, d, W, Y],
+        [X],
+        [Z, F, G],
     )
 
 
 def test_norm_fwd():
-    a, U, V, P, Y = get_matrices(vector=True)
-    d, W = driver.factor(U, P, a, V)
+    x, c, a, U, V, Y = get_matrices(vector=True)
+    d, W = driver.factor(x, c, U, a, V)
 
-    X0 = driver.norm(U, P, d, W, np.copy(Y))
+    X0 = driver.norm(x, c, U, d, W, np.copy(Y))
 
     X = np.empty((1, 1))
     Z = np.empty_like(Y)
     F = np.empty_like(U)
 
-    X, Z, F = backprop.norm_fwd(U, P, d, W, Y, X, Z, F)
+    X, Z, F = backprop.norm_fwd(x, c, U, d, W, Y, X, Z, F)
     assert np.allclose(X0, X)
 
 
 def test_norm_rev():
-    a, U, V, P, Y = get_matrices(vector=True)
-    d, W = driver.factor(U, P, a, V)
+    x, c, a, U, V, Y = get_matrices(vector=True)
+    d, W = driver.factor(x, c, U, a, V)
 
     X = np.empty((1, 1))
     Z = np.empty_like(Y)
     F = np.empty_like(U)
 
-    X, Z, F = backprop.norm_fwd(U, P, d, W, Y, X, Z, F)
+    X, Z, F = backprop.norm_fwd(x, c, U, d, W, Y, X, Z, F)
 
     check_grad(
-        backprop.norm_fwd, backprop.norm_rev, [U, P, d, W, Y], [X], [Z, F]
+        backprop.norm_fwd, backprop.norm_rev, [x, c, U, d, W, Y], [X], [Z, F]
     )
 
 
 @pytest.mark.parametrize("vector", [True, False])
 def test_dot_tril_fwd(vector):
-    a, U, V, P, Y = get_matrices(vector=vector)
-    d, W = driver.factor(U, P, a, V)
+    x, c, a, U, V, Y = get_matrices(vector=vector)
+    d, W = driver.factor(x, c, U, a, V)
 
-    Z0 = driver.dot_tril(U, P, d, W, np.copy(Y))
+    Z0 = driver.dot_tril(x, c, U, d, W, np.copy(Y))
 
     Z = np.empty_like(Y)
     if vector:
@@ -150,14 +154,14 @@ def test_dot_tril_fwd(vector):
     else:
         F = np.empty((U.shape[0], U.shape[1] * Y.shape[1]))
 
-    Z, F = backprop.dot_tril_fwd(U, P, d, W, Y, Z, F)
+    Z, F = backprop.dot_tril_fwd(x, c, U, d, W, Y, Z, F)
     assert np.allclose(Z0, Z)
 
 
 @pytest.mark.parametrize("vector", [True, False])
 def test_dot_tril_rev(vector):
-    a, U, V, P, Y = get_matrices(vector=vector)
-    d, W = driver.factor(U, P, a, V)
+    x, c, a, U, V, Y = get_matrices(vector=vector)
+    d, W = driver.factor(x, c, U, a, V)
 
     Z = np.empty_like(Y)
     if vector:
@@ -165,18 +169,22 @@ def test_dot_tril_rev(vector):
     else:
         F = np.empty((U.shape[0], U.shape[1] * Y.shape[1]))
 
-    Z, F = backprop.dot_tril_fwd(U, P, d, W, Y, Z, F)
+    Z, F = backprop.dot_tril_fwd(x, c, U, d, W, Y, Z, F)
 
     check_grad(
-        backprop.dot_tril_fwd, backprop.dot_tril_rev, [U, P, d, W, Y], [Z], [F]
+        backprop.dot_tril_fwd,
+        backprop.dot_tril_rev,
+        [x, c, U, d, W, Y],
+        [Z],
+        [F],
     )
 
 
 @pytest.mark.parametrize("vector", [True, False])
 def test_matmul_fwd(vector):
-    a, U, V, P, Y = get_matrices(vector=vector)
+    x, c, a, U, V, Y = get_matrices(vector=vector)
 
-    X0 = driver.matmul(a, U, V, P, Y, np.empty_like(Y))
+    X0 = driver.matmul(x, c, a, U, V, Y, np.empty_like(Y))
 
     X = np.empty_like(Y)
     Z = np.empty_like(Y)
@@ -186,13 +194,13 @@ def test_matmul_fwd(vector):
         F = np.empty((U.shape[0], U.shape[1] * Y.shape[1]))
     G = np.empty_like(F)
 
-    X, Z, F, G = backprop.matmul_fwd(a, U, V, P, Y, X, Z, F, G)
+    X, Z, F, G = backprop.matmul_fwd(x, c, a, U, V, Y, X, Z, F, G)
     assert np.allclose(X0, X)
 
 
 @pytest.mark.parametrize("vector", [True, False])
 def test_matmul_rev(vector):
-    a, U, V, P, Y = get_matrices(vector=vector)
+    x, c, a, U, V, Y = get_matrices(vector=vector)
 
     X = np.empty_like(Y)
     Z = np.empty_like(Y)
@@ -202,12 +210,12 @@ def test_matmul_rev(vector):
         F = np.empty((U.shape[0], U.shape[1] * Y.shape[1]))
     G = np.empty_like(F)
 
-    X, Z, F, G = backprop.matmul_fwd(a, U, V, P, Y, X, Z, F, G)
+    X, Z, F, G = backprop.matmul_fwd(x, c, a, U, V, Y, X, Z, F, G)
 
     check_grad(
         backprop.matmul_fwd,
         backprop.matmul_rev,
-        [a, U, V, P, Y],
+        [x, c, a, U, V, Y],
         [X],
         [Z, F, G],
     )
