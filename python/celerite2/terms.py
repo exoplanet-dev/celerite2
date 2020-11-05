@@ -168,7 +168,9 @@ class Term:
         else:
             V.resize((N, J), refcheck=False)
 
-        c = np.concatenate((cr, np.tile(cc[:, None], (1, 2)).flatten()))
+        c[:Jr] = cr
+        c[Jr::2] = cc
+        c[Jr + 1 :: 2] = cc
         a, U, V = driver.get_celerite_matrices(
             ar, ac, bc, dc, x, diag, a, U, V
         )
@@ -197,7 +199,20 @@ class Term:
 
         return U_star, V_star, inds
 
-    def dot(self, x, diag, y):
+    def dot(
+        self,
+        x,
+        diag=None,
+        y=None,
+        *,
+        x2=None,
+        c=None,
+        a=None,
+        U1=None,
+        V1=None,
+        U2=None,
+        V2=None,
+    ):
         """Apply a matrix-vector or matrix-matrix product
 
         Args:
@@ -206,14 +221,37 @@ class Term:
             y (shape[N] or shape[N, K]): The target of vector or matrix for
                 this operation.
         """
-        c, a, U, V = self.get_celerite_matrices(x, diag)
-
+        x = np.atleast_1d(x)
         y = np.atleast_1d(y)
-        if y.shape[0] != len(a):
-            raise ValueError("dimension mismatch")
+        if y.shape[0] != x.shape[0]:
+            raise ValueError("Dimension mismatch")
 
-        z = np.empty(y.shape)
-        return driver.matmul(x, c, a, U, V, y, z)
+        if diag is None:
+            diag = np.zeros_like(x)
+        elif x2 is not None:
+            raise ValueError(
+                "'diag' cannot be defined for a general dot product"
+            )
+        c, a, U1, V1 = self.get_celerite_matrices(
+            x, diag, c=c, a=a, U=U1, V=V1
+        )
+
+        # Apply the default matrix multiply no x2 is provided
+        if x2 is None:
+            z = np.empty(y.shape)
+            return driver.matmul(x, c, a, U1, V1, y, z)
+
+        x2 = np.atleast_1d(x2)
+        c, _, U2, V2 = self.get_celerite_matrices(
+            x2, np.zeros_like(x2), c=c, U=U2, V=V2
+        )
+        if y.ndim > 1:
+            z = np.zeros((x2.shape[0], y.shape[1]))
+        else:
+            z = np.zeros_like(x2)
+
+        z = driver.general_lower_dot(x2, x, c, U2, V1, y, z)
+        return driver.general_upper_dot(x2, x, c, V2, U1, y, z)
 
 
 class TermSum(Term):

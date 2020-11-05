@@ -103,12 +103,16 @@ def test_dot_tril(vector):
     assert np.allclose(value, expect)
 
 
-def test_general_dot():
+@pytest.mark.parametrize("vector", [True, False])
+def test_general_dot(vector):
     x, c, a, U, V, K, Y, t, U2, V2, K_star = get_matrices(
-        conditional=True, include_dense=True
+        conditional=True, include_dense=True, vector=vector
     )
 
-    Z = np.zeros((len(t), Y.shape[1]))
+    if vector:
+        Z = np.zeros(len(t))
+    else:
+        Z = np.zeros((len(t), Y.shape[1]))
     Z = driver.general_lower_dot(t, x, c, U2, V, Y, Z)
     Z = driver.general_upper_dot(t, x, c, V2, U, Y, Z)
 

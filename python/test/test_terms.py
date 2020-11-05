@@ -93,6 +93,7 @@ def test_consistency(oterm):
     # Make sure that the covariance matrix is right
     np.random.seed(40582)
     x = np.sort(np.random.uniform(0, 10, 50))
+    x2 = np.sort(np.random.uniform(0, 10, 87))
     diag = np.random.uniform(0.1, 0.3, len(x))
     assert np.allclose(oterm.get_value(x), term.get_value(x))
 
@@ -117,3 +118,12 @@ def test_consistency(oterm):
     y = np.vstack([x]).T
     value = term.dot(x, diag, y)
     assert np.allclose(value, np.dot(K, y))
+
+    # General dot
+    assert np.allclose(
+        term.dot(x, y=y), np.dot(term.get_value(x[:, None] - x[None, :]), y)
+    )
+    assert np.allclose(
+        term.dot(x, y=y, x2=x2),
+        np.dot(term.get_value(x2[:, None] - x[None, :]), y),
+    )

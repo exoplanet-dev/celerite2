@@ -305,62 +305,9 @@ class GaussianProcess:
             ValueError: When the inputs are not valid (shape, number, etc.).
         """
         y = self._process_input(y, inplace=True, require_vector=True)
-        alpha = driver.solve(
-            self._t, self._c, self._U, self._d, self._W, y - self._mean_value
+        return ConditionalDistribution(
+            self, y, t=t, include_mean=include_mean, kernel=kernel
         )
-
-        if t is None:
-            xs = self._t
-
-        else:
-            xs = np.ascontiguousarray(t, dtype=np.float64)
-            if xs.ndim != 1:
-                raise ValueError("dimension mismatch")
-
-        KxsT = None
-        if kernel is None:
-            kernel = self.kernel
-
-            if t is None:
-                mu = y - self._diag * alpha
-                if not include_mean:
-                    mu -= self._mean_value
-
-            else:
-                _, _, U2, V2 = self.kernel.get_celerite_matrices(
-                    xs, np.zeros_like(xs)
-                )
-                mu = np.zeros_like(xs)
-                mu = driver.general_lower_dot(
-                    xs, self._t, self._c, U2, self._V, alpha, mu
-                )
-                mu = driver.general_upper_dot(
-                    xs, self._t, self._c, V2, self._U, alpha, mu
-                )
-                if include_mean:
-                    mu += self._mean(xs)
-
-        else:
-            KxsT = kernel.get_value(xs[None, :] - self._t[:, None])
-            mu = np.dot(KxsT.T, alpha)
-            if include_mean:
-                mu += self._mean(xs)
-
-        if not (return_var or return_cov):
-            return mu
-
-        # Predictive variance.
-        if KxsT is None:
-            KxsT = kernel.get_value(xs[None, :] - self._t[:, None])
-        soln = self.apply_inverse(KxsT, inplace=False)
-        if return_var:
-            var = kernel.get_value(0.0) - np.einsum("ij,ij->j", KxsT, soln)
-            return mu, var
-
-        # Predictive covariance
-        cov = kernel.get_value(xs[:, None] - xs[None, :])
-        cov -= np.tensordot(KxsT, soln, axes=(0, 0))
-        return mu, cov
 
     def sample(self, *, size=None, include_mean=True):
         """Generate random samples from the prior implied by the GP system
@@ -431,6 +378,169 @@ class GaussianProcess:
         mu, cov = self.predict(
             y, t, return_cov=True, include_mean=include_mean, kernel=kernel
         )
+        if regularize is not None:
+            cov[np.diag_indices_from(cov)] += regularize
+        return np.random.multivariate_normal(mu, cov, size=size)
+
+
+class ConditionalDistribution:
+    def __init__(
+        self,
+        gp,
+        y,
+        t=None,
+        *,
+        include_mean=True,
+        kernel=None,
+    ):
+        self.gp = gp
+        self.y = y
+        self.t = t
+        self.include_mean = include_mean
+        self.kernel = kernel
+
+        self._c2 = None
+        self._U1 = None
+        self._V1 = None
+        self._U2 = None
+        self._V2 = None
+
+        self._KxsT = None
+        self._Kinv_KxsT = None
+
+        if self.t is None:
+            self._xs = self.gp._t
+        else:
+            self._xs = np.ascontiguousarray(self.t, dtype=np.float64)
+            if self._xs.ndim != 1:
+                raise ValueError("'t' must be one-dimensional")
+
+    @property
+    def KxsT(self):
+        if self._KxsT is None:
+            tau = self.gp._t[:, None] - self._xs[None, :]
+            if self.kernel is None:
+                self._KxsT = self.gp.kernel.get_value(tau)
+            else:
+                self._KxsT = self.kernel.get_value(tau)
+        return self._KxsT
+
+    @property
+    def Kinv_KxsT(self):
+        if self._Kinv_KxsT is None:
+            self._Kinv_KxsT = self.gp.apply_inverse(self.KxsT, inplace=False)
+        return self._Kinv_KxsT
+
+    def _do_dot(self, inp, target):
+        if self.kernel is None:
+            kernel = self.gp.kernel
+            U1 = self.gp._U
+            V1 = self.gp._V
+        else:
+            kernel = self.kernel
+            if self._U1 is None or self._V1 is None:
+                _, _, self._U1, self._V1 = kernel.get_celerite_matrices(
+                    self.gp._t,
+                    np.zeros_like(self.gp._t),
+                    U=self._U1,
+                    V=self._V1,
+                )
+            U1 = self._U1
+            V1 = self._V1
+
+        if self._c2 is None or self._U2 is None or self._V2 is None:
+            self._c2, _, self._U2, self._V2 = kernel.get_celerite_matrices(
+                self._xs,
+                np.zeros_like(self._xs),
+                c=self._c2,
+                U=self._U2,
+                V=self._V2,
+            )
+        c = self._c2
+        U2 = self._U2
+        V2 = self._V2
+
+        target = driver.general_lower_dot(
+            self._xs, self.gp._t, c, U2, V1, inp, target
+        )
+        target = driver.general_upper_dot(
+            self._xs, self.gp._t, c, V2, U1, inp, target
+        )
+        return target
+
+    @property
+    def mean(self):
+        alpha = driver.solve(
+            self.gp._t,
+            self.gp._c,
+            self.gp._U,
+            self.gp._d,
+            self.gp._W,
+            self.y - self.gp._mean_value,
+        )
+
+        if self.t is None and self.kernel is None:
+            mu = self.y - self.gp._diag * alpha
+            if not self.include_mean:
+                mu -= self.gp._mean_value
+            return mu
+
+        mu = np.zeros_like(self._xs)
+        mu = self._do_dot(alpha, mu)
+
+        if self.include_mean:
+            mu += self.gp._mean(self._xs)
+        return mu
+
+    @property
+    def variance(self):
+        if self.kernel is None:
+            kernel = self.gp.kernel
+        else:
+            kernel = self.kernel
+        return kernel.get_value(0.0) - np.einsum(
+            "ij,ij->j", self.KxsT, self.Kinv_KxsT
+        )
+
+    @property
+    def covariance(self):
+        if self.kernel is None:
+            kernel = self.gp.kernel
+        else:
+            kernel = self.kernel
+        neg_cov = -kernel.get_value(self._xs[:, None] - self._xs[None, :])
+        neg_cov = self._do_dot(self.Kinv_KxsT, neg_cov)
+        return -neg_cov
+
+    def sample(self, *, size=None, regularize=None):
+        """Sample from the conditional (predictive) distribution
+
+        .. note:: this method scales as ``O(M^3)`` for large ``M``, where
+            ``M == len(t)``.
+
+        Args:
+            y (shape[N]): The observations at coordinates ``x`` from
+                :func:`GausianProcess.compute`.
+            t (shape[M], optional): The independent coordinates where the
+                prediction should be made. If this is omitted the coordinates
+                will be assumed to be ``x`` from
+                :func:`GaussianProcess.compute` and an efficient method will
+                be used to compute the mean prediction.
+            size (int, optional): The number of samples to generate. If not
+                provided, only one sample will be produced.
+            regularize (float, optional): For poorly conditioned systems, you
+                can provide a small number here to regularize the predictive
+                covariance. This number will be added to the diagonal.
+            include_mean (bool, optional): Include the mean function in the
+                prediction.
+            kernel (optional): If provided, compute the conditional
+                distribution using a different kernel. This is generally used
+                to separate the contributions from different model components.
+                Note that the computational cost and scaling will be worse
+                when using this parameter.
+        """
+        mu = self.mean
+        cov = self.covariance
         if regularize is not None:
             cov[np.diag_indices_from(cov)] += regularize
         return np.random.multivariate_normal(mu, cov, size=size)
