@@ -48,11 +48,9 @@ At this point, *celerite2* includes:
   `dynesty <https://dynesty.readthedocs.io/>`_. Note, however that in all of
   these cases, users will be responsible for defining their own models.
 
-- Experimental interfaces implemented in `JAX <https://github.com/google/jax>`_,
-  `PyTorch <https://pytorch.org/>`_, and `TensorFlow
-  <https://www.tensorflow.org/probability>`_. These interfaces are not as
-  optimized or as well documented as the other two, but that should change in
-  the future.
+- An experimental interfaces implemented in `JAX <https://github.com/google/jax>`_,
+  that is not as optimized or as well documented as the other two, but that should
+  change in the future.
 
 A simple example
 ----------------
