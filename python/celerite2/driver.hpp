@@ -119,53 +119,6 @@ struct order<1> {
   const static int value = Eigen::ColMajor;
 };
 
-#define COEFFS(SIZE, NAME, BUF, ROWS) Eigen::Map<Eigen::Matrix<double, SIZE, 1>> NAME((double *)BUF.ptr, ROWS, 1)
-#define VECTOR(NAME, BUF, ROWS) Eigen::Map<Eigen::VectorXd> NAME((double *)BUF.ptr, ROWS, 1)
-#define MATRIX(SIZE, NAME, BUF, ROWS, COLS)                                                                                                          \
-  Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> NAME((double *)BUF.ptr, ROWS, COLS)
-
-#define CONST_COEFFS(SIZE, NAME, BUF, ROWS) Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> NAME((double *)BUF.ptr, ROWS, 1)
-#define CONST_VECTOR(NAME, BUF, ROWS) Eigen::Map<const Eigen::VectorXd> NAME((double *)BUF.ptr, ROWS, 1)
-#define CONST_MATRIX(SIZE, NAME, BUF, ROWS, COLS)                                                                                                    \
-  Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> NAME((double *)BUF.ptr, ROWS, COLS)
-
-#define GET_BUF(NAME, SIZE)                                                                                                                          \
-  py::buffer_info NAME##buf = NAME.request();                                                                                                        \
-  if (NAME##buf.size != SIZE) throw std::invalid_argument("Invalid shape: " #NAME);
-#define GET_BUF_VEC(NAME, ROWS)                                                                                                                      \
-  py::buffer_info NAME##buf = NAME.request();                                                                                                        \
-  if (NAME##buf.ndim != 1 || NAME##buf.shape[0] != ROWS) throw std::invalid_argument("Invalid shape: " #NAME);
-#define GET_BUF_MAT(NAME, ROWS, COLS)                                                                                                                \
-  py::buffer_info NAME##buf = NAME.request();                                                                                                        \
-  if (NAME##buf.ndim != 2 || NAME##buf.shape[0] != ROWS || NAME##buf.shape[1] != COLS) throw std::invalid_argument("Invalid shape: " #NAME);
-
-// This gets the buffer info for the standard celerite matrix inputs and checks the dimensions
-#define SETUP_BASE_MATRICES                                                                                                                          \
-  py::buffer_info tbuf = t.request(), cbuf = c.request(), Ubuf = U.request(), dbuf = d.request(), Wbuf = W.request();                                \
-  if (tbuf.ndim != 1 || cbuf.ndim != 1 || Ubuf.ndim != 2 || dbuf.ndim != 1 || Wbuf.ndim != 2) throw std::invalid_argument("Invalid dimensions");     \
-  ssize_t N = tbuf.shape[0], J = cbuf.shape[0];                                                                                                      \
-  if (N == 0 || J == 0) throw std::invalid_argument("Dimensions can't be zero");                                                                     \
-  if (Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");                                                     \
-  if (dbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: d");                                                                           \
-  if (Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
-
-// This gets the buffer info for a right hand side input and checks the dimensions
-#define SETUP_RHS_MATRIX_WITH_SIZE(NAME, SIZE)                                                                                                       \
-  py::buffer_info NAME##buf = NAME.request();                                                                                                        \
-  ssize_t NAME##_nrhs       = 1;                                                                                                                     \
-  if (NAME##buf.ndim == 2) {                                                                                                                         \
-    NAME##_nrhs = NAME##buf.shape[1];                                                                                                                \
-  } else if (NAME##buf.ndim != 1)                                                                                                                    \
-    throw std::invalid_argument(#NAME " must be a matrix");                                                                                          \
-  if (NAME##buf.shape[0] != SIZE) throw std::invalid_argument("Invalid shape: " #NAME);                                                              \
-  if (nrhs > 0 && nrhs != NAME##_nrhs) {                                                                                                             \
-    throw std::invalid_argument("dimension mismatch: " #NAME);                                                                                       \
-  } else {                                                                                                                                           \
-    nrhs = NAME##_nrhs;                                                                                                                              \
-  }
-
-#define SETUP_RHS_MATRIX(NAME) SETUP_RHS_MATRIX_WITH_SIZE(NAME, N)
-
 };     // namespace driver
 };     // namespace celerite2
 #endif // _CELERITE2_PYTHON_DRIVER_HPP_DEFINED_

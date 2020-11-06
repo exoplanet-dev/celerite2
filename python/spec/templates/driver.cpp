@@ -8,15 +8,15 @@ namespace celerite2 {
 namespace driver {
 {% for mod in spec %}
 auto {{mod.name}} (
-    {% for input in mod.inputs + mod.outputs -%}
-    py::array_t<double, py::array::c_style> {{input.name}}
+    {% for arg in mod.inputs + mod.outputs -%}
+    py::array_t<double, py::array::c_style> {{arg.name}}
     {%- if not loop.last %},
     {% endif %}
     {%- endfor %}
 ) {
     // Request buffers
-    {% for input in mod.inputs + mod.outputs -%}
-    py::buffer_info {{input.name}}buf = {{input.name}}.request();
+    {% for arg in mod.inputs + mod.outputs -%}
+    py::buffer_info {{arg.name}}buf = {{arg.name}}.request();
     {% endfor %}
     // Parse dimensions
     {% for dim in mod.dimensions -%}
@@ -25,36 +25,23 @@ auto {{mod.name}} (
     ssize_t {{dim.name}} = {{mod.inputs[dim.coords[0]].name}}buf.shape[{{dim.coords[1]}}];
     {% endfor %}
     // Check shapes
-    {% for input in mod.inputs + mod.outputs -%}
-    if ({{input.name}}buf.ndim != {{input.shape|length}}{% for dim in input.shape %} || {{input.name}}buf.shape[{{loop.index}}] != {{dim}}{% endfor %}) throw std::invalid_argument("Invalid shape: {{input.name}}");
+    {% for arg in mod.inputs + mod.outputs -%}
+    if ({{arg.name}}buf.ndim != {{arg.shape|length}}{% for dim in arg.shape %} || {{arg.name}}buf.shape[{{loop.index}}] != {{dim}}{% endfor %}) throw std::invalid_argument("Invalid shape: {{arg.name}}");
     {% endfor %}
     {%- if mod.name == "factor" %}
     Eigen::Index flag = 0;{% endif %}
 #define FIXED_SIZE_MAP(SIZE) \
     { \
-    {%- for input in mod.inputs %}
-    {%- if input.shape|length == 1 -%}
-    {%- if input.shape[0] == "J" %}
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> {{input.name}}_((double *){{input.name}}buf.ptr, J, 1); \
+    {%- for arg in mod.inputs + mod.outputs %}
+    {%- if arg.shape|length == 1 -%}
+    {%- if arg.shape[0] == "J" %}
+    Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::Matrix<double, SIZE, 1>> {{arg.name}}_(({% if not arg.is_output %}const {% endif %}double *){{arg.name}}buf.ptr, J, 1); \
     {%- else %}
-    Eigen::Map<const Eigen::VectorXd> {{input.name}}_((double *){{input.name}}buf.ptr, {{input.shape[0]}}, 1); \
+    Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::VectorXd> {{arg.name}}_(({% if not arg.is_output %}const {% endif %}double *){{arg.name}}buf.ptr, {{arg.shape[0]}}, 1); \
     {%- endif -%}
     {%- else -%}
-    {%- if input.shape[1] == "J" %}
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> {{input.name}}_((double *){{input.name}}buf.ptr, {{input.shape[0]}}, J); \
-    {%- endif -%}
-    {%- endif -%}
-    {% endfor %}
-    {%- for input in mod.outputs %}
-    {%- if input.shape|length == 1 -%}
-    {%- if input.shape[0] == "J" %}
-    Eigen::Map<Eigen::Matrix<double, SIZE, 1>> {{input.name}}_((double *){{input.name}}buf.ptr, J, 1); \
-    {%- else %}
-    Eigen::Map<Eigen::VectorXd> {{input.name}}_((double *){{input.name}}buf.ptr, {{input.shape[0]}}, 1); \
-    {%- endif -%}
-    {%- else -%}
-    {%- if input.shape[1] == "J" %}
-    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> {{input.name}}_((double *){{input.name}}buf.ptr, {{input.shape[0]}}, J); \
+    {%- if arg.shape[1] == "J" %}
+    Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> {{arg.name}}_(({% if not arg.is_output %}const {% endif %}double *){{arg.name}}buf.ptr, {{arg.shape[0]}}, J); \
     {%- endif -%}
     {%- endif -%}
     {% endfor %}
@@ -62,28 +49,18 @@ auto {{mod.name}} (
     flag = celerite2::core::{{mod.name}}({% for val in mod.inputs + mod.outputs %}{{val.name}}_{%- if not loop.last %}, {% endif %}{% endfor %}); \
     {%- else %}
     if (nrhs == 1) { \
-        {% for input in mod.inputs %}
-        {%- if input.shape|length == 2 and input.shape[1] == "nrhs" -%}
-        Eigen::Map<const Eigen::VectorXd> {{input.name}}_((double *){{input.name}}buf.ptr, {{input.shape[0]}}, 1); \
-        {%- endif -%}
-        {% endfor %}
-        {% for input in mod.outputs %}
-        {%- if input.shape|length == 2 and input.shape[1] == "nrhs" -%}
-        Eigen::Map<Eigen::VectorXd> {{input.name}}_((double *){{input.name}}buf.ptr, {{input.shape[0]}}, 1); \
-        {%- endif -%}
-        {% endfor %}
+        {% for arg in mod.inputs + mod.outputs %}
+        {%- if arg.shape|length == 2 and arg.shape[1] == "nrhs" -%}
+        Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::VectorXd> {{arg.name}}_(({% if not arg.is_output %}const {% endif %}double *){{arg.name}}buf.ptr, {{arg.shape[0]}}, 1); \
+        {% endif -%}
+        {% endfor -%}
         celerite2::core::{{mod.name}}({% for val in mod.inputs + mod.outputs %}{{val.name}}_{%- if not loop.last %}, {% endif %}{% endfor %}); \
     } else { \
-        {% for input in mod.inputs %}
-        {%- if input.shape|length == 2 and input.shape[1] == "nrhs" -%}
-        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> {{input.name}}_((double *){{input.name}}buf.ptr, {{input.shape[0]}}, nrhs); \
-        {%- endif -%}
-        {% endfor %}
-        {% for input in mod.outputs %}
-        {%- if input.shape|length == 2 and input.shape[1] == "nrhs" -%}
-        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> {{input.name}}_((double *){{input.name}}buf.ptr, {{input.shape[0]}}, nrhs); \
-        {%- endif -%}
-        {% endfor %}
+        {% for arg in mod.inputs + mod.outputs %}
+        {%- if arg.shape|length == 2 and arg.shape[1] == "nrhs" -%}
+        Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> {{arg.name}}_(({% if not arg.is_output %}const {% endif %}double *){{arg.name}}buf.ptr, {{arg.shape[0]}}, nrhs); \
+        {% endif -%}
+        {% endfor -%}
         celerite2::core::{{mod.name}}({% for val in mod.inputs + mod.outputs %}{{val.name}}_{%- if not loop.last %}, {% endif %}{% endfor %}); \
     } \
     {%- endif %}

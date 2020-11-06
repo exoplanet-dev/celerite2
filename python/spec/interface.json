@@ -1,7 +1,7 @@
 [
   {
     "name": "factor",
-    "has_rhs": false,
+    "has_rev": true,
     "dimensions": [
         {
             "name": "N",
@@ -53,7 +53,7 @@
   },
   {
     "name": "solve_lower",
-    "has_rhs": true,
+    "has_rev": true,
     "dimensions": [
         {
             "name": "N",
@@ -105,7 +105,7 @@
   },
   {
     "name": "solve_upper",
-    "has_rhs": true,
+    "has_rev": true,
     "dimensions": [
         {
             "name": "N",
@@ -157,7 +157,7 @@
   },
   {
     "name": "matmul_lower",
-    "has_rhs": true,
+    "has_rev": true,
     "dimensions": [
         {
             "name": "N",
@@ -209,7 +209,7 @@
   },
   {
     "name": "matmul_upper",
-    "has_rhs": true,
+    "has_rev": true,
     "dimensions": [
         {
             "name": "N",
@@ -261,7 +261,7 @@
   },
   {
     "name": "general_matmul_lower",
-    "has_rhs": true,
+    "has_rev": false,
     "dimensions": [
         {
             "name": "N",
@@ -321,7 +321,7 @@
   },
   {
     "name": "general_matmul_upper",
-    "has_rhs": true,
+    "has_rev": false,
     "dimensions": [
         {
             "name": "N",

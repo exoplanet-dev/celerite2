@@ -48,11 +48,11 @@ auto factor (
     Eigen::Index flag = 0;
 #define FIXED_SIZE_MAP(SIZE) \
     { \
-    Eigen::Map<const Eigen::VectorXd> t_((double *)tbuf.ptr, N, 1); \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((double *)cbuf.ptr, J, 1); \
-    Eigen::Map<const Eigen::VectorXd> a_((double *)abuf.ptr, N, 1); \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((double *)Ubuf.ptr, N, J); \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((double *)Vbuf.ptr, N, J); \
+    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::VectorXd> a_((const double *)abuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, N, J); \
     Eigen::Map<Eigen::VectorXd> d_((double *)dbuf.ptr, N, 1); \
     Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> W_((double *)Wbuf.ptr, N, J); \
     flag = celerite2::core::factor(t_, c_, a_, U_, V_, d_, W_); \
@@ -100,16 +100,16 @@ auto solve_lower (
 
 #define FIXED_SIZE_MAP(SIZE) \
     { \
-    Eigen::Map<const Eigen::VectorXd> t_((double *)tbuf.ptr, N, 1); \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((double *)cbuf.ptr, J, 1); \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((double *)Ubuf.ptr, N, J); \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> W_((double *)Wbuf.ptr, N, J); \
+    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> W_((const double *)Wbuf.ptr, N, J); \
     if (nrhs == 1) { \
-        Eigen::Map<const Eigen::VectorXd> Y_((double *)Ybuf.ptr, N, 1); \
+        Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1); \
         Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1); \
         celerite2::core::solve_lower(t_, c_, U_, W_, Y_, Z_); \
     } else { \
-        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((double *)Ybuf.ptr, N, nrhs); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs); \
         celerite2::core::solve_lower(t_, c_, U_, W_, Y_, Z_); \
     } \
@@ -157,16 +157,16 @@ auto solve_upper (
 
 #define FIXED_SIZE_MAP(SIZE) \
     { \
-    Eigen::Map<const Eigen::VectorXd> t_((double *)tbuf.ptr, N, 1); \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((double *)cbuf.ptr, J, 1); \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((double *)Ubuf.ptr, N, J); \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> W_((double *)Wbuf.ptr, N, J); \
+    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> W_((const double *)Wbuf.ptr, N, J); \
     if (nrhs == 1) { \
-        Eigen::Map<const Eigen::VectorXd> Y_((double *)Ybuf.ptr, N, 1); \
+        Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1); \
         Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1); \
         celerite2::core::solve_upper(t_, c_, U_, W_, Y_, Z_); \
     } else { \
-        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((double *)Ybuf.ptr, N, nrhs); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs); \
         celerite2::core::solve_upper(t_, c_, U_, W_, Y_, Z_); \
     } \
@@ -214,16 +214,16 @@ auto matmul_lower (
 
 #define FIXED_SIZE_MAP(SIZE) \
     { \
-    Eigen::Map<const Eigen::VectorXd> t_((double *)tbuf.ptr, N, 1); \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((double *)cbuf.ptr, J, 1); \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((double *)Ubuf.ptr, N, J); \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((double *)Vbuf.ptr, N, J); \
+    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, N, J); \
     if (nrhs == 1) { \
-        Eigen::Map<const Eigen::VectorXd> Y_((double *)Ybuf.ptr, N, 1); \
+        Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1); \
         Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1); \
         celerite2::core::matmul_lower(t_, c_, U_, V_, Y_, Z_); \
     } else { \
-        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((double *)Ybuf.ptr, N, nrhs); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs); \
         celerite2::core::matmul_lower(t_, c_, U_, V_, Y_, Z_); \
     } \
@@ -271,16 +271,16 @@ auto matmul_upper (
 
 #define FIXED_SIZE_MAP(SIZE) \
     { \
-    Eigen::Map<const Eigen::VectorXd> t_((double *)tbuf.ptr, N, 1); \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((double *)cbuf.ptr, J, 1); \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((double *)Ubuf.ptr, N, J); \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((double *)Vbuf.ptr, N, J); \
+    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, N, J); \
     if (nrhs == 1) { \
-        Eigen::Map<const Eigen::VectorXd> Y_((double *)Ybuf.ptr, N, 1); \
+        Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1); \
         Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1); \
         celerite2::core::matmul_upper(t_, c_, U_, V_, Y_, Z_); \
     } else { \
-        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((double *)Ybuf.ptr, N, nrhs); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs); \
         celerite2::core::matmul_upper(t_, c_, U_, V_, Y_, Z_); \
     } \
@@ -334,17 +334,17 @@ auto general_matmul_lower (
 
 #define FIXED_SIZE_MAP(SIZE) \
     { \
-    Eigen::Map<const Eigen::VectorXd> t1_((double *)t1buf.ptr, N, 1); \
-    Eigen::Map<const Eigen::VectorXd> t2_((double *)t2buf.ptr, M, 1); \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((double *)cbuf.ptr, J, 1); \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((double *)Ubuf.ptr, N, J); \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((double *)Vbuf.ptr, M, J); \
+    Eigen::Map<const Eigen::VectorXd> t1_((const double *)t1buf.ptr, N, 1); \
+    Eigen::Map<const Eigen::VectorXd> t2_((const double *)t2buf.ptr, M, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, M, J); \
     if (nrhs == 1) { \
-        Eigen::Map<const Eigen::VectorXd> Y_((double *)Ybuf.ptr, M, 1); \
+        Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, M, 1); \
         Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1); \
         celerite2::core::general_matmul_lower(t1_, t2_, c_, U_, V_, Y_, Z_); \
     } else { \
-        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((double *)Ybuf.ptr, M, nrhs); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, M, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs); \
         celerite2::core::general_matmul_lower(t1_, t2_, c_, U_, V_, Y_, Z_); \
     } \
@@ -398,17 +398,17 @@ auto general_matmul_upper (
 
 #define FIXED_SIZE_MAP(SIZE) \
     { \
-    Eigen::Map<const Eigen::VectorXd> t1_((double *)t1buf.ptr, N, 1); \
-    Eigen::Map<const Eigen::VectorXd> t2_((double *)t2buf.ptr, M, 1); \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((double *)cbuf.ptr, J, 1); \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((double *)Ubuf.ptr, N, J); \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((double *)Vbuf.ptr, M, J); \
+    Eigen::Map<const Eigen::VectorXd> t1_((const double *)t1buf.ptr, N, 1); \
+    Eigen::Map<const Eigen::VectorXd> t2_((const double *)t2buf.ptr, M, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, M, J); \
     if (nrhs == 1) { \
-        Eigen::Map<const Eigen::VectorXd> Y_((double *)Ybuf.ptr, M, 1); \
+        Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, M, 1); \
         Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1); \
         celerite2::core::general_matmul_upper(t1_, t2_, c_, U_, V_, Y_, Z_); \
     } else { \
-        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((double *)Ybuf.ptr, M, nrhs); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, M, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs); \
         celerite2::core::general_matmul_upper(t1_, t2_, c_, U_, V_, Y_, Z_); \
     } \
