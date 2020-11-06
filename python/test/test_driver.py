@@ -109,11 +109,15 @@ def test_general_dot(vector):
         conditional=True, include_dense=True, vector=vector
     )
 
+    Z = np.einsum("i,i...->i...", a, Y)
+    Z = driver.general_lower_dot(x, x, c, U, V, Y, Z)
+    Z = driver.general_upper_dot(x, x, c, V, U, Y, Z)
+    assert np.allclose(np.dot(K, Y), Z)
+
     if vector:
         Z = np.zeros(len(t))
     else:
         Z = np.zeros((len(t), Y.shape[1]))
     Z = driver.general_lower_dot(t, x, c, U2, V, Y, Z)
     Z = driver.general_upper_dot(t, x, c, V2, U, Y, Z)
-
     assert np.allclose(np.dot(K_star, Y), Z)

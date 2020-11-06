@@ -84,33 +84,28 @@ void factor_rev(const Eigen::MatrixBase<Input> &t,           // (N,)
   ba(0) -= bV.row(0) * W.row(0).transpose();
 }
 
-template <typename Diag, typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename Work, typename InputOut,
-          typename CoeffsOut, typename LowRankOut, typename DiagOut, typename RightHandSideOut>
-void solve_rev(const Eigen::MatrixBase<Input> &t,                // (N,)
-               const Eigen::MatrixBase<Coeffs> &c,               // (J,)
-               const Eigen::MatrixBase<LowRank> &U,              // (N, J)
-               const Eigen::MatrixBase<Diag> &d,                 // (N,)
-               const Eigen::MatrixBase<LowRank> &W,              // (N, J)
-               const Eigen::MatrixBase<RightHandSide> &Y,        // (N, nrhs)
-               const Eigen::MatrixBase<RightHandSide> &X,        // (N, nrhs)
-               const Eigen::MatrixBase<RightHandSide> &Z,        // (N, nrhs)
-               const Eigen::MatrixBase<Work> &F,                 // (N, J*nrhs)
-               const Eigen::MatrixBase<Work> &G,                 // (N, J*nrhs)
-               const Eigen::MatrixBase<RightHandSide> &bX,       // (N, nrhs)
-               Eigen::MatrixBase<InputOut> const &bt_out,        // (N,)
-               Eigen::MatrixBase<CoeffsOut> const &bc_out,       // (J,)
-               Eigen::MatrixBase<LowRankOut> const &bU_out,      // (N, J)
-               Eigen::MatrixBase<DiagOut> const &bd_out,         // (N,)
-               Eigen::MatrixBase<LowRankOut> const &bW_out,      // (N, J)
-               Eigen::MatrixBase<RightHandSideOut> const &bY_out // (N, nrhs)
+template <typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename Work, typename InputOut, typename CoeffsOut,
+          typename LowRankOut, typename RightHandSideOut>
+void solve_lower_rev(const Eigen::MatrixBase<Input> &t,                // (N,)
+                     const Eigen::MatrixBase<Coeffs> &c,               // (J,)
+                     const Eigen::MatrixBase<LowRank> &U,              // (N, J)
+                     const Eigen::MatrixBase<LowRank> &W,              // (N, J)
+                     const Eigen::MatrixBase<RightHandSide> &Y,        // (N, nrhs)
+                     const Eigen::MatrixBase<RightHandSide> &Z,        // (N, nrhs)
+                     const Eigen::MatrixBase<Work> &F,                 // (N, J*nrhs)
+                     const Eigen::MatrixBase<RightHandSide> &bZ,       // (N, nrhs)
+                     Eigen::MatrixBase<InputOut> const &bt_out,        // (N,)
+                     Eigen::MatrixBase<CoeffsOut> const &bc_out,       // (J,)
+                     Eigen::MatrixBase<LowRankOut> const &bU_out,      // (N, J)
+                     Eigen::MatrixBase<LowRankOut> const &bW_out,      // (N, J)
+                     Eigen::MatrixBase<RightHandSideOut> const &bY_out // (N, nrhs)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
-  Eigen::Index N = U.rows(), J = U.cols();
+  Eigen::Index N = t.rows(), J = c.rows();
   CAST_VEC(InputOut, bt, N);
   CAST_VEC(CoeffsOut, bc, J);
   CAST_MAT(LowRankOut, bU, N, J);
-  CAST_BASE(DiagOut, bd);
   CAST_MAT(LowRankOut, bW, N, J);
   CAST_BASE(RightHandSideOut, bY);
 
@@ -118,151 +113,107 @@ void solve_rev(const Eigen::MatrixBase<Input> &t,                // (N,)
   bc.setZero();
   bU.setZero();
   bW.setZero();
-
-  bY = bX;
-  internal::backward_rev<true>(t, c, U, W, Z, X, G, bY, bt, bc, bU, bW, bY);
-
-  bd = -(bY * Z.transpose()).diagonal().array() / d.array().pow(2);
-  bY.array().colwise() /= d.array();
-
-  internal::forward_rev<true>(t, c, U, W, Y, Z, F, bY, bt, bc, bU, bW, bY);
-}
-
-template <typename Input, typename Coeffs, typename Diag, typename LowRank, typename RightHandSide, typename Norm, typename Work, typename InputOut,
-          typename CoeffsOut, typename LowRankOut, typename DiagOut, typename RightHandSideOut>
-void norm_rev(const Eigen::MatrixBase<Input> &t,                // (N,)
-              const Eigen::MatrixBase<Coeffs> &c,               // (J,)
-              const Eigen::MatrixBase<LowRank> &U,              // (N, J)
-              const Eigen::MatrixBase<Diag> &d,                 // (N,)
-              const Eigen::MatrixBase<LowRank> &W,              // (N, J)
-              const Eigen::MatrixBase<RightHandSide> &Y,        // (N, nrhs)
-              const Eigen::MatrixBase<Norm> &X,                 // (nrhs, nrhs)
-              const Eigen::MatrixBase<RightHandSide> &Z,        // (N, nrhs)
-              const Eigen::MatrixBase<Work> &F,                 // (N, J*nrhs)
-              const Eigen::MatrixBase<Norm> &bX,                // (nrhs, nrhs)
-              Eigen::MatrixBase<InputOut> const &bt_out,        // (N,)
-              Eigen::MatrixBase<CoeffsOut> const &bc_out,       // (J,)
-              Eigen::MatrixBase<LowRankOut> const &bU_out,      // (N, J)
-              Eigen::MatrixBase<DiagOut> const &bd_out,         // (N,)
-              Eigen::MatrixBase<LowRankOut> const &bW_out,      // (N, J)
-              Eigen::MatrixBase<RightHandSideOut> const &bY_out // (N, nrhs)
-) {
-  UNUSED(X);
-
-  ASSERT_ROW_MAJOR(Work);
-
-  Eigen::Index N = U.rows(), J = U.cols();
-  CAST_VEC(InputOut, bt, N);
-  CAST_VEC(CoeffsOut, bc, J);
-  CAST_MAT(LowRankOut, bU, N, J);
-  CAST_BASE(DiagOut, bd);
-  CAST_MAT(LowRankOut, bW, N, J);
-  CAST_BASE(RightHandSideOut, bY);
-
-  bt.setZero();
-  bc.setZero();
-  bU.setZero();
-  bW.setZero();
-
-  bY = d.asDiagonal().inverse() * Z * (bX + bX.transpose());
-  bd = -(Z * bX * Z.transpose()).diagonal().array() / d.array().pow(2);
-
-  internal::forward_rev<true>(t, c, U, W, Y, Z, F, bY, bt, bc, bU, bW, bY);
-}
-
-template <typename Input, typename Coeffs, typename Diag, typename LowRank, typename RightHandSide, typename Work, typename InputOut,
-          typename CoeffsOut, typename LowRankOut, typename DiagOut, typename RightHandSideOut>
-void dot_tril_rev(const Eigen::MatrixBase<Input> &t,                // (N,)
-                  const Eigen::MatrixBase<Coeffs> &c,               // (J,)
-                  const Eigen::MatrixBase<LowRank> &U,              // (N, J)
-                  const Eigen::MatrixBase<Diag> &d,                 // (N,)
-                  const Eigen::MatrixBase<LowRank> &W,              // (N, J)
-                  const Eigen::MatrixBase<RightHandSide> &Y,        // (N, nrhs)
-                  const Eigen::MatrixBase<RightHandSide> &Z,        // (N, nrhs)
-                  const Eigen::MatrixBase<Work> &F,                 // (N, J*nrhs)
-                  const Eigen::MatrixBase<RightHandSide> &bZ,       // (N, nrhs)
-                  Eigen::MatrixBase<InputOut> const &bt_out,        // (N,)
-                  Eigen::MatrixBase<CoeffsOut> const &bc_out,       // (J,)
-                  Eigen::MatrixBase<LowRankOut> const &bU_out,      // (N, J)
-                  Eigen::MatrixBase<DiagOut> const &bd_out,         // (N,)
-                  Eigen::MatrixBase<LowRankOut> const &bW_out,      // (N, J)
-                  Eigen::MatrixBase<RightHandSideOut> const &bY_out // (N, nrhs)
-) {
-  ASSERT_ROW_MAJOR(Work);
-
-  Eigen::Index N = U.rows(), J = U.cols();
-  CAST_VEC(InputOut, bt, N);
-  CAST_VEC(CoeffsOut, bc, J);
-  CAST_BASE(RightHandSideOut, bY);
-  CAST_MAT(LowRankOut, bU, N, J);
-  CAST_BASE(DiagOut, bd);
-  CAST_MAT(LowRankOut, bW, N, J);
-
-  bt.setZero();
-  bc.setZero();
-  bU.setZero();
-  bW.setZero();
-
-  Eigen::Matrix<typename Diag::Scalar, Diag::RowsAtCompileTime, 1> sqrtd = sqrt(d.array());
-
-  // We need to repeat this calculation before running the backprop
-  Eigen::Matrix<typename RightHandSide::Scalar, RightHandSide::RowsAtCompileTime, RightHandSide::ColsAtCompileTime, RightHandSide::IsRowMajor> tmp =
-     Y;
-  tmp.array().colwise() *= sqrtd.array();
-
-  // Run backprop
   bY = bZ;
-  internal::forward_rev<false>(t, c, U, W, tmp, Z, F, bZ, bt, bc, bU, bW, bY);
-
-  // Update bY and bd based on tmp op above
-  bd = 0.5 * (Y * bY.transpose()).diagonal().array() / sqrtd.array();
-  bY.array().colwise() *= sqrtd.array();
+  internal::forward_rev<true>(t, c, U, W, Y, Z, F, bY, bt, bc, bU, bW, bY);
 }
 
-template <typename Input, typename Coeffs, typename Diag, typename LowRank, typename RightHandSide, typename Work, typename InputOut,
-          typename CoeffsOut, typename LowRankOut, typename DiagOut, typename RightHandSideOut>
-void matmul_rev(const Eigen::MatrixBase<Input> &t,                // (N,)
-                const Eigen::MatrixBase<Coeffs> &c,               // (J,)
-                const Eigen::MatrixBase<Diag> &a,                 // (N,)
-                const Eigen::MatrixBase<LowRank> &U,              // (N, J)
-                const Eigen::MatrixBase<LowRank> &V,              // (N, J)
-                const Eigen::MatrixBase<RightHandSide> &Y,        // (N, nrhs)
-                const Eigen::MatrixBase<RightHandSide> &X,        // (N, nrhs)
-                const Eigen::MatrixBase<RightHandSide> &M,        // (N, nrhs)
-                const Eigen::MatrixBase<Work> &F,                 // (N, J*nrhs)
-                const Eigen::MatrixBase<Work> &G,                 // (N, J*nrhs)
-                const Eigen::MatrixBase<RightHandSide> &bX,       // (N, nrhs)
-                Eigen::MatrixBase<InputOut> const &bt_out,        // (N,)
-                Eigen::MatrixBase<CoeffsOut> const &bc_out,       // (J,)
-                Eigen::MatrixBase<DiagOut> const &ba_out,         // (N,)
-                Eigen::MatrixBase<LowRankOut> const &bU_out,      // (N, J)
-                Eigen::MatrixBase<LowRankOut> const &bV_out,      // (N, J)
-                Eigen::MatrixBase<RightHandSideOut> const &bY_out // (N, nrhs)
+template <typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename Work, typename InputOut, typename CoeffsOut,
+          typename LowRankOut, typename RightHandSideOut>
+void solve_upper_rev(const Eigen::MatrixBase<Input> &t,                // (N,)
+                     const Eigen::MatrixBase<Coeffs> &c,               // (J,)
+                     const Eigen::MatrixBase<LowRank> &U,              // (N, J)
+                     const Eigen::MatrixBase<LowRank> &W,              // (N, J)
+                     const Eigen::MatrixBase<RightHandSide> &Y,        // (N, nrhs)
+                     const Eigen::MatrixBase<RightHandSide> &Z,        // (N, nrhs)
+                     const Eigen::MatrixBase<Work> &F,                 // (N, J*nrhs)
+                     const Eigen::MatrixBase<RightHandSide> &bZ,       // (N, nrhs)
+                     Eigen::MatrixBase<InputOut> const &bt_out,        // (N,)
+                     Eigen::MatrixBase<CoeffsOut> const &bc_out,       // (J,)
+                     Eigen::MatrixBase<LowRankOut> const &bU_out,      // (N, J)
+                     Eigen::MatrixBase<LowRankOut> const &bW_out,      // (N, J)
+                     Eigen::MatrixBase<RightHandSideOut> const &bY_out // (N, nrhs)
 ) {
   ASSERT_ROW_MAJOR(Work);
 
-  Eigen::Index N = U.rows(), J = U.cols();
+  Eigen::Index N = t.rows(), J = c.rows();
   CAST_VEC(InputOut, bt, N);
   CAST_VEC(CoeffsOut, bc, J);
-  CAST_BASE(DiagOut, ba);
+  CAST_MAT(LowRankOut, bU, N, J);
+  CAST_MAT(LowRankOut, bW, N, J);
+  CAST_BASE(RightHandSideOut, bY);
+
+  bt.setZero();
+  bc.setZero();
+  bU.setZero();
+  bW.setZero();
+  bY = bZ;
+  internal::backward_rev<true>(t, c, U, W, Y, Z, F, bY, bt, bc, bU, bW, bY);
+}
+
+template <typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename Work, typename InputOut, typename CoeffsOut,
+          typename LowRankOut, typename RightHandSideOut>
+void matmul_lower_rev(const Eigen::MatrixBase<Input> &t,                // (N,)
+                      const Eigen::MatrixBase<Coeffs> &c,               // (J,)
+                      const Eigen::MatrixBase<LowRank> &U,              // (N, J)
+                      const Eigen::MatrixBase<LowRank> &V,              // (N, J)
+                      const Eigen::MatrixBase<RightHandSide> &Y,        // (N, nrhs)
+                      const Eigen::MatrixBase<RightHandSide> &Z,        // (N, nrhs)
+                      const Eigen::MatrixBase<Work> &F,                 // (N, J*nrhs)
+                      const Eigen::MatrixBase<RightHandSide> &bZ,       // (N, nrhs)
+                      Eigen::MatrixBase<InputOut> const &bt_out,        // (N,)
+                      Eigen::MatrixBase<CoeffsOut> const &bc_out,       // (J,)
+                      Eigen::MatrixBase<LowRankOut> const &bU_out,      // (N, J)
+                      Eigen::MatrixBase<LowRankOut> const &bV_out,      // (N, J)
+                      Eigen::MatrixBase<RightHandSideOut> const &bY_out // (N, nrhs)
+) {
+  ASSERT_ROW_MAJOR(Work);
+
+  Eigen::Index N = t.rows(), J = c.rows();
+  CAST_VEC(InputOut, bt, N);
+  CAST_VEC(CoeffsOut, bc, J);
   CAST_MAT(LowRankOut, bU, N, J);
   CAST_MAT(LowRankOut, bV, N, J);
-  CAST_BASE(RightHandSideOut, bY);
+  CAST_MAT(RightHandSideOut, bY, N, Y.cols());
 
   bt.setZero();
   bc.setZero();
   bU.setZero();
   bV.setZero();
+  bY.setZero();
+  internal::forward_rev<false>(t, c, U, V, Y, Z, F, bZ, bt, bc, bU, bV, bY);
+}
 
-  bY = a.asDiagonal() * bX;
-  ba = (Y * bX.transpose()).diagonal();
+template <typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename Work, typename InputOut, typename CoeffsOut,
+          typename LowRankOut, typename RightHandSideOut>
+void matmul_upper_rev(const Eigen::MatrixBase<Input> &t,                // (N,)
+                      const Eigen::MatrixBase<Coeffs> &c,               // (J,)
+                      const Eigen::MatrixBase<LowRank> &U,              // (N, J)
+                      const Eigen::MatrixBase<LowRank> &V,              // (N, J)
+                      const Eigen::MatrixBase<RightHandSide> &Y,        // (N, nrhs)
+                      const Eigen::MatrixBase<RightHandSide> &Z,        // (N, nrhs)
+                      const Eigen::MatrixBase<Work> &F,                 // (N, J*nrhs)
+                      const Eigen::MatrixBase<RightHandSide> &bZ,       // (N, nrhs)
+                      Eigen::MatrixBase<InputOut> const &bt_out,        // (N,)
+                      Eigen::MatrixBase<CoeffsOut> const &bc_out,       // (J,)
+                      Eigen::MatrixBase<LowRankOut> const &bU_out,      // (N, J)
+                      Eigen::MatrixBase<LowRankOut> const &bV_out,      // (N, J)
+                      Eigen::MatrixBase<RightHandSideOut> const &bY_out // (N, nrhs)
+) {
+  ASSERT_ROW_MAJOR(Work);
 
-  Eigen::Matrix<typename RightHandSideOut::Scalar, RightHandSideOut::RowsAtCompileTime, RightHandSideOut::ColsAtCompileTime,
-                RightHandSideOut::IsRowMajor>
-     tmp = bX;
+  Eigen::Index N = t.rows(), J = c.rows();
+  CAST_VEC(InputOut, bt, N);
+  CAST_VEC(CoeffsOut, bc, J);
+  CAST_MAT(LowRankOut, bU, N, J);
+  CAST_MAT(LowRankOut, bV, N, J);
+  CAST_MAT(RightHandSideOut, bY, N, Y.cols());
 
-  internal::backward_rev<false>(t, c, U, V, Y, X, G, tmp, bt, bc, bU, bV, bY);
-  internal::forward_rev<false>(t, c, U, V, Y, M, F, tmp /* bM */, bt, bc, bU, bV, bY);
+  bt.setZero();
+  bc.setZero();
+  bU.setZero();
+  bV.setZero();
+  bY.setZero();
+  internal::backward_rev<false>(t, c, U, V, Y, Z, F, bZ, bt, bc, bU, bV, bY);
 }
 
 } // namespace core
