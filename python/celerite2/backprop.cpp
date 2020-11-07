@@ -2,7 +2,6 @@
 // NOTE: Changes should be made to the template
 
 #include <pybind11/pybind11.h>
-#include <cmath>
 #include "driver.hpp"
 
 namespace py = pybind11;

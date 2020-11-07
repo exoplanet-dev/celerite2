@@ -39,7 +39,7 @@ for n in range(len(data)):
     for val in data[n]["rev_outputs"]:
         val["is_output"] = True
 
-for name in ["driver.cpp", "backprop.cpp"]:
+for name in ["driver.cpp", "backprop.cpp", "jax/xla_ops.cpp"]:
     template = env.get_template(name)
     result = template.render(spec=data)
     with open(base.parent / "celerite2" / name, "w") as f:
