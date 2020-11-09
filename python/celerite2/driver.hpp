@@ -10,8 +10,6 @@
 namespace celerite2 {
 namespace driver {
 
-namespace py = pybind11;
-
 struct driver_linalg_exception : public std::exception {
   const char *what() const throw() { return "failed to factorize or solve matrix"; }
 };
