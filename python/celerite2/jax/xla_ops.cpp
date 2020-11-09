@@ -107,11 +107,13 @@ auto solve_lower (void *out_tuple, const void **in) {
         Eigen::Map<const Eigen::VectorXd> Y_(Y, N, 1); \
         Eigen::Map<Eigen::VectorXd> Z_(Z, N, 1); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_(F, N, J); \
+        Z_.setZero(); \
         celerite2::core::solve_lower(t_, c_, U_, W_, Y_, Z_, F_); \
     } else { \
         Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_(Y, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_(Z, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_(F, N, J * nrhs); \
+        Z_.setZero(); \
         celerite2::core::solve_lower(t_, c_, U_, W_, Y_, Z_, F_); \
     } \
     }
@@ -193,11 +195,13 @@ auto solve_upper (void *out_tuple, const void **in) {
         Eigen::Map<const Eigen::VectorXd> Y_(Y, N, 1); \
         Eigen::Map<Eigen::VectorXd> Z_(Z, N, 1); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_(F, N, J); \
+        Z_.setZero(); \
         celerite2::core::solve_upper(t_, c_, U_, W_, Y_, Z_, F_); \
     } else { \
         Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_(Y, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_(Z, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_(F, N, J * nrhs); \
+        Z_.setZero(); \
         celerite2::core::solve_upper(t_, c_, U_, W_, Y_, Z_, F_); \
     } \
     }
@@ -279,11 +283,13 @@ auto matmul_lower (void *out_tuple, const void **in) {
         Eigen::Map<const Eigen::VectorXd> Y_(Y, N, 1); \
         Eigen::Map<Eigen::VectorXd> Z_(Z, N, 1); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_(F, N, J); \
+        Z_.setZero(); \
         celerite2::core::matmul_lower(t_, c_, U_, V_, Y_, Z_, F_); \
     } else { \
         Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_(Y, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_(Z, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_(F, N, J * nrhs); \
+        Z_.setZero(); \
         celerite2::core::matmul_lower(t_, c_, U_, V_, Y_, Z_, F_); \
     } \
     }
@@ -365,11 +371,13 @@ auto matmul_upper (void *out_tuple, const void **in) {
         Eigen::Map<const Eigen::VectorXd> Y_(Y, N, 1); \
         Eigen::Map<Eigen::VectorXd> Z_(Z, N, 1); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_(F, N, J); \
+        Z_.setZero(); \
         celerite2::core::matmul_upper(t_, c_, U_, V_, Y_, Z_, F_); \
     } else { \
         Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_(Y, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_(Z, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_(F, N, J * nrhs); \
+        Z_.setZero(); \
         celerite2::core::matmul_upper(t_, c_, U_, V_, Y_, Z_, F_); \
     } \
     }
@@ -454,11 +462,13 @@ auto general_matmul_lower (void *out_tuple, const void **in) {
         Eigen::Map<const Eigen::VectorXd> Y_(Y, M, 1); \
         Eigen::Map<Eigen::VectorXd> Z_(Z, N, 1); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_(F, M, J); \
+        Z_.setZero(); \
         celerite2::core::general_matmul_lower(t1_, t2_, c_, U_, V_, Y_, Z_, F_); \
     } else { \
         Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_(Y, M, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_(Z, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_(F, M, J * nrhs); \
+        Z_.setZero(); \
         celerite2::core::general_matmul_lower(t1_, t2_, c_, U_, V_, Y_, Z_, F_); \
     } \
     }
@@ -493,11 +503,13 @@ auto general_matmul_upper (void *out_tuple, const void **in) {
         Eigen::Map<const Eigen::VectorXd> Y_(Y, M, 1); \
         Eigen::Map<Eigen::VectorXd> Z_(Z, N, 1); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_(F, M, J); \
+        Z_.setZero(); \
         celerite2::core::general_matmul_upper(t1_, t2_, c_, U_, V_, Y_, Z_, F_); \
     } else { \
         Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_(Y, M, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_(Z, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_(F, M, J * nrhs); \
+        Z_.setZero(); \
         celerite2::core::general_matmul_upper(t1_, t2_, c_, U_, V_, Y_, Z_, F_); \
     } \
     }

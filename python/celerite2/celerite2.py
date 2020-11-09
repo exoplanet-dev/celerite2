@@ -132,7 +132,13 @@ class GaussianProcess:
         # Compute the Cholesky factorization
         try:
             self._d, self._W = driver.factor(
-                self._t, self._c, self._U, self._d, np.copy(self._V)
+                self._t,
+                self._c,
+                self._d,
+                self._U,
+                self._V,
+                self._d,
+                np.copy(self._V),
             )
         except LinAlgError:
             if not quiet:
@@ -190,6 +196,18 @@ class GaussianProcess:
             y = np.array(y, dtype=np.float64, copy=True, order="C")
         return y
 
+    def _apply_inverse(self, y):
+        is_vector = False
+        if y.ndim == 1:
+            is_vector = True
+            y = y[:, None]
+        z = driver.solve_lower(self._t, self._c, self._U, self._W, y, y)
+        z /= self._d[:, None]
+        z = driver.solve_upper(self._t, self._c, self._U, self._W, z, z)
+        if is_vector:
+            return z[:, 0]
+        return z
+
     def apply_inverse(self, y, *, inplace=False):
         """Apply the inverse of the covariance matrix to a vector or matrix
 
@@ -210,7 +228,7 @@ class GaussianProcess:
             ValueError: When the inputs are not valid (shape, number, etc.).
         """
         y = self._process_input(y, inplace=inplace)
-        return driver.solve(self._t, self._c, self._U, self._d, self._W, y)
+        return self._apply_inverse(y)
 
     def dot_tril(self, y, *, inplace=False):
         """Dot the Cholesky factor of the GP system into a vector or matrix
@@ -232,7 +250,15 @@ class GaussianProcess:
             ValueError: When the inputs are not valid (shape, number, etc.).
         """
         y = self._process_input(y, inplace=inplace)
-        return driver.dot_tril(self._t, self._c, self._U, self._d, self._W, y)
+        is_vector = False
+        if y.ndim == 1:
+            is_vector = True
+            y = y[:, None]
+        z = y * np.sqrt(self._d)[:, None]
+        z = driver.matmul_lower(self._t, self._c, self._U, self._W, z, z)
+        if is_vector:
+            return z[:, 0]
+        return z
 
     def log_likelihood(self, y, *, inplace=False):
         """Compute the marginalized likelihood of the GP model
@@ -257,9 +283,11 @@ class GaussianProcess:
         y = self._process_input(y, inplace=inplace, require_vector=True)
         if not np.isfinite(self._log_det):
             return -np.inf
-        loglike = self._norm - 0.5 * driver.norm(
-            self._t, self._c, self._U, self._d, self._W, y - self._mean_value
-        )
+        alpha = (y - self._mean_value)[:, None]
+        alpha = driver.solve_lower(
+            self._t, self._c, self._U, self._W, alpha, alpha
+        )[:, 0]
+        loglike = self._norm - 0.5 * np.sum(alpha ** 2 / self._d)
         if not np.isfinite(loglike):
             return -np.inf
         return loglike
@@ -460,24 +488,26 @@ class ConditionalDistribution:
         U2 = self._U2
         V2 = self._V2
 
-        target = driver.general_lower_dot(
+        is_vector = False
+        if inp.ndim == 1:
+            is_vector = True
+            inp = inp[:, None]
+            target = target[:, None]
+
+        target = driver.general_matmul_lower(
             self._xs, self.gp._t, c, U2, V1, inp, target
         )
-        target = driver.general_upper_dot(
+        target = driver.general_matmul_upper(
             self._xs, self.gp._t, c, V2, U1, inp, target
         )
+
+        if is_vector:
+            return target[:, 0]
         return target
 
     @property
     def mean(self):
-        alpha = driver.solve(
-            self.gp._t,
-            self.gp._c,
-            self.gp._U,
-            self.gp._d,
-            self.gp._W,
-            self.y - self.gp._mean_value,
-        )
+        alpha = self.gp._apply_inverse(self.y - self.gp._mean_value)
 
         if self.t is None and self.kernel is None:
             mu = self.y - self.gp._diag * alpha

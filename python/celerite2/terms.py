@@ -226,6 +226,13 @@ class Term:
         if y.shape[0] != x.shape[0]:
             raise ValueError("Dimension mismatch")
 
+        is_vector = False
+        if y.ndim == 1:
+            is_vector = True
+            y = y[:, None]
+        if y.ndim != 2:
+            raise ValueError("'y' can only be a vector or matrix")
+
         if diag is None:
             diag = np.zeros_like(x)
         elif x2 is not None:
@@ -238,20 +245,22 @@ class Term:
 
         # Apply the default matrix multiply no x2 is provided
         if x2 is None:
-            z = np.empty(y.shape)
-            return driver.matmul(x, c, a, U1, V1, y, z)
+            z = y * a[:, None]
+            z = driver.matmul_lower(x, c, U1, V1, y, z)
+            z = driver.matmul_upper(x, c, U1, V1, y, z)
 
-        x2 = np.atleast_1d(x2)
-        c, _, U2, V2 = self.get_celerite_matrices(
-            x2, np.zeros_like(x2), c=c, U=U2, V=V2
-        )
-        if y.ndim > 1:
-            z = np.zeros((x2.shape[0], y.shape[1]))
         else:
-            z = np.zeros_like(x2)
+            x2 = np.atleast_1d(x2)
+            c, _, U2, V2 = self.get_celerite_matrices(
+                x2, np.zeros_like(x2), c=c, U=U2, V=V2
+            )
+            z = np.zeros((x2.shape[0], y.shape[1]))
+            z = driver.general_matmul_lower(x2, x, c, U2, V1, y, z)
+            z = driver.general_matmul_upper(x2, x, c, V2, U1, y, z)
 
-        z = driver.general_lower_dot(x2, x, c, U2, V1, y, z)
-        return driver.general_upper_dot(x2, x, c, V2, U1, y, z)
+        if is_vector:
+            return z[:, 0]
+        return z
 
 
 class TermSum(Term):

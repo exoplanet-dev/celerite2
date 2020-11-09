@@ -26,7 +26,7 @@ auto {{mod.name}} (
     {% endfor %}
     // Check shapes
     {% for arg in mod.inputs + mod.outputs -%}
-    if ({{arg.name}}buf.ndim != {{arg.shape|length}}{% for dim in arg.shape %} || {{arg.name}}buf.shape[{{loop.index}}] != {{dim}}{% endfor %}) throw std::invalid_argument("Invalid shape: {{arg.name}}");
+    if ({{arg.name}}buf.ndim != {{arg.shape|length}}{% for dim in arg.shape %} || {{arg.name}}buf.shape[{{loop.index - 1}}] != {{dim}}{% endfor %}) throw std::invalid_argument("Invalid shape: {{arg.name}}");
     {% endfor %}
     {%- if mod.name == "factor" %}
     Eigen::Index flag = 0;{% endif %}

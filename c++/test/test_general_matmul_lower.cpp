@@ -12,9 +12,9 @@ TEMPLATE_LIST_TEST_CASE("check the results of general_matmul_lower", "[general_m
 
   double max_resid;
   Matrix K, Z(Y.rows(), Y.cols()), F;
-  to_dense(x, c, a, U, V, K);
+  to_dense(x, c, a - diag, U, V, K);
 
-  Matrix expect = K.triangularView<Eigen::StrictlyLower>() * Y;
+  Matrix expect = K.triangularView<Eigen::Lower>() * Y;
 
   SECTION("general") {
     Z.setZero();

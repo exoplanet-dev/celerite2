@@ -37,13 +37,13 @@ auto factor (
     ssize_t J = cbuf.shape[0];
 
     // Check shapes
-    if (tbuf.ndim != 1 || tbuf.shape[1] != N) throw std::invalid_argument("Invalid shape: t");
-    if (cbuf.ndim != 1 || cbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: c");
-    if (abuf.ndim != 1 || abuf.shape[1] != N) throw std::invalid_argument("Invalid shape: a");
-    if (Ubuf.ndim != 2 || Ubuf.shape[1] != N || Ubuf.shape[2] != J) throw std::invalid_argument("Invalid shape: U");
-    if (Vbuf.ndim != 2 || Vbuf.shape[1] != N || Vbuf.shape[2] != J) throw std::invalid_argument("Invalid shape: V");
-    if (dbuf.ndim != 1 || dbuf.shape[1] != N) throw std::invalid_argument("Invalid shape: d");
-    if (Wbuf.ndim != 2 || Wbuf.shape[1] != N || Wbuf.shape[2] != J) throw std::invalid_argument("Invalid shape: W");
+    if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (abuf.ndim != 1 || abuf.shape[0] != N) throw std::invalid_argument("Invalid shape: a");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Vbuf.ndim != 2 || Vbuf.shape[0] != N || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
+    if (dbuf.ndim != 1 || dbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: d");
+    if (Wbuf.ndim != 2 || Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
 
     Eigen::Index flag = 0;
 #define FIXED_SIZE_MAP(SIZE) \
@@ -91,12 +91,12 @@ auto solve_lower (
     ssize_t nrhs = Ybuf.shape[1];
 
     // Check shapes
-    if (tbuf.ndim != 1 || tbuf.shape[1] != N) throw std::invalid_argument("Invalid shape: t");
-    if (cbuf.ndim != 1 || cbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: c");
-    if (Ubuf.ndim != 2 || Ubuf.shape[1] != N || Ubuf.shape[2] != J) throw std::invalid_argument("Invalid shape: U");
-    if (Wbuf.ndim != 2 || Wbuf.shape[1] != N || Wbuf.shape[2] != J) throw std::invalid_argument("Invalid shape: W");
-    if (Ybuf.ndim != 2 || Ybuf.shape[1] != N || Ybuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: Y");
-    if (Zbuf.ndim != 2 || Zbuf.shape[1] != N || Zbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: Z");
+    if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Wbuf.ndim != 2 || Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
+    if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
+    if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
 
 #define FIXED_SIZE_MAP(SIZE) \
     { \
@@ -148,12 +148,12 @@ auto solve_upper (
     ssize_t nrhs = Ybuf.shape[1];
 
     // Check shapes
-    if (tbuf.ndim != 1 || tbuf.shape[1] != N) throw std::invalid_argument("Invalid shape: t");
-    if (cbuf.ndim != 1 || cbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: c");
-    if (Ubuf.ndim != 2 || Ubuf.shape[1] != N || Ubuf.shape[2] != J) throw std::invalid_argument("Invalid shape: U");
-    if (Wbuf.ndim != 2 || Wbuf.shape[1] != N || Wbuf.shape[2] != J) throw std::invalid_argument("Invalid shape: W");
-    if (Ybuf.ndim != 2 || Ybuf.shape[1] != N || Ybuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: Y");
-    if (Zbuf.ndim != 2 || Zbuf.shape[1] != N || Zbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: Z");
+    if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Wbuf.ndim != 2 || Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
+    if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
+    if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
 
 #define FIXED_SIZE_MAP(SIZE) \
     { \
@@ -205,12 +205,12 @@ auto matmul_lower (
     ssize_t nrhs = Ybuf.shape[1];
 
     // Check shapes
-    if (tbuf.ndim != 1 || tbuf.shape[1] != N) throw std::invalid_argument("Invalid shape: t");
-    if (cbuf.ndim != 1 || cbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: c");
-    if (Ubuf.ndim != 2 || Ubuf.shape[1] != N || Ubuf.shape[2] != J) throw std::invalid_argument("Invalid shape: U");
-    if (Vbuf.ndim != 2 || Vbuf.shape[1] != N || Vbuf.shape[2] != J) throw std::invalid_argument("Invalid shape: V");
-    if (Ybuf.ndim != 2 || Ybuf.shape[1] != N || Ybuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: Y");
-    if (Zbuf.ndim != 2 || Zbuf.shape[1] != N || Zbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: Z");
+    if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Vbuf.ndim != 2 || Vbuf.shape[0] != N || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
+    if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
+    if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
 
 #define FIXED_SIZE_MAP(SIZE) \
     { \
@@ -262,12 +262,12 @@ auto matmul_upper (
     ssize_t nrhs = Ybuf.shape[1];
 
     // Check shapes
-    if (tbuf.ndim != 1 || tbuf.shape[1] != N) throw std::invalid_argument("Invalid shape: t");
-    if (cbuf.ndim != 1 || cbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: c");
-    if (Ubuf.ndim != 2 || Ubuf.shape[1] != N || Ubuf.shape[2] != J) throw std::invalid_argument("Invalid shape: U");
-    if (Vbuf.ndim != 2 || Vbuf.shape[1] != N || Vbuf.shape[2] != J) throw std::invalid_argument("Invalid shape: V");
-    if (Ybuf.ndim != 2 || Ybuf.shape[1] != N || Ybuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: Y");
-    if (Zbuf.ndim != 2 || Zbuf.shape[1] != N || Zbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: Z");
+    if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Vbuf.ndim != 2 || Vbuf.shape[0] != N || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
+    if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
+    if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
 
 #define FIXED_SIZE_MAP(SIZE) \
     { \
@@ -319,18 +319,18 @@ auto general_matmul_lower (
     if (cbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: c");
     ssize_t J = cbuf.shape[0];
-    if (Vbuf.ndim <= 1)
-        throw std::invalid_argument("Invalid number of dimensions: V");
-    ssize_t nrhs = Vbuf.shape[1];
+    if (Ybuf.ndim <= 1)
+        throw std::invalid_argument("Invalid number of dimensions: Y");
+    ssize_t nrhs = Ybuf.shape[1];
 
     // Check shapes
-    if (t1buf.ndim != 1 || t1buf.shape[1] != N) throw std::invalid_argument("Invalid shape: t1");
-    if (t2buf.ndim != 1 || t2buf.shape[1] != M) throw std::invalid_argument("Invalid shape: t2");
-    if (cbuf.ndim != 1 || cbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: c");
-    if (Ubuf.ndim != 2 || Ubuf.shape[1] != N || Ubuf.shape[2] != J) throw std::invalid_argument("Invalid shape: U");
-    if (Vbuf.ndim != 2 || Vbuf.shape[1] != M || Vbuf.shape[2] != J) throw std::invalid_argument("Invalid shape: V");
-    if (Ybuf.ndim != 2 || Ybuf.shape[1] != M || Ybuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: Y");
-    if (Zbuf.ndim != 2 || Zbuf.shape[1] != N || Zbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: Z");
+    if (t1buf.ndim != 1 || t1buf.shape[0] != N) throw std::invalid_argument("Invalid shape: t1");
+    if (t2buf.ndim != 1 || t2buf.shape[0] != M) throw std::invalid_argument("Invalid shape: t2");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Vbuf.ndim != 2 || Vbuf.shape[0] != M || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
+    if (Ybuf.ndim != 2 || Ybuf.shape[0] != M || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
+    if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
 
 #define FIXED_SIZE_MAP(SIZE) \
     { \
@@ -383,18 +383,18 @@ auto general_matmul_upper (
     if (cbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: c");
     ssize_t J = cbuf.shape[0];
-    if (Vbuf.ndim <= 1)
-        throw std::invalid_argument("Invalid number of dimensions: V");
-    ssize_t nrhs = Vbuf.shape[1];
+    if (Ybuf.ndim <= 1)
+        throw std::invalid_argument("Invalid number of dimensions: Y");
+    ssize_t nrhs = Ybuf.shape[1];
 
     // Check shapes
-    if (t1buf.ndim != 1 || t1buf.shape[1] != N) throw std::invalid_argument("Invalid shape: t1");
-    if (t2buf.ndim != 1 || t2buf.shape[1] != M) throw std::invalid_argument("Invalid shape: t2");
-    if (cbuf.ndim != 1 || cbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: c");
-    if (Ubuf.ndim != 2 || Ubuf.shape[1] != N || Ubuf.shape[2] != J) throw std::invalid_argument("Invalid shape: U");
-    if (Vbuf.ndim != 2 || Vbuf.shape[1] != M || Vbuf.shape[2] != J) throw std::invalid_argument("Invalid shape: V");
-    if (Ybuf.ndim != 2 || Ybuf.shape[1] != M || Ybuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: Y");
-    if (Zbuf.ndim != 2 || Zbuf.shape[1] != N || Zbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: Z");
+    if (t1buf.ndim != 1 || t1buf.shape[0] != N) throw std::invalid_argument("Invalid shape: t1");
+    if (t2buf.ndim != 1 || t2buf.shape[0] != M) throw std::invalid_argument("Invalid shape: t2");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Vbuf.ndim != 2 || Vbuf.shape[0] != M || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
+    if (Ybuf.ndim != 2 || Ybuf.shape[0] != M || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
+    if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
 
 #define FIXED_SIZE_MAP(SIZE) \
     { \

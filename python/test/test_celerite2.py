@@ -67,17 +67,22 @@ def test_consistency(oterm, mean, data):
     # "log_likelihood" method
     assert np.allclose(original_gp.log_likelihood(y), gp.log_likelihood(y))
 
-    conditional = gp.predict(y)
-    mu, cov = original_gp.predict(y, return_cov=True)
-    assert np.allclose(conditional.mean, mu)
-    assert np.allclose(conditional.covariance, cov)
-    assert np.allclose(conditional.variance, np.diag(cov))
+    # Apply inverse
+    assert np.allclose(
+        np.squeeze(original_gp.apply_inverse(y)), gp.apply_inverse(y)
+    )
 
     conditional_t = gp.predict(y, t=t)
     mu, cov = original_gp.predict(y, t=t, return_cov=True)
     assert np.allclose(conditional_t.mean, mu)
-    assert np.allclose(conditional_t.covariance, cov)
     assert np.allclose(conditional_t.variance, np.diag(cov))
+    assert np.allclose(conditional_t.covariance, cov)
+
+    conditional = gp.predict(y)
+    mu, cov = original_gp.predict(y, return_cov=True)
+    assert np.allclose(conditional.mean, mu)
+    assert np.allclose(conditional.variance, np.diag(cov))
+    assert np.allclose(conditional.covariance, cov)
 
     # "sample" method
     seed = 5938

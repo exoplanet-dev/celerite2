@@ -238,10 +238,10 @@ void general_matmul_lower(const Eigen::MatrixBase<Input> &t1,               // (
   Scalar tn = t2(0);
   Eigen::Index n, m = 1;
   for (n = 0; n < N; ++n)
-    if (t1(n) > tn) break;
+    if (t1(n) >= tn) break;
   for (; n < N; ++n) {
     tn = t1(n);
-    while (m < M && t2(m) < tn) {
+    while (m < M && t2(m) <= tn) {
       p  = exp(c.array() * (t2(m - 1) - t2(m)));
       Fm = p.asDiagonal() * Fm;
       Fm.noalias() += V.row(m).transpose() * Y.row(m);

@@ -25,7 +25,7 @@ auto {{mod.name}}_fwd (
     {% endfor %}
     // Check shapes
     {% for arg in mod.inputs + mod.outputs + mod.extra_outputs -%}
-    if ({{arg.name}}buf.ndim != {{arg.shape|length}}{% for dim in arg.shape %} || {{arg.name}}buf.shape[{{loop.index}}] != {{dim}}{% endfor %}) throw std::invalid_argument("Invalid shape: {{arg.name}}");
+    if ({{arg.name}}buf.ndim != {{arg.shape|length}}{% for dim in arg.shape %} || {{arg.name}}buf.shape[{{loop.index - 1}}] != {{dim}}{% endfor %}) throw std::invalid_argument("Invalid shape: {{arg.name}}");
     {% endfor %}
     {%- if mod.name == "factor" %}
     Eigen::Index flag = 0;{% endif %}
@@ -99,7 +99,7 @@ auto {{mod.name}}_rev (
     {% endfor %}
     // Check shapes
     {% for arg in mod.rev_inputs + mod.rev_outputs -%}
-    if ({{arg.name}}buf.ndim != {{arg.shape|length}}{% for dim in arg.shape %} || {{arg.name}}buf.shape[{{loop.index}}] != {{dim}}{% endfor %}) throw std::invalid_argument("Invalid shape: {{arg.name}}");
+    if ({{arg.name}}buf.ndim != {{arg.shape|length}}{% for dim in arg.shape %} || {{arg.name}}buf.shape[{{loop.index - 1}}] != {{dim}}{% endfor %}) throw std::invalid_argument("Invalid shape: {{arg.name}}");
     {% endfor %}
 #define FIXED_SIZE_MAP(SIZE) \
     { \

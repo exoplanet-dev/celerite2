@@ -49,12 +49,18 @@ auto {{mod.name}} (void *out_tuple, const void **in) {
         Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> {{arg.name}}_({{arg.name}}, {{arg.shape[0]}}, J); \
         {% endif -%}
         {% endfor -%}
+        {% for arg in mod.outputs -%}
+        {{arg.name}}_.setZero(); \
+        {% endfor -%}
         celerite2::core::{{mod.name}}({% for val in mod.inputs + mod.outputs + mod.extra_outputs %}{{val.name}}_{%- if not loop.last %}, {% endif %}{% endfor %}); \
     } else { \
         {% for arg in mod.inputs + mod.outputs + mod.extra_outputs %}
         {%- if (arg.shape|length == 2 and arg.shape[1] == "nrhs") or (arg.shape|length == 3 and arg.shape[2] == "nrhs") -%}
         Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> {{arg.name}}_({{arg.name}}, {{arg.shape[0]}}, {{arg.shape[1:]|join(" * ")}}); \
         {% endif -%}
+        {% endfor -%}
+        {% for arg in mod.outputs -%}
+        {{arg.name}}_.setZero(); \
         {% endfor -%}
         celerite2::core::{{mod.name}}({% for val in mod.inputs + mod.outputs + mod.extra_outputs %}{{val.name}}_{%- if not loop.last %}, {% endif %}{% endfor %}); \
     } \

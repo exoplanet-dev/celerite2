@@ -7,7 +7,12 @@ from . import terms
 
 
 def get_matrices(
-    size=100, kernel=None, vector=False, conditional=False, include_dense=False
+    size=100,
+    kernel=None,
+    vector=False,
+    conditional=False,
+    include_dense=False,
+    no_diag=False,
 ):
     np.random.seed(721)
     x = np.sort(np.random.uniform(0, 10, size))
@@ -17,7 +22,10 @@ def get_matrices(
         Y = np.ascontiguousarray(
             np.vstack([np.sin(x), np.cos(x), x ** 2]).T, dtype=np.float64
         )
-    diag = np.random.uniform(0.1, 0.3, len(x))
+    if no_diag:
+        diag = np.zeros_like(x)
+    else:
+        diag = np.random.uniform(0.1, 0.3, len(x))
     kernel = kernel if kernel else terms.SHOTerm(S0=5.0, w0=0.1, Q=3.45)
     c, a, U, V = kernel.get_celerite_matrices(x, diag)
 
