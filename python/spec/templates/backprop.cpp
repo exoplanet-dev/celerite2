@@ -59,6 +59,9 @@ auto {{mod.name}}_fwd (
         Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> {{arg.name}}_(({% if not arg.is_output %}const {% endif %}double *){{arg.name}}buf.ptr, {{arg.shape[0]}}, J); \
         {% endif -%}
         {% endfor -%}
+        {% for arg in mod.outputs -%}
+        {{arg.name}}_.setZero(); \
+        {% endfor -%}
         celerite2::core::{{mod.name}}({% for val in mod.inputs + mod.outputs + mod.extra_outputs %}{{val.name}}_{%- if not loop.last %}, {% endif %}{% endfor %}); \
     } else { \
         {% for arg in mod.inputs + mod.outputs + mod.extra_outputs %}
@@ -66,18 +69,17 @@ auto {{mod.name}}_fwd (
         Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> {{arg.name}}_(({% if not arg.is_output %}const {% endif %}double *){{arg.name}}buf.ptr, {{arg.shape[0]}}, {{arg.shape[1:]|join(" * ")}}); \
         {% endif -%}
         {% endfor -%}
+        {% for arg in mod.outputs -%}
+        {{arg.name}}_.setZero(); \
+        {% endfor -%}
         celerite2::core::{{mod.name}}({% for val in mod.inputs + mod.outputs + mod.extra_outputs %}{{val.name}}_{%- if not loop.last %}, {% endif %}{% endfor %}); \
     } \
     {%- endif %}
     }
     UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
-    {% if mod.name == "factor" %}if (flag) throw backprop_linalg_exception();{% endif -%}
-    {% if mod.outputs|length > 1 %}
-    return std::make_tuple({{ mod.outputs|join(", ", attribute="name") }});
-    {%- else %}
-    return {{mod.outputs[0].name}};
-    {%- endif %}
+    {% if mod.name == "factor" %}if (flag) throw backprop_linalg_exception();{% endif %}
+    return std::make_tuple({{ (mod.outputs + mod.extra_outputs)|join(", ", attribute="name") }});
 }
 {%- if mod.has_rev %}
 auto {{mod.name}}_rev (

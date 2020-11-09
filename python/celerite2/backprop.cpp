@@ -63,7 +63,7 @@ auto factor_fwd (
     UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
     if (flag) throw backprop_linalg_exception();
-    return std::make_tuple(d, W);
+    return std::make_tuple(d, W, S);
 }
 auto factor_rev (
     py::array_t<double, py::array::c_style> t,
@@ -198,18 +198,20 @@ auto solve_lower_fwd (
         Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1); \
         Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((double *)Fbuf.ptr, N, J); \
+        Z_.setZero(); \
         celerite2::core::solve_lower(t_, c_, U_, W_, Y_, Z_, F_); \
     } else { \
         Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((double *)Fbuf.ptr, N, J * nrhs); \
+        Z_.setZero(); \
         celerite2::core::solve_lower(t_, c_, U_, W_, Y_, Z_, F_); \
     } \
     }
     UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
 
-    return Z;
+    return std::make_tuple(Z, F);
 }
 auto solve_lower_rev (
     py::array_t<double, py::array::c_style> t,
@@ -348,18 +350,20 @@ auto solve_upper_fwd (
         Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1); \
         Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((double *)Fbuf.ptr, N, J); \
+        Z_.setZero(); \
         celerite2::core::solve_upper(t_, c_, U_, W_, Y_, Z_, F_); \
     } else { \
         Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((double *)Fbuf.ptr, N, J * nrhs); \
+        Z_.setZero(); \
         celerite2::core::solve_upper(t_, c_, U_, W_, Y_, Z_, F_); \
     } \
     }
     UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
 
-    return Z;
+    return std::make_tuple(Z, F);
 }
 auto solve_upper_rev (
     py::array_t<double, py::array::c_style> t,
@@ -498,18 +502,20 @@ auto matmul_lower_fwd (
         Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1); \
         Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((double *)Fbuf.ptr, N, J); \
+        Z_.setZero(); \
         celerite2::core::matmul_lower(t_, c_, U_, V_, Y_, Z_, F_); \
     } else { \
         Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((double *)Fbuf.ptr, N, J * nrhs); \
+        Z_.setZero(); \
         celerite2::core::matmul_lower(t_, c_, U_, V_, Y_, Z_, F_); \
     } \
     }
     UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
 
-    return Z;
+    return std::make_tuple(Z, F);
 }
 auto matmul_lower_rev (
     py::array_t<double, py::array::c_style> t,
@@ -648,18 +654,20 @@ auto matmul_upper_fwd (
         Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1); \
         Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((double *)Fbuf.ptr, N, J); \
+        Z_.setZero(); \
         celerite2::core::matmul_upper(t_, c_, U_, V_, Y_, Z_, F_); \
     } else { \
         Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((double *)Fbuf.ptr, N, J * nrhs); \
+        Z_.setZero(); \
         celerite2::core::matmul_upper(t_, c_, U_, V_, Y_, Z_, F_); \
     } \
     }
     UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
 
-    return Z;
+    return std::make_tuple(Z, F);
 }
 auto matmul_upper_rev (
     py::array_t<double, py::array::c_style> t,
@@ -805,18 +813,20 @@ auto general_matmul_lower_fwd (
         Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, M, 1); \
         Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((double *)Fbuf.ptr, M, J); \
+        Z_.setZero(); \
         celerite2::core::general_matmul_lower(t1_, t2_, c_, U_, V_, Y_, Z_, F_); \
     } else { \
         Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, M, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((double *)Fbuf.ptr, M, J * nrhs); \
+        Z_.setZero(); \
         celerite2::core::general_matmul_lower(t1_, t2_, c_, U_, V_, Y_, Z_, F_); \
     } \
     }
     UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
 
-    return Z;
+    return std::make_tuple(Z, F);
 }
 
 auto general_matmul_upper_fwd (
@@ -874,18 +884,20 @@ auto general_matmul_upper_fwd (
         Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, M, 1); \
         Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((double *)Fbuf.ptr, M, J); \
+        Z_.setZero(); \
         celerite2::core::general_matmul_upper(t1_, t2_, c_, U_, V_, Y_, Z_, F_); \
     } else { \
         Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, M, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs); \
         Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((double *)Fbuf.ptr, M, J * nrhs); \
+        Z_.setZero(); \
         celerite2::core::general_matmul_upper(t1_, t2_, c_, U_, V_, Y_, Z_, F_); \
     } \
     }
     UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
 
-    return Z;
+    return std::make_tuple(Z, F);
 }
 
 } // namespace driver

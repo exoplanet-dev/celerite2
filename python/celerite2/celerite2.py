@@ -3,6 +3,7 @@
 __all__ = ["GaussianProcess"]
 
 import warnings
+from functools import wraps
 
 import numpy as np
 
@@ -16,6 +17,22 @@ class ConstantMean:
 
     def __call__(self, x):
         return self.value
+
+
+def _handle_vector(func):
+    @wraps(func)
+    def wrapped(self, y, *args, **kwargs):
+        y = np.atleast_1d(y)
+        is_vector = False
+        if y.ndim == 1:
+            is_vector = True
+            y = y[:, None]
+        result = func(self, y, *args, **kwargs)
+        if is_vector:
+            return result[:, 0]
+        return result
+
+    return wrapped
 
 
 class GaussianProcess:
@@ -196,16 +213,11 @@ class GaussianProcess:
             y = np.array(y, dtype=np.float64, copy=True, order="C")
         return y
 
+    @_handle_vector
     def _apply_inverse(self, y):
-        is_vector = False
-        if y.ndim == 1:
-            is_vector = True
-            y = y[:, None]
         z = driver.solve_lower(self._t, self._c, self._U, self._W, y, y)
         z /= self._d[:, None]
         z = driver.solve_upper(self._t, self._c, self._U, self._W, z, z)
-        if is_vector:
-            return z[:, 0]
         return z
 
     def apply_inverse(self, y, *, inplace=False):
@@ -230,6 +242,11 @@ class GaussianProcess:
         y = self._process_input(y, inplace=inplace)
         return self._apply_inverse(y)
 
+    @_handle_vector
+    def _dot_tril(self, y):
+        z = y * np.sqrt(self._d)[:, None]
+        return driver.matmul_lower(self._t, self._c, self._U, self._W, z, z)
+
     def dot_tril(self, y, *, inplace=False):
         """Dot the Cholesky factor of the GP system into a vector or matrix
 
@@ -250,15 +267,7 @@ class GaussianProcess:
             ValueError: When the inputs are not valid (shape, number, etc.).
         """
         y = self._process_input(y, inplace=inplace)
-        is_vector = False
-        if y.ndim == 1:
-            is_vector = True
-            y = y[:, None]
-        z = y * np.sqrt(self._d)[:, None]
-        z = driver.matmul_lower(self._t, self._c, self._U, self._W, z, z)
-        if is_vector:
-            return z[:, 0]
-        return z
+        return self._dot_tril(y)
 
     def log_likelihood(self, y, *, inplace=False):
         """Compute the marginalized likelihood of the GP model
