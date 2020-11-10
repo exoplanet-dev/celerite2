@@ -1,6 +1,7 @@
 include README.md LICENSE *.toml
 
 include python/celerite2/*.hpp
+include python/celerite2/definitions.json
 
 exclude .*
 recursive-exclude * CMakeLists.txt

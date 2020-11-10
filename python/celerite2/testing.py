@@ -94,22 +94,22 @@ def check_tensor_term(eval_func, term, pyterm, atol=1e-8):
     t = np.random.uniform(-1, 11, 75)
     diag = np.random.uniform(0.1, 0.3, len(x))
 
-    # This is a hack to deal with the fact that the torch interface doesn't
+    # This is a hack to deal with the fact that the interfaces don't
     # always propduce matrices with the same column order
     tensors = term.get_celerite_matrices(x, diag)
     arrays = pyterm.get_celerite_matrices(x, diag)
-    inds = np.argsort(eval_func(tensors[1])[0, :])
-    pyinds = np.argsort(arrays[1][0, :])
+    inds = np.argsort(eval_func(tensors[2])[0])
+    pyinds = np.argsort(arrays[2][0])
     for n, (tensor, array) in enumerate(zip(tensors, arrays)):
-        if n >= 1:
+        if n == 0:
             _compare_tensor(
                 eval_func,
-                tensor[:, inds],
-                array[:, pyinds],
+                tensor[inds],
+                array[pyinds],
                 f"matrix {n}",
                 atol=atol,
             )
-        else:
+        elif n == 1:
             _compare_tensor(
                 eval_func,
                 tensor,
@@ -117,25 +117,14 @@ def check_tensor_term(eval_func, term, pyterm, atol=1e-8):
                 f"matrix {n}",
                 atol=atol,
             )
-
-    # Same hack again...
-    tensors = term.get_conditional_mean_matrices(x, t)
-    arrays = pyterm.get_conditional_mean_matrices(x, t)
-    _compare_tensor(
-        eval_func,
-        tensors[-1],
-        arrays[-1],
-        "sorted inds",
-        atol=atol,
-    )
-    for n, (tensor, array) in enumerate(zip(tensors[:2], arrays[:2])):
-        _compare_tensor(
-            eval_func,
-            tensor[:, inds],
-            array[:, pyinds],
-            f"conditional matrix {n}",
-            atol=atol,
-        )
+        else:
+            _compare_tensor(
+                eval_func,
+                tensor[:, inds],
+                array[:, pyinds],
+                f"matrix {n}",
+                atol=atol,
+            )
 
     _compare_tensor(
         eval_func,
@@ -178,34 +167,17 @@ def check_gp_models(eval_func, gp, pygp, y, t):
     assert allclose(pygp.log_likelihood(y), eval_func(gp.log_likelihood(y)))
 
     # "predict" method
-    for flag, args in [
-        (False, dict(return_cov=False, return_var=False)),
-        (True, dict(return_cov=False, return_var=True)),
-        (True, dict(return_cov=True, return_var=False)),
-    ]:
-        if flag:
-            assert all(
-                allclose(a, eval_func(b))
-                for a, b in zip(
-                    pygp.predict(y, **args),
-                    gp.predict(y, **args),
-                )
-            )
-            assert all(
-                allclose(a, eval_func(b))
-                for a, b in zip(
-                    pygp.predict(y, t=t, **args),
-                    gp.predict(y, t=t, **args),
-                )
-            )
-        else:
-            assert allclose(
-                pygp.predict(y, **args), eval_func(gp.predict(y, **args))
-            )
-            assert allclose(
-                pygp.predict(y, t=t, **args),
-                eval_func(gp.predict(y, t=t, **args)),
-            )
+    pycond = pygp.predict(y)
+    cond = gp.predict(y)
+    assert allclose(pycond.mean, eval_func(cond.mean))
+    assert allclose(pycond.variance, eval_func(cond.variance))
+    assert allclose(pycond.covariance, eval_func(cond.covariance))
+
+    pycond = pygp.predict(y, t=t)
+    cond = gp.predict(y, t=t)
+    assert allclose(pycond.mean, eval_func(cond.mean))
+    assert allclose(pycond.variance, eval_func(cond.variance))
+    assert allclose(pycond.covariance, eval_func(cond.covariance))
 
     # "dot_tril" method
     assert allclose(pygp.dot_tril(y), eval_func(gp.dot_tril(y)))

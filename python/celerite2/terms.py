@@ -176,43 +176,7 @@ class Term:
         )
         return c, a, U, V
 
-    def get_conditional_mean_matrices(self, x, t):
-        """Get the matrices needed to compute the conditional mean function
-
-        Args:
-            x (shape[N]): The independent coordinates of the data.
-            t (shape[M]): The independent coordinates where the predictions
-                will be made.
-        """
-        ar, cr, ac, bc, cc, dc = self.get_coefficients()
-
-        inds = np.searchsorted(x, t)
-        _, _, U_star, V_star = self.get_celerite_matrices(t, t)
-
-        c = np.concatenate([cr] + list(zip(cc, cc)))
-
-        dx = t - x[np.minimum(inds, x.size - 1)]
-        U_star *= np.exp(-c[None, :] * dx[:, None])
-
-        dx = x[np.maximum(inds - 1, 0)] - t
-        V_star *= np.exp(-c[None, :] * dx[:, None])
-
-        return U_star, V_star, inds
-
-    def dot(
-        self,
-        x,
-        diag=None,
-        y=None,
-        *,
-        x2=None,
-        c=None,
-        a=None,
-        U1=None,
-        V1=None,
-        U2=None,
-        V2=None,
-    ):
+    def dot(self, x, diag, y):
         """Apply a matrix-vector or matrix-matrix product
 
         Args:
@@ -233,30 +197,10 @@ class Term:
         if y.ndim != 2:
             raise ValueError("'y' can only be a vector or matrix")
 
-        if diag is None:
-            diag = np.zeros_like(x)
-        elif x2 is not None:
-            raise ValueError(
-                "'diag' cannot be defined for a general dot product"
-            )
-        c, a, U1, V1 = self.get_celerite_matrices(
-            x, diag, c=c, a=a, U=U1, V=V1
-        )
-
-        # Apply the default matrix multiply no x2 is provided
-        if x2 is None:
-            z = y * a[:, None]
-            z = driver.matmul_lower(x, c, U1, V1, y, z)
-            z = driver.matmul_upper(x, c, U1, V1, y, z)
-
-        else:
-            x2 = np.atleast_1d(x2)
-            c, _, U2, V2 = self.get_celerite_matrices(
-                x2, np.zeros_like(x2), c=c, U=U2, V=V2
-            )
-            z = np.zeros((x2.shape[0], y.shape[1]))
-            z = driver.general_matmul_lower(x2, x, c, U2, V1, y, z)
-            z = driver.general_matmul_upper(x2, x, c, V2, U1, y, z)
+        c, a, U, V = self.get_celerite_matrices(x, diag)
+        z = y * a[:, None]
+        z = driver.matmul_lower(x, c, U, V, y, z)
+        z = driver.matmul_upper(x, c, U, V, y, z)
 
         if is_vector:
             return z[:, 0]
