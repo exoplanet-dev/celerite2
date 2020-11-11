@@ -71,8 +71,17 @@ class _CeleriteOp(theano.Op):
                     f"Incorrect number of dimensions for {spec['name']}; "
                     f"expected {len(spec['shape'])}, got {arg.ndim}"
                 )
+
+        broadcastable = {
+            spec["name"]: inputs[spec["coords"][0]].broadcastable[
+                spec["coords"][1]
+            ]
+            for spec in self.spec["dimensions"]
+        }
         otypes = [
-            tt.TensorType("float64", [False] * len(spec["shape"]))()
+            tt.TensorType(
+                "float64", [broadcastable[k] for k in spec["shape"]]
+            )()
             for spec in self.spec["outputs"] + self.spec["extra_outputs"]
         ]
         return theano.Apply(self, inputs, otypes)

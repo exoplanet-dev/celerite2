@@ -426,7 +426,54 @@ class BaseGaussianProcess:
         y = self._process_input(y, require_vector=True, inplace=inplace)
         return self._norm - 0.5 * self._do_norm(y - self._mean_value)
 
-    def predict(self, y, t=None, *, include_mean=True, kernel=None):
+    def predict(
+        self,
+        y,
+        t=None,
+        *,
+        return_cov=False,
+        return_var=False,
+        include_mean=True,
+        kernel=None,
+    ):
+        """Compute the conditional distribution
+
+        The factorized matrix from the previous call to
+        :func:`GaussianProcess.compute` is used so that method must be called
+        first.
+
+        Args:
+            y (shape[N]): The observations at coordinates ``t`` as defined by
+                :func:`GaussianProcess.compute`.
+            t (shape[M], optional): The independent coordinates where the
+                prediction should be evaluated. If not provided, this will be
+                evaluated at the observations ``t`` from
+                :func:`GaussianProcess.compute`.
+            return_var (bool, optional): Return the variance of the conditional
+                distribution.
+            return_cov (bool, optional): Return the full covariance matrix of
+                the conditional distribution.
+            include_mean (bool, optional): Include the mean function in the
+                prediction.
+            kernel (optional): If provided, compute the conditional
+                distribution using a different kernel. This is generally used
+                to separate the contributions from different model components.
+                Note that the computational cost and scaling will be worse
+                when using this parameter.
+
+        Raises:
+            RuntimeError: If :func:`GaussianProcess.compute` is not called
+                first.
+            ValueError: When the inputs are not valid (shape, number, etc.).
+        """
+        cond = self.condition(y, t=t, include_mean=include_mean, kernel=kernel)
+        if return_var:
+            return cond.mean, cond.variance
+        if return_cov:
+            return cond.mean, cond.covariance
+        return cond.mean
+
+    def condition(self, y, t=None, *, include_mean=True, kernel=None):
         y = self._process_input(y, require_vector=True, inplace=True)
         return self.conditional_distribution(
             self, y, t=t, include_mean=include_mean, kernel=kernel

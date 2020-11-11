@@ -72,13 +72,13 @@ def test_consistency(oterm, mean, data):
         np.squeeze(original_gp.apply_inverse(y)), gp.apply_inverse(y)
     )
 
-    conditional_t = gp.predict(y, t=t)
+    conditional_t = gp.condition(y, t=t)
     mu, cov = original_gp.predict(y, t=t, return_cov=True)
     assert np.allclose(conditional_t.mean, mu)
     assert np.allclose(conditional_t.variance, np.diag(cov))
     assert np.allclose(conditional_t.covariance, cov)
 
-    conditional = gp.predict(y)
+    conditional = gp.condition(y)
     mu, cov = original_gp.predict(y, return_cov=True)
     assert np.allclose(conditional.mean, mu)
     assert np.allclose(conditional.variance, np.diag(cov))
@@ -128,20 +128,20 @@ def test_mean(data):
     term = terms.SHOTerm(S0=1.0, w0=0.5, Q=3.0)
     gp = celerite2.GaussianProcess(term, t=x, diag=diag, mean=lambda x: 2 * x)
 
-    cond1 = gp.predict(y, include_mean=True)
-    cond2 = gp.predict(y, x, include_mean=True)
+    cond1 = gp.condition(y, include_mean=True)
+    cond2 = gp.condition(y, x, include_mean=True)
     assert np.allclose(cond1.mean, cond2.mean)
 
-    cond1 = gp.predict(y, include_mean=False)
-    cond2 = gp.predict(y, x, include_mean=False)
+    cond1 = gp.condition(y, include_mean=False)
+    cond2 = gp.condition(y, x, include_mean=False)
     assert np.allclose(cond1.mean, cond2.mean)
 
-    cond_mean = gp.predict(y, include_mean=True)
-    cond_no_mean = gp.predict(y, include_mean=False)
+    cond_mean = gp.condition(y, include_mean=True)
+    cond_no_mean = gp.condition(y, include_mean=False)
     assert np.allclose(cond_mean.mean, cond_no_mean.mean + 2 * x)
 
-    cond_mean = gp.predict(y, t, include_mean=True)
-    cond_no_mean = gp.predict(y, t, include_mean=False)
+    cond_mean = gp.condition(y, t, include_mean=True)
+    cond_no_mean = gp.condition(y, t, include_mean=False)
     assert np.allclose(cond_mean.mean, cond_no_mean.mean + 2 * t)
 
     np.random.seed(42)
@@ -159,20 +159,20 @@ def test_predict_kernel(data):
     term = term1 + term2
     gp = celerite2.GaussianProcess(term, t=x, diag=diag)
 
-    cond0 = gp.predict(y)
-    cond1 = gp.predict(y, kernel=term)
+    cond0 = gp.condition(y)
+    cond1 = gp.condition(y, kernel=term)
     assert np.allclose(cond0.mean, cond1.mean)
 
-    cond0 = gp.predict(y, t)
-    cond1 = gp.predict(y, t, kernel=term)
+    cond0 = gp.condition(y, t)
+    cond1 = gp.condition(y, t, kernel=term)
     assert np.allclose(cond0.mean, cond1.mean)
 
-    cond0 = gp.predict(y, t)
-    cond1 = gp.predict(y, t, kernel=term1)
-    cond2 = gp.predict(y, t, kernel=term2)
+    cond0 = gp.condition(y, t)
+    cond1 = gp.condition(y, t, kernel=term1)
+    cond2 = gp.condition(y, t, kernel=term2)
     assert np.allclose(cond0.mean, cond1.mean + cond2.mean)
 
-    cond1 = gp.predict(y, kernel=term1)
+    cond1 = gp.condition(y, kernel=term1)
     mu2 = term1.dot(x, np.zeros_like(x), gp.apply_inverse(y))
     assert np.allclose(cond1.mean, mu2)
 

@@ -93,7 +93,6 @@ def test_consistency(oterm):
     # Make sure that the covariance matrix is right
     np.random.seed(40582)
     x = np.sort(np.random.uniform(0, 10, 50))
-    x2 = np.sort(np.random.uniform(0, 10, 87))
     diag = np.random.uniform(0.1, 0.3, len(x))
     assert np.allclose(oterm.get_value(x), term.get_value(x))
 

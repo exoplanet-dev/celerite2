@@ -166,15 +166,15 @@ def check_gp_models(eval_func, gp, pygp, y, t):
     # "log_likelihood" method
     assert allclose(pygp.log_likelihood(y), eval_func(gp.log_likelihood(y)))
 
-    # "predict" method
-    pycond = pygp.predict(y)
-    cond = gp.predict(y)
+    # "condition" method
+    pycond = pygp.condition(y)
+    cond = gp.condition(y)
     assert allclose(pycond.mean, eval_func(cond.mean))
     assert allclose(pycond.variance, eval_func(cond.variance))
     assert allclose(pycond.covariance, eval_func(cond.covariance))
 
-    pycond = pygp.predict(y, t=t)
-    cond = gp.predict(y, t=t)
+    pycond = pygp.condition(y, t=t)
+    cond = gp.condition(y, t=t)
     assert allclose(pycond.mean, eval_func(cond.mean))
     assert allclose(pycond.variance, eval_func(cond.variance))
     assert allclose(pycond.covariance, eval_func(cond.covariance))

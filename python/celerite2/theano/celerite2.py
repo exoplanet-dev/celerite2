@@ -167,7 +167,7 @@ class GaussianProcess(BaseGaussianProcess):
         else:
             shape = kwargs.pop("shape", len(t))
 
-        cond = self.predict(
+        cond = self.condition(
             y,
             t=t,
             include_mean=include_mean,
