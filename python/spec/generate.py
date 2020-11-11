@@ -14,7 +14,9 @@ env = Environment(
     autoescape=select_autoescape(["cpp"]),
 )
 
-with open(base / "interface.json", "r") as f:
+with open(
+    pkg_resources.resource_filename("celerite2", "definitions.json"), "r"
+) as f:
     data = json.load(f)
 
 for n in range(len(data)):

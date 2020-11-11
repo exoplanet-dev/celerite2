@@ -77,9 +77,7 @@ class Term:
         K = self.get_value(x[:, None] - x[None, :])
         return K + np.diag(diag)
 
-    def get_celerite_matrices(
-        self, x, diag, *, a=None, U=None, V=None, P=None
-    ):
+    def get_celerite_matrices(self, x, diag, **kwargs):
         x = np.atleast_1d(x)
         diag = np.atleast_1d(diag)
         if len(x.shape) != 1:
@@ -110,34 +108,28 @@ class Term:
             axis=1,
         )
 
-        dx = x[1:] - x[:-1]
-        c = np.concatenate((cr, cc, cc))
-        P = np.exp(-c[None, :] * dx[:, None])
-
-        return a, U, V, P
-
-    def get_conditional_mean_matrices(self, x, t):
-        ar, cr, ac, bc, cc, dc = self.get_coefficients()
-
-        inds = np.searchsorted(x, t)
-        _, U_star, V_star, _ = self.get_celerite_matrices(t, t)
-
         c = np.concatenate((cr, cc, cc))
 
-        dx = t - x[np.minimum(inds, x.size - 1)]
-        U_star *= np.exp(-c[None, :] * dx[:, None])
-
-        dx = x[np.maximum(inds - 1, 0)] - t
-        V_star *= np.exp(-c[None, :] * dx[:, None])
-
-        return U_star, V_star, inds
+        return c, a, U, V
 
     def dot(self, x, diag, y):
-        a, U, V, P = self.get_celerite_matrices(x, diag)
         y = np.atleast_1d(y)
-        if y.shape[0] != len(a):
-            raise ValueError("dimension mismatch")
-        return ops.matmul(a, U, V, P, y)
+
+        is_vector = False
+        if y.ndim == 1:
+            is_vector = True
+            y = y[:, None]
+        if y.ndim != 2:
+            raise ValueError("'y' can only be a vector or matrix")
+
+        c, a, U, V = self.get_celerite_matrices(x, diag)
+        z = y * a[:, None]
+        z += ops.matmul_lower(x, c, U, V, y)
+        z += ops.matmul_upper(x, c, U, V, y)
+
+        if is_vector:
+            return z[:, 0]
+        return z
 
 
 class TermSum(Term):
@@ -241,9 +233,7 @@ class TermConvolution(Term):
         self.term = term
         self.delta = np.float64(delta)
 
-    def get_celerite_matrices(
-        self, x, diag, *, a=None, U=None, V=None, P=None
-    ):
+    def get_celerite_matrices(self, x, diag, **kwargs):
         dt = self.delta
         ar, cr, a, b, c, d = self.term.get_coefficients()
 
@@ -273,7 +263,7 @@ class TermConvolution(Term):
 
         new_diag = diag + delta_diag
 
-        return super().get_celerite_matrices(x, new_diag, a=a, U=U, V=V, P=P)
+        return super().get_celerite_matrices(x, new_diag)
 
     def get_coefficients(self):
         ar, cr, a, b, c, d = self.term.get_coefficients()
