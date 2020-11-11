@@ -67,26 +67,22 @@ def test_consistency(oterm, mean, data):
     # "log_likelihood" method
     assert np.allclose(original_gp.log_likelihood(y), gp.log_likelihood(y))
 
-    # "predict" method
-    for args in [
-        dict(return_cov=False, return_var=False),
-        dict(return_cov=False, return_var=True),
-        dict(return_cov=True, return_var=False),
-    ]:
-        assert all(
-            np.allclose(a, b)
-            for a, b in zip(
-                original_gp.predict(y, **args),
-                gp.predict(y, **args),
-            )
-        )
-        assert all(
-            np.allclose(a, b)
-            for a, b in zip(
-                original_gp.predict(y, t=t, **args),
-                gp.predict(y, t=t, **args),
-            )
-        )
+    # Apply inverse
+    assert np.allclose(
+        np.squeeze(original_gp.apply_inverse(y)), gp.apply_inverse(y)
+    )
+
+    conditional_t = gp.condition(y, t=t)
+    mu, cov = original_gp.predict(y, t=t, return_cov=True)
+    assert np.allclose(conditional_t.mean, mu)
+    assert np.allclose(conditional_t.variance, np.diag(cov))
+    assert np.allclose(conditional_t.covariance, cov)
+
+    conditional = gp.condition(y)
+    mu, cov = original_gp.predict(y, return_cov=True)
+    assert np.allclose(conditional.mean, mu)
+    assert np.allclose(conditional.variance, np.diag(cov))
+    assert np.allclose(conditional.covariance, cov)
 
     # "sample" method
     seed = 5938
@@ -105,11 +101,11 @@ def test_consistency(oterm, mean, data):
     # "sample_conditional" method, numerics make this one a little unstable;
     # just check the shape
     a = original_gp.sample_conditional(y, t=t)
-    b = gp.sample_conditional(y, t=t)
+    b = conditional_t.sample()
     assert a.shape == b.shape
 
     a = original_gp.sample_conditional(y, size=10)
-    b = gp.sample_conditional(y, size=10)
+    b = conditional.sample(size=10)
     assert a.shape == b.shape
 
 
@@ -132,21 +128,21 @@ def test_mean(data):
     term = terms.SHOTerm(S0=1.0, w0=0.5, Q=3.0)
     gp = celerite2.GaussianProcess(term, t=x, diag=diag, mean=lambda x: 2 * x)
 
-    mu1 = gp.predict(y, include_mean=True)
-    mu2 = gp.predict(y, x, include_mean=True)
-    assert np.allclose(mu1, mu2)
+    cond1 = gp.condition(y, include_mean=True)
+    cond2 = gp.condition(y, x, include_mean=True)
+    assert np.allclose(cond1.mean, cond2.mean)
 
-    mu1 = gp.predict(y, include_mean=False)
-    mu2 = gp.predict(y, x, include_mean=False)
-    assert np.allclose(mu1, mu2)
+    cond1 = gp.condition(y, include_mean=False)
+    cond2 = gp.condition(y, x, include_mean=False)
+    assert np.allclose(cond1.mean, cond2.mean)
 
-    mu_mean = gp.predict(y, include_mean=True)
-    mu_no_mean = gp.predict(y, include_mean=False)
-    assert np.allclose(mu_mean, mu_no_mean + 2 * x)
+    cond_mean = gp.condition(y, include_mean=True)
+    cond_no_mean = gp.condition(y, include_mean=False)
+    assert np.allclose(cond_mean.mean, cond_no_mean.mean + 2 * x)
 
-    mu_mean = gp.predict(y, t, include_mean=True)
-    mu_no_mean = gp.predict(y, t, include_mean=False)
-    assert np.allclose(mu_mean, mu_no_mean + 2 * t)
+    cond_mean = gp.condition(y, t, include_mean=True)
+    cond_no_mean = gp.condition(y, t, include_mean=False)
+    assert np.allclose(cond_mean.mean, cond_no_mean.mean + 2 * t)
 
     np.random.seed(42)
     s1 = gp.sample(size=5, include_mean=True)
@@ -163,22 +159,22 @@ def test_predict_kernel(data):
     term = term1 + term2
     gp = celerite2.GaussianProcess(term, t=x, diag=diag)
 
-    mu0 = gp.predict(y)
-    mu1 = gp.predict(y, kernel=term)
-    assert np.allclose(mu0, mu1)
+    cond0 = gp.condition(y)
+    cond1 = gp.condition(y, kernel=term)
+    assert np.allclose(cond0.mean, cond1.mean)
 
-    mu0 = gp.predict(y, t)
-    mu1 = gp.predict(y, t, kernel=term)
-    assert np.allclose(mu0, mu1)
+    cond0 = gp.condition(y, t)
+    cond1 = gp.condition(y, t, kernel=term)
+    assert np.allclose(cond0.mean, cond1.mean)
 
-    mu0 = gp.predict(y, t)
-    mu1 = gp.predict(y, t, kernel=term1)
-    mu2 = gp.predict(y, t, kernel=term2)
-    assert np.allclose(mu0, mu1 + mu2)
+    cond0 = gp.condition(y, t)
+    cond1 = gp.condition(y, t, kernel=term1)
+    cond2 = gp.condition(y, t, kernel=term2)
+    assert np.allclose(cond0.mean, cond1.mean + cond2.mean)
 
-    mu1 = gp.predict(y, kernel=term1)
+    cond1 = gp.condition(y, kernel=term1)
     mu2 = term1.dot(x, np.zeros_like(x), gp.apply_inverse(y))
-    assert np.allclose(mu1, mu2)
+    assert np.allclose(cond1.mean, mu2)
 
 
 def test_errors():

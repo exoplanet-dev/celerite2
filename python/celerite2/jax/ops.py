@@ -10,16 +10,19 @@ with custom XLA calls:
 
 __all__ = [
     "factor",
-    "solve",
-    "norm",
-    "dot_tril",
-    "matmul",
-    "conditional_mean",
+    "solve_lower",
+    "solve_upper",
+    "matmul_lower",
+    "matmul_upper",
+    "general_matmul_lower",
+    "general_matmul_upper",
 ]
+import json
 from collections import OrderedDict
 from functools import partial
 
 import numpy as np
+import pkg_resources
 from jax import core, lax
 from jax import numpy as jnp
 from jax.abstract_arrays import ShapedArray
@@ -31,122 +34,122 @@ from . import xla_ops
 xops = xla_client.ops
 
 
-def factor(a, U, V, P):
-    d, W, S = factor_prim.bind(a, U, V, P)
+def factor(t, c, a, U, V):
+    d, W, S = factor_p.bind(t, c, a, U, V)
     return d, W
 
 
-def solve(U, P, d, W, Y):
-    if Y.ndim == 1:
-        X, Z, F, G = solve_vector_prim.bind(U, P, d, W, Y)
-    else:
-        X, Z, F, G = solve_prim.bind(U, P, d, W, Y)
-    return X
+def solve_lower(t, c, U, W, Y):
+    Z, F = solve_lower_p.bind(t, c, U, W, Y)
+    return Z
 
 
-def norm(U, P, d, W, Y):
-    X, Z, F = norm_prim.bind(U, P, d, W, Y)
-    return X
+def solve_upper(t, c, U, W, Y):
+    Z, F = solve_upper_p.bind(t, c, U, W, Y)
+    return Z
 
 
-def dot_tril(U, P, d, W, Y):
-    if Y.ndim == 1:
-        X, F = dot_tril_vector_prim.bind(U, P, d, W, Y)
-    else:
-        X, F = dot_tril_prim.bind(U, P, d, W, Y)
-    return X
+def matmul_lower(t, c, U, V, Y):
+    Z, F = matmul_lower_p.bind(t, c, U, V, Y)
+    return Z
 
 
-def matmul(a, U, V, P, Y):
-    if Y.ndim == 1:
-        X, Z, F, G = matmul_vector_prim.bind(a, U, V, P, Y)
-    else:
-        X, Z, F, G = matmul_prim.bind(a, U, V, P, Y)
-    return X
+def matmul_upper(t, c, U, V, Y):
+    Z, F = matmul_upper_p.bind(t, c, U, V, Y)
+    return Z
 
 
-def conditional_mean(U, V, P, z, U_star, V_star, inds):
-    (mu,) = conditional_mean_prim.bind(U, V, P, z, U_star, V_star, inds)
-    return mu
+def general_matmul_lower(t1, t2, c, U, V, Y):
+    Z, F = general_matmul_lower_p.bind(t1, t2, c, U, V, Y)
+    return Z
+
+
+def general_matmul_upper(t1, t2, c, U, V, Y):
+    Z, F = general_matmul_upper_p.bind(t1, t2, c, U, V, Y)
+    return Z
 
 
 def _abstract_eval(spec, *args):
-    vals = spec["get_dims"](*(a.shape for a in args))
+    if len(args) != len(spec["inputs"]):
+        raise ValueError(
+            f"{spec['name']} expected {len(spec['inputs'])} inputs, "
+            f"got {len(args)}"
+        )
+    if any(arg.dtype != np.float64 for arg in args):
+        raise ValueError(f"{spec['name']} requires float64 precision")
+    dims = {
+        s["name"]: args[s["coords"][0]].shape[s["coords"][1]]
+        for s in spec["dimensions"]
+    }
     for s, arg in zip(spec["inputs"], args):
-        if arg.dtype != s.get("dtype", np.float64):
+        if arg.ndim != len(s["shape"]):
             raise ValueError(
-                f"Invalid dtype for '{s['name']}'; "
-                f"expected {s.get('dtype', np.float64)}, got {arg.dtype}"
+                f"Incorrect number of dimensions for {s['name']}; "
+                f"expected {len(s['shape'])}, got {arg.ndim}"
             )
-        shape = eval(s["shape"], dict(vals))
-        if arg.shape != shape:
+        if arg.shape != tuple(dims[k] for k in s["shape"]):
             raise ValueError(
-                f"Invalid shape for '{s['name']}'; "
-                f"expected {shape}, got {arg.shape}"
+                f"Incorrect shape for {s['name']}; "
+                f"expected {tuple(dims[k] for k in s['shape'])}, "
+                f"got {arg.shape}"
             )
     return tuple(
-        ShapedArray(eval(s["shape"], dict(vals)), s.get("dtype", np.float64))
+        ShapedArray(tuple(dims[k] for k in s["shape"]), np.float64)
         for s in spec["outputs"] + spec["extra_outputs"]
     )
 
 
-def _translation_rule(spec, c, *args):
-    vals = spec["get_dims"](*(c.get_shape(a).dimensions() for a in args))
-    dtype = c.get_shape(args[0]).element_type()
-    if dtype != np.float64:
-        raise ValueError("Invalid dtype; must be float64")
+def _translation_rule(name, spec, c, *args):
+    shapes = tuple(c.get_shape(arg) for arg in args)
+    dims = OrderedDict(
+        (s["name"], shapes[s["coords"][0]].dimensions()[s["coords"][1]])
+        for s in spec["dimensions"]
+    )
+    if any(shape.element_type() != np.float64 for shape in shapes):
+        raise ValueError(f"{spec['name']} requires float64 precision")
 
     return xops.CustomCallWithLayout(
         c,
-        spec["xla_name"],
+        name,
         operands=tuple(
-            xops.ConstantLiteral(c, np.int32(v)) for v in vals.values()
+            xops.ConstantLiteral(c, np.int32(v)) for v in dims.values()
         )
         + args,
         shape_with_layout=xla_client.Shape.tuple_shape(
             tuple(
                 xla_client.Shape.array_shape(
-                    jnp.dtype(dtype),
-                    shape,
-                    tuple(range(len(shape) - 1, -1, -1)),
+                    jnp.dtype(np.float64),
+                    tuple(dims[k] for k in s["shape"]),
+                    tuple(range(len(s["shape"]) - 1, -1, -1)),
                 )
-                for dtype, shape in (
-                    (
-                        s.get("dtype", np.float64),
-                        eval(s["shape"], dict(vals)),
-                    )
-                    for s in spec["outputs"] + spec["extra_outputs"]
-                )
+                for s in spec["outputs"] + spec["extra_outputs"]
             )
         ),
         operand_shapes_with_layout=tuple(
             xla_client.Shape.array_shape(jnp.dtype(jnp.int32), (), ())
-            for _ in range(len(vals))
+            for _ in range(len(dims))
         )
         + tuple(
             xla_client.Shape.array_shape(
-                jnp.dtype(dtype),
-                shape,
-                tuple(range(len(shape) - 1, -1, -1)),
+                jnp.dtype(np.float64),
+                tuple(dims[k] for k in s["shape"]),
+                tuple(range(len(s["shape"]) - 1, -1, -1)),
             )
-            for dtype, shape in (
-                (s.get("dtype", np.float64), eval(s["shape"], dict(vals)))
-                for s in spec["inputs"]
-            )
+            for s in spec["inputs"]
         ),
     )
 
 
-def _jvp(spec, arg_values, arg_tangents):
+def _jvp(prim, jvp_prim, spec, arg_values, arg_tangents):
     def make_zero(x, t):
         return lax.zeros_like_array(x) if type(t) is ad.Zero else t
 
-    out_values = tuple(spec["base_primitive"].bind(*arg_values))
+    out_values = tuple(prim.bind(*arg_values))
     arg_tangents = tuple(
         make_zero(x, t) for x, t in zip(arg_values, arg_tangents)
     )
     out_tangents = tuple(
-        spec["jvp_primitive"].bind(*(arg_values + out_values + arg_tangents))
+        jvp_prim.bind(*(arg_values + out_values + arg_tangents))
     )
     return out_values, out_tangents + tuple(
         None for _ in spec["extra_outputs"]
@@ -162,7 +165,7 @@ def _jvp_abstract_eval(spec, *args):
     )
 
 
-def _jvp_transpose(spec, c_out, *args):
+def _jvp_transpose(rev_prim, spec, c_out, *args):
     def make_zero(x, t):
         return lax.zeros_like_array(x) if type(t) is ad.Zero else t
 
@@ -172,7 +175,7 @@ def _jvp_transpose(spec, c_out, *args):
     c_out = tuple(
         make_zero(x, t) for x, t in zip(args[nin : nin + nout], c_out)
     )
-    c_in = tuple(spec["rev_primitive"].bind(*(args[:nargs] + c_out)))
+    c_in = tuple(rev_prim.bind(*(args[:nargs] + c_out)))
     return tuple(None for _ in range(nargs)) + c_in
 
 
@@ -183,246 +186,78 @@ def _rev_abstract_eval(spec, *args):
     )
 
 
-def _rev_translation_rule(spec, c, *args):
+def _rev_translation_rule(name, spec, c, *args):
     rev_spec = dict(
-        xla_name=spec["xla_name"] + b"_rev",
-        get_dims=spec["get_dims"],
+        name=f"{spec['name']}_rev",
+        dimensions=spec["dimensions"],
         inputs=spec["inputs"]
         + spec["outputs"]
         + spec["extra_outputs"]
         + spec["outputs"],
         outputs=spec["inputs"],
-        extra_outputs=(),
+        extra_outputs=[],
     )
-    return _translation_rule(rev_spec, c, *args)
+    return _translation_rule(name, rev_spec, c, *args)
 
 
-def setup_spec(spec, grad=True):
+def _build_op(name, spec):
     xla_client.register_cpu_custom_call_target(
-        spec["xla_name"], getattr(xla_ops, spec["name"])()
+        name, getattr(xla_ops, spec["name"])()
     )
 
-    prim = core.Primitive("celerite2_" + spec["name"])
+    prim = core.Primitive(f"celerite2_{spec['name']}")
     prim.multiple_results = True
-    spec["base_primitive"] = prim
-
     prim.def_impl(partial(xla.apply_primitive, prim))
     prim.def_abstract_eval(partial(_abstract_eval, spec))
     xla.backend_specific_translations["cpu"][prim] = partial(
-        _translation_rule, spec
+        _translation_rule, name, spec
     )
 
-    if not grad:
+    if not spec["has_rev"]:
         return prim
 
     xla_client.register_cpu_custom_call_target(
-        spec["xla_name"] + b"_rev", getattr(xla_ops, spec["name"] + "_rev")()
+        name + b"_rev", getattr(xla_ops, f"{spec['name']}_rev")()
     )
 
-    jvp = core.Primitive("celerite2_" + spec["name"] + "_jvp")
-    jvp.multiple_results = True
-    rev = core.Primitive("celerite2_" + spec["name"] + "_rev")
-    rev.multiple_results = True
-    spec["jvp_primitive"] = jvp
-    spec["rev_primitive"] = rev
+    jvp_prim = core.Primitive(f"celerite2_{spec['name']}_jvp")
+    jvp_prim.multiple_results = True
+    rev_prim = core.Primitive(f"celerite2_{spec['name']}_rev")
+    rev_prim.multiple_results = True
 
-    ad.primitive_jvps[prim] = partial(_jvp, spec)
-    jvp.def_abstract_eval(partial(_jvp_abstract_eval, spec))
-    ad.primitive_transposes[jvp] = partial(_jvp_transpose, spec)
+    # Setup a dummy JVP rule
+    ad.primitive_jvps[prim] = partial(_jvp, prim, jvp_prim, spec)
+    jvp_prim.def_abstract_eval(partial(_jvp_abstract_eval, spec))
+    ad.primitive_transposes[jvp_prim] = partial(_jvp_transpose, rev_prim, spec)
 
-    rev.def_impl(partial(xla.apply_primitive, rev))
-    rev.def_abstract_eval(partial(_rev_abstract_eval, spec))
-    xla.backend_specific_translations["cpu"][rev] = partial(
-        _rev_translation_rule, spec
+    # Handle reverse pass using custom op
+    rev_prim.def_impl(partial(xla.apply_primitive, rev_prim))
+    rev_prim.def_abstract_eval(partial(_rev_abstract_eval, spec))
+    xla.backend_specific_translations["cpu"][rev_prim] = partial(
+        _rev_translation_rule, name + b"_rev", spec
     )
 
     return prim
 
 
-factor_prim = setup_spec(
-    dict(
-        name="factor",
-        xla_name=b"celerite2_factor",
-        get_dims=lambda *args: OrderedDict(list(zip(("N", "J"), args[1]))),
-        inputs=(
-            dict(name="a", shape="(N,)"),
-            dict(name="U", shape="(N, J)"),
-            dict(name="V", shape="(N, J)"),
-            dict(name="P", shape="(N - 1, J)"),
-        ),
-        outputs=(
-            dict(name="d", shape="(N,)"),
-            dict(name="W", shape="(N, J)"),
-        ),
-        extra_outputs=(dict(name="S", shape="(N, J, J)"),),
-    )
-)
+with open(
+    pkg_resources.resource_filename("celerite2", "definitions.json"), "r"
+) as f:
+    definitions = {spec["name"]: spec for spec in json.load(f)}
 
-solve_prim = setup_spec(
-    dict(
-        name="solve",
-        xla_name=b"celerite2_solve",
-        get_dims=lambda *args: OrderedDict(
-            list(zip(("N", "J"), args[0])) + [("nrhs", args[4][1])]
-        ),
-        inputs=(
-            dict(name="U", shape="(N, J)"),
-            dict(name="P", shape="(N - 1, J)"),
-            dict(name="d", shape="(N,)"),
-            dict(name="W", shape="(N, J)"),
-            dict(name="Y", shape="(N, nrhs)"),
-        ),
-        outputs=(dict(name="X", shape="(N, nrhs)"),),
-        extra_outputs=(
-            dict(name="Z", shape="(N, nrhs)"),
-            dict(name="F", shape="(N, J, nrhs)"),
-            dict(name="G", shape="(N, J, nrhs)"),
-        ),
-    )
-)
-solve_vector_prim = setup_spec(
-    dict(
-        name="solve",
-        xla_name=b"celerite2_solve",
-        get_dims=lambda *args: OrderedDict(
-            list(zip(("N", "J"), args[0])) + [("nrhs", 1)]
-        ),
-        inputs=(
-            dict(name="U", shape="(N, J)"),
-            dict(name="P", shape="(N - 1, J)"),
-            dict(name="d", shape="(N,)"),
-            dict(name="W", shape="(N, J)"),
-            dict(name="Y", shape="(N,)"),
-        ),
-        outputs=(dict(name="X", shape="(N,)"),),
-        extra_outputs=(
-            dict(name="Z", shape="(N,)"),
-            dict(name="F", shape="(N, J)"),
-            dict(name="G", shape="(N, J)"),
-        ),
-    )
-)
 
-norm_prim = setup_spec(
-    dict(
-        name="norm",
-        xla_name=b"celerite2_norm",
-        get_dims=lambda *args: OrderedDict(list(zip(("N", "J"), args[0]))),
-        inputs=(
-            dict(name="U", shape="(N, J)"),
-            dict(name="P", shape="(N - 1, J)"),
-            dict(name="d", shape="(N,)"),
-            dict(name="W", shape="(N, J)"),
-            dict(name="Y", shape="(N,)"),
-        ),
-        outputs=(dict(name="X", shape="()"),),
-        extra_outputs=(
-            dict(name="Z", shape="(N,)"),
-            dict(name="F", shape="(N, J)"),
-        ),
-    )
+factor_p = _build_op(b"celerite2_factor", definitions["factor"])
+solve_lower_p = _build_op(b"celerite2_solve_lower", definitions["solve_lower"])
+solve_upper_p = _build_op(b"celerite2_solve_upper", definitions["solve_upper"])
+matmul_lower_p = _build_op(
+    b"celerite2_matmul_lower", definitions["matmul_lower"]
 )
-
-dot_tril_prim = setup_spec(
-    dict(
-        name="dot_tril",
-        xla_name=b"celerite2_dot_tril",
-        get_dims=lambda *args: OrderedDict(
-            list(zip(("N", "J"), args[0])) + [("nrhs", args[4][1])]
-        ),
-        inputs=(
-            dict(name="U", shape="(N, J)"),
-            dict(name="P", shape="(N - 1, J)"),
-            dict(name="d", shape="(N,)"),
-            dict(name="W", shape="(N, J)"),
-            dict(name="Y", shape="(N, nrhs)"),
-        ),
-        outputs=(dict(name="X", shape="(N, nrhs)"),),
-        extra_outputs=(dict(name="F", shape="(N, J, nrhs)"),),
-    )
+matmul_upper_p = _build_op(
+    b"celerite2_matmul_upper", definitions["matmul_upper"]
 )
-dot_tril_vector_prim = setup_spec(
-    dict(
-        name="dot_tril",
-        xla_name=b"celerite2_dot_tril",
-        get_dims=lambda *args: OrderedDict(
-            list(zip(("N", "J"), args[0])) + [("nrhs", 1)]
-        ),
-        inputs=(
-            dict(name="U", shape="(N, J)"),
-            dict(name="P", shape="(N - 1, J)"),
-            dict(name="d", shape="(N,)"),
-            dict(name="W", shape="(N, J)"),
-            dict(name="Y", shape="(N,)"),
-        ),
-        outputs=(dict(name="X", shape="(N,)"),),
-        extra_outputs=(dict(name="F", shape="(N, J)"),),
-    )
+general_matmul_lower_p = _build_op(
+    b"celerite2_general_matmul_lower", definitions["general_matmul_lower"]
 )
-
-matmul_prim = setup_spec(
-    dict(
-        name="matmul",
-        xla_name=b"celerite2_matmul",
-        get_dims=lambda *args: OrderedDict(
-            list(zip(("N", "J"), args[1])) + [("nrhs", args[4][1])]
-        ),
-        inputs=(
-            dict(name="a", shape="(N,)"),
-            dict(name="U", shape="(N, J)"),
-            dict(name="V", shape="(N, J)"),
-            dict(name="P", shape="(N - 1, J)"),
-            dict(name="Y", shape="(N, nrhs)"),
-        ),
-        outputs=(dict(name="X", shape="(N, nrhs)"),),
-        extra_outputs=(
-            dict(name="Z", shape="(N, nrhs)"),
-            dict(name="F", shape="(N, J, nrhs)"),
-            dict(name="G", shape="(N, J, nrhs)"),
-        ),
-    )
-)
-matmul_vector_prim = setup_spec(
-    dict(
-        name="matmul",
-        xla_name=b"celerite2_matmul",
-        get_dims=lambda *args: OrderedDict(
-            list(zip(("N", "J"), args[1])) + [("nrhs", 1)]
-        ),
-        inputs=(
-            dict(name="a", shape="(N,)"),
-            dict(name="U", shape="(N, J)"),
-            dict(name="V", shape="(N, J)"),
-            dict(name="P", shape="(N - 1, J)"),
-            dict(name="Y", shape="(N,)"),
-        ),
-        outputs=(dict(name="X", shape="(N,)"),),
-        extra_outputs=(
-            dict(name="Z", shape="(N,)"),
-            dict(name="F", shape="(N, J)"),
-            dict(name="G", shape="(N, J)"),
-        ),
-    )
-)
-
-conditional_mean_prim = setup_spec(
-    dict(
-        name="conditional_mean",
-        xla_name=b"celerite2_conditional_mean",
-        get_dims=lambda *args: OrderedDict(
-            list(zip(("N", "J"), args[1])) + [("M", args[6][0])]
-        ),
-        inputs=(
-            dict(name="U", shape="(N, J)"),
-            dict(name="V", shape="(N, J)"),
-            dict(name="P", shape="(N - 1, J)"),
-            dict(name="Z", shape="(N,)"),
-            dict(name="U_star", shape="(M, J)"),
-            dict(name="V_star", shape="(M, J)"),
-            dict(name="inds", shape="(M,)", dtype=np.int64),
-        ),
-        outputs=(dict(name="mu", shape="(M,)"),),
-        extra_outputs=(),
-    ),
-    grad=False,
+general_matmul_upper_p = _build_op(
+    b"celerite2_general_matmul_upper", definitions["general_matmul_upper"]
 )

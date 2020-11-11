@@ -22,7 +22,7 @@ TEMPLATE_LIST_TEST_CASE("check the results of to_dense", "[to_dense]", TestKerne
   int nr = ar.rows(), nc = ac.rows();
 
   Matrix K;
-  to_dense(std::get<0>(matrices), std::get<1>(matrices), std::get<2>(matrices), std::get<3>(matrices), K);
+  to_dense(x, std::get<0>(matrices), std::get<1>(matrices), std::get<2>(matrices), std::get<3>(matrices), K);
 
   for (int n = 0; n < N; ++n) {
     for (int m = 0; m < N; ++m) {

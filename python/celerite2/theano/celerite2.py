@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-__all__ = ["GaussianProcess"]
+__all__ = ["GaussianProcess", "ConditionalDistribution"]
 import numpy as np
 from theano import tensor as tt
 
-from ..ext import BaseGaussianProcess
+from ..core import BaseConditionalDistribution, BaseGaussianProcess
 from . import ops
 from .distribution import CeleriteNormal
 
@@ -47,50 +47,65 @@ CITATIONS = (
 )
 
 
+class ConditionalDistribution(BaseConditionalDistribution):
+    def _do_general_matmul(self, c, U1, V1, U2, V2, inp, target):
+        target += ops.general_matmul_lower(
+            self._xs, self.gp._t, c, U2, V1, inp
+        )[0]
+        target += ops.general_matmul_upper(
+            self._xs, self.gp._t, c, V2, U1, inp
+        )[0]
+        return target
+
+    def _diagdot(self, a, b):
+        return tt.batched_dot(a.T, b.T)
+
+
 class GaussianProcess(BaseGaussianProcess):
-    def as_tensor(self, tensor):
+    conditional_distribution = ConditionalDistribution
+
+    def _as_tensor(self, tensor):
         return tt.as_tensor_variable(tensor).astype("float64")
 
-    def zeros_like(self, tensor):
+    def _zeros_like(self, tensor):
         return tt.zeros_like(tensor)
 
-    def do_compute(self, quiet):
+    def _do_compute(self, quiet):
         if quiet:
             self._d, self._W, _ = ops.factor_quiet(
-                self._a, self._U, self._V, self._P
+                self._t, self._c, self._a, self._U, self._V
             )
             self._log_det = tt.switch(
-                tt.any(self._d < 0.0), -np.inf, tt.sum(tt.log(self._d))
+                tt.any(self._d <= 0.0), -np.inf, tt.sum(tt.log(self._d))
             )
 
         else:
             self._d, self._W, _ = ops.factor(
-                self._a, self._U, self._V, self._P
+                self._t, self._c, self._a, self._U, self._V
             )
             self._log_det = tt.sum(tt.log(self._d))
 
         self._norm = -0.5 * (self._log_det + self._size * np.log(2 * np.pi))
 
-    def check_sorted(self, t):
+    def _check_sorted(self, t):
         return tt.opt.Assert()(t, tt.all(t[1:] - t[:-1] >= 0))
 
-    def do_solve(self, y):
-        return ops.solve(self._U, self._P, self._d, self._W, y)[0]
+    def _do_solve(self, y):
+        z = ops.solve_lower(self._t, self._c, self._U, self._W, y)[0]
+        z /= self._d[:, None]
+        z = ops.solve_upper(self._t, self._c, self._U, self._W, z)[0]
+        return z
 
-    def do_dot_tril(self, y):
-        return ops.dot_tril(self._U, self._P, self._d, self._W, y)[0]
+    def _do_dot_tril(self, y):
+        z = y * np.sqrt(self._d)[:, None]
+        z += ops.matmul_lower(self._t, self._c, self._U, self._W, z)[0]
+        return z
 
-    def do_norm(self, y):
-        return ops.norm(self._U, self._P, self._d, self._W, y)[0]
-
-    def do_conditional_mean(self, *args):
-        return ops.conditional_mean(self._U, self._V, self._P, *args)
-
-    def tensordot(self, a, b):
-        return tt.tensordot(a, b, axes=(0, 0))
-
-    def diagdot(self, a, b):
-        return tt.batched_dot(a.T, b.T)
+    def _do_norm(self, y):
+        alpha = ops.solve_lower(
+            self._t, self._c, self._U, self._W, y[:, None]
+        )[0][:, 0]
+        return tt.sum(alpha ** 2 / self._d)
 
     def _add_citations_to_pymc3_model(self, **kwargs):
         if not pm:
@@ -152,12 +167,12 @@ class GaussianProcess(BaseGaussianProcess):
         else:
             shape = kwargs.pop("shape", len(t))
 
-        mu, cov = self.predict(
+        cond = self.condition(
             y,
             t=t,
-            return_cov=True,
             include_mean=include_mean,
             kernel=kernel,
-            _fast_mean=False,
         )
-        return pm.MvNormal(name, mu=mu, cov=cov, shape=shape, **kwargs)
+        return pm.MvNormal(
+            name, mu=cond.mean, cov=cond.covariance, shape=shape, **kwargs
+        )

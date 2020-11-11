@@ -1,0 +1,382 @@
+[
+  {
+    "name": "factor",
+    "has_rev": true,
+    "dimensions": [
+        {
+            "name": "N",
+            "coords": [0, 0]
+        },
+        {
+            "name": "J",
+            "coords": [1, 0]
+        }
+    ],
+    "inputs": [
+        {
+            "name": "t",
+            "shape": ["N"]
+        },
+        {
+            "name": "c",
+            "shape": ["J"]
+        },
+        {
+            "name": "a",
+            "shape": ["N"]
+        },
+        {
+            "name": "U",
+            "shape": ["N", "J"]
+        },
+        {
+            "name": "V",
+            "shape": ["N", "J"]
+        }
+    ],
+    "outputs": [
+        {
+            "name": "d",
+            "shape": ["N"]
+        },
+        {
+            "name": "W",
+            "shape": ["N", "J"]
+        }
+    ],
+    "extra_outputs": [
+        {
+            "name": "S",
+            "shape": ["N", "J", "J"]
+        }
+    ]
+  },
+  {
+    "name": "solve_lower",
+    "has_rev": true,
+    "dimensions": [
+        {
+            "name": "N",
+            "coords": [0, 0]
+        },
+        {
+            "name": "J",
+            "coords": [1, 0]
+        },
+        {
+            "name": "nrhs",
+            "coords": [4, 1]
+        }
+    ],
+    "inputs": [
+        {
+            "name": "t",
+            "shape": ["N"]
+        },
+        {
+            "name": "c",
+            "shape": ["J"]
+        },
+        {
+            "name": "U",
+            "shape": ["N", "J"]
+        },
+        {
+            "name": "W",
+            "shape": ["N", "J"]
+        },
+        {
+            "name": "Y",
+            "shape": ["N", "nrhs"]
+        }
+    ],
+    "outputs": [
+        {
+            "name": "Z",
+            "shape": ["N", "nrhs"]
+        }
+    ],
+    "extra_outputs": [
+        {
+            "name": "F",
+            "shape": ["N", "J", "nrhs"]
+        }
+    ]
+  },
+  {
+    "name": "solve_upper",
+    "has_rev": true,
+    "dimensions": [
+        {
+            "name": "N",
+            "coords": [0, 0]
+        },
+        {
+            "name": "J",
+            "coords": [1, 0]
+        },
+        {
+            "name": "nrhs",
+            "coords": [4, 1]
+        }
+    ],
+    "inputs": [
+        {
+            "name": "t",
+            "shape": ["N"]
+        },
+        {
+            "name": "c",
+            "shape": ["J"]
+        },
+        {
+            "name": "U",
+            "shape": ["N", "J"]
+        },
+        {
+            "name": "W",
+            "shape": ["N", "J"]
+        },
+        {
+            "name": "Y",
+            "shape": ["N", "nrhs"]
+        }
+    ],
+    "outputs": [
+        {
+            "name": "Z",
+            "shape": ["N", "nrhs"]
+        }
+    ],
+    "extra_outputs": [
+        {
+            "name": "F",
+            "shape": ["N", "J", "nrhs"]
+        }
+    ]
+  },
+  {
+    "name": "matmul_lower",
+    "has_rev": true,
+    "dimensions": [
+        {
+            "name": "N",
+            "coords": [0, 0]
+        },
+        {
+            "name": "J",
+            "coords": [1, 0]
+        },
+        {
+            "name": "nrhs",
+            "coords": [4, 1]
+        }
+    ],
+    "inputs": [
+        {
+            "name": "t",
+            "shape": ["N"]
+        },
+        {
+            "name": "c",
+            "shape": ["J"]
+        },
+        {
+            "name": "U",
+            "shape": ["N", "J"]
+        },
+        {
+            "name": "V",
+            "shape": ["N", "J"]
+        },
+        {
+            "name": "Y",
+            "shape": ["N", "nrhs"]
+        }
+    ],
+    "outputs": [
+        {
+            "name": "Z",
+            "shape": ["N", "nrhs"]
+        }
+    ],
+    "extra_outputs": [
+        {
+            "name": "F",
+            "shape": ["N", "J", "nrhs"]
+        }
+    ]
+  },
+  {
+    "name": "matmul_upper",
+    "has_rev": true,
+    "dimensions": [
+        {
+            "name": "N",
+            "coords": [0, 0]
+        },
+        {
+            "name": "J",
+            "coords": [1, 0]
+        },
+        {
+            "name": "nrhs",
+            "coords": [4, 1]
+        }
+    ],
+    "inputs": [
+        {
+            "name": "t",
+            "shape": ["N"]
+        },
+        {
+            "name": "c",
+            "shape": ["J"]
+        },
+        {
+            "name": "U",
+            "shape": ["N", "J"]
+        },
+        {
+            "name": "V",
+            "shape": ["N", "J"]
+        },
+        {
+            "name": "Y",
+            "shape": ["N", "nrhs"]
+        }
+    ],
+    "outputs": [
+        {
+            "name": "Z",
+            "shape": ["N", "nrhs"]
+        }
+    ],
+    "extra_outputs": [
+        {
+            "name": "F",
+            "shape": ["N", "J", "nrhs"]
+        }
+    ]
+  },
+  {
+    "name": "general_matmul_lower",
+    "has_rev": false,
+    "dimensions": [
+        {
+            "name": "N",
+            "coords": [0, 0]
+        },
+        {
+            "name": "M",
+            "coords": [1, 0]
+        },
+        {
+            "name": "J",
+            "coords": [2, 0]
+        },
+        {
+            "name": "nrhs",
+            "coords": [5, 1]
+        }
+    ],
+    "inputs": [
+        {
+            "name": "t1",
+            "shape": ["N"]
+        },
+        {
+            "name": "t2",
+            "shape": ["M"]
+        },
+        {
+            "name": "c",
+            "shape": ["J"]
+        },
+        {
+            "name": "U",
+            "shape": ["N", "J"]
+        },
+        {
+            "name": "V",
+            "shape": ["M", "J"]
+        },
+        {
+            "name": "Y",
+            "shape": ["M", "nrhs"]
+        }
+    ],
+    "outputs": [
+        {
+            "name": "Z",
+            "shape": ["N", "nrhs"]
+        }
+    ],
+    "extra_outputs": [
+        {
+            "name": "F",
+            "shape": ["M", "J", "nrhs"]
+        }
+    ]
+  },
+  {
+    "name": "general_matmul_upper",
+    "has_rev": false,
+    "dimensions": [
+        {
+            "name": "N",
+            "coords": [0, 0]
+        },
+        {
+            "name": "M",
+            "coords": [1, 0]
+        },
+        {
+            "name": "J",
+            "coords": [2, 0]
+        },
+        {
+            "name": "nrhs",
+            "coords": [5, 1]
+        }
+    ],
+    "inputs": [
+        {
+            "name": "t1",
+            "shape": ["N"]
+        },
+        {
+            "name": "t2",
+            "shape": ["M"]
+        },
+        {
+            "name": "c",
+            "shape": ["J"]
+        },
+        {
+            "name": "U",
+            "shape": ["N", "J"]
+        },
+        {
+            "name": "V",
+            "shape": ["M", "J"]
+        },
+        {
+            "name": "Y",
+            "shape": ["M", "nrhs"]
+        }
+    ],
+    "outputs": [
+        {
+            "name": "Z",
+            "shape": ["N", "nrhs"]
+        }
+    ],
+    "extra_outputs": [
+        {
+            "name": "F",
+            "shape": ["M", "J", "nrhs"]
+        }
+    ]
+  }
+]

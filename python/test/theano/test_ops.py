@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-import pytest
 import theano
 from theano import tensor as tt
 
@@ -94,115 +93,112 @@ def check_grad(op, values, num_out, eps=1.234e-8):
 
 
 def test_factor_fwd():
-    a, U, V, P, Y = get_matrices()
+    x, c, a, U, V, Y = get_matrices()
     check_basic(
         backprop.factor_fwd,
         ops.factor,
-        [a, U, V, P],
+        [x, c, a, U, V],
     )
 
 
 def test_factor_rev():
-    a, U, V, P, Y = get_matrices()
+    x, c, a, U, V, Y = get_matrices()
     check_grad(
         ops.factor,
-        [a, U, V, P],
+        [x, c, a, U, V],
         2,
     )
 
 
-@pytest.mark.parametrize("vector", [True, False])
-def test_solve_fwd(vector):
-    a, U, V, P, Y = get_matrices(vector=vector)
-    d, W = driver.factor(U, P, a, V)
+def test_solve_lower_fwd():
+    x, c, a, U, V, Y = get_matrices()
+    d, W = driver.factor(x, c, a, U, V, a, V)
     check_basic(
-        backprop.solve_fwd,
-        ops.solve,
-        [U, P, d, W, Y],
+        backprop.solve_lower_fwd,
+        ops.solve_lower,
+        [x, c, U, W, Y],
     )
 
 
-@pytest.mark.parametrize("vector", [True, False])
-def test_solve_rev(vector):
-    a, U, V, P, Y = get_matrices(vector=vector)
-    d, W = driver.factor(U, P, a, V)
+def test_solve_lower_rev():
+    x, c, a, U, V, Y = get_matrices()
+    d, W = driver.factor(x, c, a, U, V, a, V)
     check_grad(
-        ops.solve,
-        [U, P, d, W, Y],
+        ops.solve_lower,
+        [x, c, U, W, Y],
         1,
     )
 
 
-def test_norm_fwd():
-    a, U, V, P, Y = get_matrices(vector=True)
-    d, W = driver.factor(U, P, a, V)
+def test_solve_upper_fwd():
+    x, c, a, U, V, Y = get_matrices()
+    d, W = driver.factor(x, c, a, U, V, a, V)
     check_basic(
-        backprop.norm_fwd,
-        ops.norm,
-        [U, P, d, W, Y],
+        backprop.solve_upper_fwd,
+        ops.solve_upper,
+        [x, c, U, W, Y],
     )
 
 
-def test_norm_rev():
-    a, U, V, P, Y = get_matrices(vector=True)
-    d, W = driver.factor(U, P, a, V)
+def test_solve_upper_rev():
+    x, c, a, U, V, Y = get_matrices()
+    d, W = driver.factor(x, c, a, U, V, a, V)
     check_grad(
-        ops.norm,
-        [U, P, d, W, Y],
+        ops.solve_upper,
+        [x, c, U, W, Y],
         1,
     )
 
 
-@pytest.mark.parametrize("vector", [True, False])
-def test_dot_tril_fwd(vector):
-    a, U, V, P, Y = get_matrices(vector=vector)
-    d, W = driver.factor(U, P, a, V)
+def test_matmul_lower_fwd():
+    x, c, a, U, V, Y = get_matrices()
     check_basic(
-        backprop.dot_tril_fwd,
-        ops.dot_tril,
-        [U, P, d, W, Y],
+        backprop.matmul_lower_fwd,
+        ops.matmul_lower,
+        [x, c, U, V, Y],
     )
 
 
-@pytest.mark.parametrize("vector", [True, False])
-def test_dot_tril_rev(vector):
-    a, U, V, P, Y = get_matrices(vector=vector)
-    d, W = driver.factor(U, P, a, V)
+def test_matmul_lower_rev():
+    x, c, a, U, V, Y = get_matrices()
     check_grad(
-        ops.dot_tril,
-        [U, P, d, W, Y],
+        ops.matmul_lower,
+        [x, c, U, V, Y],
         1,
     )
 
 
-@pytest.mark.parametrize("vector", [True, False])
-def test_matmul_fwd(vector):
-    a, U, V, P, Y = get_matrices(vector=vector)
+def test_matmul_upper_fwd():
+    x, c, a, U, V, Y = get_matrices()
     check_basic(
-        backprop.matmul_fwd,
-        ops.matmul,
-        [a, U, V, P, Y],
+        backprop.matmul_upper_fwd,
+        ops.matmul_upper,
+        [x, c, U, V, Y],
     )
 
 
-@pytest.mark.parametrize("vector", [True, False])
-def test_matmul_rev(vector):
-    a, U, V, P, Y = get_matrices(vector=vector)
+def test_matmul_upper_rev():
+    x, c, a, U, V, Y = get_matrices()
     check_grad(
-        ops.matmul,
-        [a, U, V, P, Y],
+        ops.matmul_upper,
+        [x, c, U, V, Y],
         1,
     )
 
 
-def test_conditional_mean_fwd():
-    a, U, V, P, Y, U_star, V_star, inds = get_matrices(
-        vector=True, conditional=True
-    )
-    d, W = driver.factor(U, P, a, np.copy(V))
-    z = driver.solve(U, P, d, W, Y)
+def test_general_matmul_lower_fwd():
+    x, c, a, U, V, Y, t, U2, V2 = get_matrices(conditional=True)
     check_basic(
-        driver.conditional_mean,
-        ops.conditional_mean,
-        [U, V, P, z, U_star, V_star, inds],
+        backprop.general_matmul_lower_fwd,
+        ops.general_matmul_lower,
+        [t, x, c, U2, V, Y],
+    )
+
+
+def test_general_matmul_upper_fwd():
+    x, c, a, U, V, Y, t, U2, V2 = get_matrices(conditional=True)
+    check_basic(
+        backprop.general_matmul_upper_fwd,
+        ops.general_matmul_upper,
+        [t, x, c, U2, V, Y],
     )

@@ -212,7 +212,8 @@ chain = sampler.get_chain(discard=100, flat=True)
 
 for sample in chain[np.random.randint(len(chain), size=50)]:
     gp = set_params(sample, gp)
-    plt.plot(true_t, gp.sample_conditional(y, true_t), color="C0", alpha=0.1)
+    conditional = gp.condition(y, true_t)
+    plt.plot(true_t, conditional.sample(), color="C0", alpha=0.1)
 
 plt.title("posterior prediction")
 plot_prediction(None)

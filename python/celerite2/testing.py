@@ -7,7 +7,12 @@ from . import terms
 
 
 def get_matrices(
-    size=100, kernel=None, vector=False, conditional=False, include_dense=False
+    size=100,
+    kernel=None,
+    vector=False,
+    conditional=False,
+    include_dense=False,
+    no_diag=False,
 ):
     np.random.seed(721)
     x = np.sort(np.random.uniform(0, 10, size))
@@ -17,9 +22,12 @@ def get_matrices(
         Y = np.ascontiguousarray(
             np.vstack([np.sin(x), np.cos(x), x ** 2]).T, dtype=np.float64
         )
-    diag = np.random.uniform(0.1, 0.3, len(x))
+    if no_diag:
+        diag = np.zeros_like(x)
+    else:
+        diag = np.random.uniform(0.1, 0.3, len(x))
     kernel = kernel if kernel else terms.SHOTerm(S0=5.0, w0=0.1, Q=3.45)
-    a, U, V, P = kernel.get_celerite_matrices(x, diag)
+    c, a, U, V = kernel.get_celerite_matrices(x, diag)
 
     if include_dense:
         K = kernel.get_value(x[:, None] - x[None, :])
@@ -27,17 +35,17 @@ def get_matrices(
 
     if not conditional:
         if include_dense:
-            return a, U, V, P, K, Y
-        return a, U, V, P, Y
+            return x, c, a, U, V, K, Y
+        return x, c, a, U, V, Y
 
     t = np.sort(np.random.uniform(-1, 12, 200))
-    U_star, V_star, inds = kernel.get_conditional_mean_matrices(x, t)
+    _, _, U2, V2 = kernel.get_celerite_matrices(t, np.zeros_like(t))
 
     if include_dense:
         K_star = kernel.get_value(t[:, None] - x[None, :])
-        return a, U, V, P, K, Y, U_star, V_star, inds, K_star
+        return x, c, a, U, V, K, Y, t, U2, V2, K_star
 
-    return a, U, V, P, Y, U_star, V_star, inds
+    return x, c, a, U, V, Y, t, U2, V2
 
 
 def allclose(a, b, **kwargs):
@@ -86,22 +94,22 @@ def check_tensor_term(eval_func, term, pyterm, atol=1e-8):
     t = np.random.uniform(-1, 11, 75)
     diag = np.random.uniform(0.1, 0.3, len(x))
 
-    # This is a hack to deal with the fact that the torch interface doesn't
+    # This is a hack to deal with the fact that the interfaces don't
     # always propduce matrices with the same column order
     tensors = term.get_celerite_matrices(x, diag)
     arrays = pyterm.get_celerite_matrices(x, diag)
-    inds = np.argsort(eval_func(tensors[1])[0, :])
-    pyinds = np.argsort(arrays[1][0, :])
+    inds = np.argsort(eval_func(tensors[2])[0])
+    pyinds = np.argsort(arrays[2][0])
     for n, (tensor, array) in enumerate(zip(tensors, arrays)):
-        if n >= 1:
+        if n == 0:
             _compare_tensor(
                 eval_func,
-                tensor[:, inds],
-                array[:, pyinds],
+                tensor[inds],
+                array[pyinds],
                 f"matrix {n}",
                 atol=atol,
             )
-        else:
+        elif n == 1:
             _compare_tensor(
                 eval_func,
                 tensor,
@@ -109,25 +117,14 @@ def check_tensor_term(eval_func, term, pyterm, atol=1e-8):
                 f"matrix {n}",
                 atol=atol,
             )
-
-    # Same hack again...
-    tensors = term.get_conditional_mean_matrices(x, t)
-    arrays = pyterm.get_conditional_mean_matrices(x, t)
-    _compare_tensor(
-        eval_func,
-        tensors[-1],
-        arrays[-1],
-        "sorted inds",
-        atol=atol,
-    )
-    for n, (tensor, array) in enumerate(zip(tensors[:2], arrays[:2])):
-        _compare_tensor(
-            eval_func,
-            tensor[:, inds],
-            array[:, pyinds],
-            f"conditional matrix {n}",
-            atol=atol,
-        )
+        else:
+            _compare_tensor(
+                eval_func,
+                tensor[:, inds],
+                array[:, pyinds],
+                f"matrix {n}",
+                atol=atol,
+            )
 
     _compare_tensor(
         eval_func,
@@ -169,35 +166,18 @@ def check_gp_models(eval_func, gp, pygp, y, t):
     # "log_likelihood" method
     assert allclose(pygp.log_likelihood(y), eval_func(gp.log_likelihood(y)))
 
-    # "predict" method
-    for flag, args in [
-        (False, dict(return_cov=False, return_var=False)),
-        (True, dict(return_cov=False, return_var=True)),
-        (True, dict(return_cov=True, return_var=False)),
-    ]:
-        if flag:
-            assert all(
-                allclose(a, eval_func(b))
-                for a, b in zip(
-                    pygp.predict(y, **args),
-                    gp.predict(y, **args),
-                )
-            )
-            assert all(
-                allclose(a, eval_func(b))
-                for a, b in zip(
-                    pygp.predict(y, t=t, **args),
-                    gp.predict(y, t=t, **args),
-                )
-            )
-        else:
-            assert allclose(
-                pygp.predict(y, **args), eval_func(gp.predict(y, **args))
-            )
-            assert allclose(
-                pygp.predict(y, t=t, **args),
-                eval_func(gp.predict(y, t=t, **args)),
-            )
+    # "condition" method
+    pycond = pygp.condition(y)
+    cond = gp.condition(y)
+    assert allclose(pycond.mean, eval_func(cond.mean))
+    assert allclose(pycond.variance, eval_func(cond.variance))
+    assert allclose(pycond.covariance, eval_func(cond.covariance))
+
+    pycond = pygp.condition(y, t=t)
+    cond = gp.condition(y, t=t)
+    assert allclose(pycond.mean, eval_func(cond.mean))
+    assert allclose(pycond.variance, eval_func(cond.variance))
+    assert allclose(pycond.covariance, eval_func(cond.covariance))
 
     # "dot_tril" method
     assert allclose(pygp.dot_tril(y), eval_func(gp.dot_tril(y)))

@@ -13,7 +13,7 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor", "[factor]", TestKernels) 
   Vector d;
   LowRank W;
   Matrix K, S;
-  to_dense(a, U, V, P, K);
+  to_dense(x, c, a, U, V, K);
 
   // Brute force the Cholesky factorization
   Eigen::LDLT<Matrix> LDLT(K);
@@ -21,12 +21,12 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor", "[factor]", TestKernels) 
 
   SECTION("general") {
     // Do the Cholesky using celerite
-    int flag = factor(a, U, V, P, d, W, S);
+    int flag = factor(x, c, a, U, V, d, W, S);
     REQUIRE(flag == 0);
 
     // Reconstruct the L matrix
     Matrix UWT;
-    to_dense(Eigen::VectorXd::Ones(N), U, W, P, UWT);
+    to_dense(x, c, Eigen::VectorXd::Ones(N), U, W, UWT);
     UWT.triangularView<Eigen::StrictlyUpper>().setConstant(0.0);
 
     // Check that the lower triangle is correct
@@ -40,12 +40,12 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor", "[factor]", TestKernels) 
 
   SECTION("no grad") {
     // Do the Cholesky using celerite
-    int flag = factor(a, U, V, P, d, W);
+    int flag = factor(x, c, a, U, V, d, W);
     REQUIRE(flag == 0);
 
     // Reconstruct the L matrix
     Matrix UWT;
-    to_dense(Eigen::VectorXd::Ones(N), U, W, P, UWT);
+    to_dense(x, c, Eigen::VectorXd::Ones(N), U, W, UWT);
     UWT.triangularView<Eigen::StrictlyUpper>().setConstant(0.0);
 
     // Check that the lower triangle is correct
@@ -59,12 +59,12 @@ TEMPLATE_LIST_TEST_CASE("check the results of factor", "[factor]", TestKernels) 
 
   SECTION("inplace") {
     // Do the Cholesky using celerite
-    int flag = factor(a, U, V, P, a, V, S);
+    int flag = factor(x, c, a, U, V, a, V, S);
     REQUIRE(flag == 0);
 
     // Reconstruct the L matrix
     Matrix UWT;
-    to_dense(Eigen::VectorXd::Ones(N), U, V, P, UWT);
+    to_dense(x, c, Eigen::VectorXd::Ones(N), U, V, UWT);
     UWT.triangularView<Eigen::StrictlyUpper>().setConstant(0.0);
 
     // Check that the lower triangle is correct

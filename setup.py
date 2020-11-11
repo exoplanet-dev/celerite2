@@ -41,7 +41,6 @@ EXTRA_REQUIRE = {
         "celerite>=0.3.1",
     ],
     "theano": ["theano", "pymc3"],
-    "torch": ["torch"],
     "jax": ["jax", "jaxlib"],
     "release": ["pep517", "twine"],
     "docs": [

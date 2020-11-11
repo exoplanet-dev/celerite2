@@ -71,7 +71,7 @@ class Term(base_terms.Term):
         K += tt.diag(diag)
         return K
 
-    def get_celerite_matrices(self, x, diag):
+    def get_celerite_matrices(self, x, diag, **kwargs):
         x = tt.as_tensor_variable(x)
         diag = tt.as_tensor_variable(diag)
         ar, cr, ac, bc, cc, dc = self.coefficients
@@ -96,31 +96,29 @@ class Term(base_terms.Term):
             axis=1,
         )
 
-        dx = x[1:] - x[:-1]
         c = tt.concatenate((cr, cc, cc))
-        P = tt.exp(-c[None, :] * dx[:, None])
 
-        return a, U, V, P
-
-    def get_conditional_mean_matrices(self, x, t):
-        ar, cr, ac, bc, cc, dc = self.coefficients
-        x = tt.as_tensor_variable(x)
-
-        inds = tt.extra_ops.searchsorted(x, t)
-        _, U_star, V_star, _ = self.get_celerite_matrices(t, t)
-
-        c = tt.concatenate((cr, cc, cc))
-        dx = t - x[tt.minimum(inds, x.size - 1)]
-        U_star *= tt.exp(-c[None, :] * dx[:, None])
-
-        dx = x[tt.maximum(inds - 1, 0)] - t
-        V_star *= tt.exp(-c[None, :] * dx[:, None])
-
-        return U_star, V_star, inds
+        return c, a, U, V
 
     def dot(self, x, diag, y):
-        a, U, V, P = self.get_celerite_matrices(x, diag)
-        return ops.matmul(a, U, V, P, tt.as_tensor_variable(y))[0]
+        x = tt.as_tensor_variable(x)
+        y = tt.as_tensor_variable(y)
+
+        is_vector = False
+        if y.ndim == 1:
+            is_vector = True
+            y = y[:, None]
+        if y.ndim != 2:
+            raise ValueError("'y' can only be a vector or matrix")
+
+        c, a, U, V = self.get_celerite_matrices(x, diag)
+        z = y * a[:, None]
+        z += ops.matmul_lower(x, c, U, V, y)[0]
+        z += ops.matmul_upper(x, c, U, V, y)[0]
+
+        if is_vector:
+            return z[:, 0]
+        return z
 
 
 class TermSum(Term):
@@ -261,7 +259,7 @@ class TermConvolution(Term):
         self.delta = tt.as_tensor_variable(delta).astype("float64")
         super().__init__(**kwargs)
 
-    def get_celerite_matrices(self, x, diag):
+    def get_celerite_matrices(self, x, diag, **kwargs):
         dt = self.delta
         ar, cr, a, b, c, d = self.term.coefficients
 

@@ -115,7 +115,7 @@ class Term:
         return K
 
     def get_celerite_matrices(
-        self, x, diag, *, a=None, U=None, V=None, P=None
+        self, x, diag, *, c=None, a=None, U=None, V=None
     ):
         """Get the matrices needed to solve the celerite system
 
@@ -151,6 +151,10 @@ class Term:
         Jc = len(ac)
         J = Jr + 2 * Jc
 
+        if c is None:
+            c = np.empty(J)
+        else:
+            c.resize(J, refcheck=False)
         if a is None:
             a = np.empty(N)
         else:
@@ -163,37 +167,14 @@ class Term:
             V = np.empty((N, J))
         else:
             V.resize((N, J), refcheck=False)
-        if P is None:
-            P = np.empty((N - 1, J))
-        else:
-            P.resize((N - 1, J), refcheck=False)
 
-        return driver.get_celerite_matrices(
-            ar, cr, ac, bc, cc, dc, x, diag, a, U, V, P
+        c[:Jr] = cr
+        c[Jr::2] = cc
+        c[Jr + 1 :: 2] = cc
+        a, U, V = driver.get_celerite_matrices(
+            ar, ac, bc, dc, x, diag, a, U, V
         )
-
-    def get_conditional_mean_matrices(self, x, t):
-        """Get the matrices needed to compute the conditional mean function
-
-        Args:
-            x (shape[N]): The independent coordinates of the data.
-            t (shape[M]): The independent coordinates where the predictions
-                will be made.
-        """
-        ar, cr, ac, bc, cc, dc = self.get_coefficients()
-
-        inds = np.searchsorted(x, t)
-        _, U_star, V_star, _ = self.get_celerite_matrices(t, t)
-
-        c = np.concatenate([cr] + list(zip(cc, cc)))
-
-        dx = t - x[np.minimum(inds, x.size - 1)]
-        U_star *= np.exp(-c[None, :] * dx[:, None])
-
-        dx = x[np.maximum(inds - 1, 0)] - t
-        V_star *= np.exp(-c[None, :] * dx[:, None])
-
-        return U_star, V_star, inds
+        return c, a, U, V
 
     def dot(self, x, diag, y):
         """Apply a matrix-vector or matrix-matrix product
@@ -204,14 +185,26 @@ class Term:
             y (shape[N] or shape[N, K]): The target of vector or matrix for
                 this operation.
         """
-        a, U, V, P = self.get_celerite_matrices(x, diag)
-
+        x = np.atleast_1d(x)
         y = np.atleast_1d(y)
-        if y.shape[0] != len(a):
-            raise ValueError("dimension mismatch")
+        if y.shape[0] != x.shape[0]:
+            raise ValueError("Dimension mismatch")
 
-        z = np.empty(y.shape)
-        return driver.matmul(a, U, V, P, y, z)
+        is_vector = False
+        if y.ndim == 1:
+            is_vector = True
+            y = y[:, None]
+        if y.ndim != 2:
+            raise ValueError("'y' can only be a vector or matrix")
+
+        c, a, U, V = self.get_celerite_matrices(x, diag)
+        z = y * a[:, None]
+        z = driver.matmul_lower(x, c, U, V, y, z)
+        z = driver.matmul_upper(x, c, U, V, y, z)
+
+        if is_vector:
+            return z[:, 0]
+        return z
 
 
 class TermSum(Term):
@@ -355,23 +348,23 @@ class TermConvolution(Term):
         self.delta = float(delta)
 
     def get_celerite_matrices(
-        self, x, diag, *, a=None, U=None, V=None, P=None
+        self, x, diag, *, c=None, a=None, U=None, V=None
     ):
         dt = self.delta
-        ar, cr, a, b, c, d = self.term.get_coefficients()
+        ar, cr, a, b, cc, d = self.term.get_coefficients()
 
         # Real part
         cd = cr * dt
         delta_diag = 2 * np.sum(ar * (cd - np.sinh(cd)) / cd ** 2)
 
         # Complex part
-        cd = c * dt
+        cd = cc * dt
         dd = d * dt
-        c2 = c ** 2
+        c2 = cc ** 2
         d2 = d ** 2
         c2pd2 = c2 + d2
-        C1 = a * (c2 - d2) + 2 * b * c * d
-        C2 = b * (c2 - d2) - 2 * a * c * d
+        C1 = a * (c2 - d2) + 2 * b * cc * d
+        C2 = b * (c2 - d2) - 2 * a * cc * d
         norm = (dt * c2pd2) ** 2
         sinh = np.sinh(cd)
         cosh = np.cosh(cd)
@@ -379,14 +372,14 @@ class TermConvolution(Term):
             (
                 C2 * cosh * np.sin(dd)
                 - C1 * sinh * np.cos(dd)
-                + (a * c + b * d) * dt * c2pd2
+                + (a * cc + b * d) * dt * c2pd2
             )
             / norm
         )
 
         new_diag = diag + delta_diag
 
-        return super().get_celerite_matrices(x, new_diag, a=a, U=U, V=V, P=P)
+        return super().get_celerite_matrices(x, new_diag, c=c, a=a, U=U, V=V)
 
     def get_coefficients(self):
         ar, cr, a, b, c, d = self.term.get_coefficients()
