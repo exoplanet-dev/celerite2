@@ -118,12 +118,3 @@ def test_consistency(oterm):
     y = np.vstack([x]).T
     value = term.dot(x, diag, y)
     assert np.allclose(value, np.dot(K, y))
-
-    # General dot
-    assert np.allclose(
-        term.dot(x, y=y), np.dot(term.get_value(x[:, None] - x[None, :]), y)
-    )
-    assert np.allclose(
-        term.dot(x, y=y, x2=x2),
-        np.dot(term.get_value(x2[:, None] - x[None, :]), y),
-    )
