@@ -134,6 +134,25 @@ Eigen::Index factor(const Eigen::MatrixBase<Input> &t,          // (N,)
   return 0;
 }
 
+/**
+ * \brief Apply a strictly lower matrix multiply
+ *
+ * This computes:
+ *
+ * `Z += tril(U * V^T) * Y`
+ *
+ * where `tril` is the strictly lower triangular function.
+ *
+ * Note that this will *update* the value of `Z`.
+ *
+ * @param t     (N,): The input coordinates (must be sorted)
+ * @param c     (J,): The transport coefficients
+ * @param U     (N, J): The first low rank matrix
+ * @param W     (N, J): The second low rank matrix
+ * @param Y     (N, Nrhs): The matrix to be multiplied
+ * @param Z_out (N, Nrhs): The matrix to be updated
+ * @param F_out (N, J*Nrhs): The workspace
+ */
 template <bool update_workspace = true, typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename RightHandSideOut,
           typename Work>
 void solve_lower(const Eigen::MatrixBase<Input> &t,                // (N,)
@@ -150,6 +169,27 @@ void solve_lower(const Eigen::MatrixBase<Input> &t,                // (N,)
   internal::forward<true, update_workspace>(t, c, U, W, Y, Z, F_out);
 }
 
+/**
+ * \brief Compute the solution of a upper triangular linear equation
+ *
+ * This computes `Z` such that:
+ *
+ * `Y = L^T * Y`
+ *
+ * where
+ *
+ * `L = 1 + tril(U*W^T)`
+ *
+ * This can be safely applied in place.
+ *
+ * @param t     (N,): The input coordinates (must be sorted)
+ * @param c     (J,): The transport coefficients
+ * @param U     (N, J): The first low rank matrix
+ * @param W     (N, J): The second low rank matrix
+ * @param Y     (N, Nrhs): The right hand side
+ * @param Z_out (N, Nrhs): The solution of this equation
+ * @param F_out (N, J*Nrhs): The workspace
+ */
 template <bool update_workspace = true, typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename RightHandSideOut,
           typename Work>
 void solve_upper(const Eigen::MatrixBase<Input> &t,                // (N,)
@@ -166,6 +206,25 @@ void solve_upper(const Eigen::MatrixBase<Input> &t,                // (N,)
   internal::backward<true, update_workspace>(t, c, U, W, Y, Z, F_out);
 }
 
+/**
+ * \brief Apply a strictly lower matrix multiply
+ *
+ * This computes:
+ *
+ * `Z += tril(U * V^T) * Y`
+ *
+ * where `tril` is the strictly lower triangular function.
+ *
+ * Note that this will *update* the value of `Z`.
+ *
+ * @param t     (N,): The input coordinates (must be sorted)
+ * @param c     (J,): The transport coefficients
+ * @param U     (N, J): The first low rank matrix
+ * @param V     (N, J): The second low rank matrix
+ * @param Y     (N, Nrhs): The matrix to be multiplied
+ * @param Z_out (N, Nrhs): The matrix to be updated
+ * @param F_out (N, J*Nrhs): The workspace
+ */
 template <bool update_workspace = true, typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename RightHandSideOut,
           typename Work>
 void matmul_lower(const Eigen::MatrixBase<Input> &t,                // (N,)
@@ -179,6 +238,25 @@ void matmul_lower(const Eigen::MatrixBase<Input> &t,                // (N,)
   internal::forward<false, update_workspace>(t, c, U, V, Y, Z_out, F_out);
 }
 
+/**
+ * \brief Apply a strictly upper matrix multiply
+ *
+ * This computes:
+ *
+ * `Z += triu(V * U^T) * Y`
+ *
+ * where `triu` is the strictly lower triangular function.
+ *
+ * Note that this will *update* the value of `Z`.
+ *
+ * @param t     (N,): The input coordinates (must be sorted)
+ * @param c     (J,): The transport coefficients
+ * @param U     (N, J): The first low rank matrix
+ * @param V     (N, J): The second low rank matrix
+ * @param Y     (N, Nrhs): The matrix to be multiplied
+ * @param Z_out (N, Nrhs): The matrix to be updated
+ * @param F_out (N, J*Nrhs): The workspace
+ */
 template <bool update_workspace = true, typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename RightHandSideOut,
           typename Work>
 void matmul_upper(const Eigen::MatrixBase<Input> &t,                // (N,)

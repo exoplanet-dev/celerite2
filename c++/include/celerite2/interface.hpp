@@ -47,6 +47,26 @@ Eigen::Index factor(const Eigen::MatrixBase<Input> &t,         // (N,)
   return factor<false>(t, c, a, U, V, d_out, W_out, S);
 }
 
+/**
+ * \brief Compute the solution of a lower triangular linear equation
+ *
+ * This computes `Z` such that:
+ *
+ * `Y = L * Y`
+ *
+ * where
+ *
+ * `L = 1 + tril(U*W^T)`
+ *
+ * This can be safely applied in place.
+ *
+ * @param t     (N,): The input coordinates (must be sorted)
+ * @param c     (J,): The transport coefficients
+ * @param U     (N, J): The first low rank matrix
+ * @param W     (N, J): The second low rank matrix
+ * @param Y     (N, Nrhs): The right hand side
+ * @param Z_out (N, Nrhs): The solution of this equation
+ */
 template <typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename RightHandSideOut>
 void solve_lower(const Eigen::MatrixBase<Input> &t,               // (N,)
                  const Eigen::MatrixBase<Coeffs> &c,              // (J,)
@@ -59,6 +79,26 @@ void solve_lower(const Eigen::MatrixBase<Input> &t,               // (N,)
   solve_lower<false>(t, c, U, W, Y, Z_out, F);
 }
 
+/**
+ * \brief Compute the solution of a upper triangular linear equation
+ *
+ * This computes `Z` such that:
+ *
+ * `Y = L^T * Y`
+ *
+ * where
+ *
+ * `L = 1 + tril(U*W^T)`
+ *
+ * This can be safely applied in place.
+ *
+ * @param t     (N,): The input coordinates (must be sorted)
+ * @param c     (J,): The transport coefficients
+ * @param U     (N, J): The first low rank matrix
+ * @param W     (N, J): The second low rank matrix
+ * @param Y     (N, Nrhs): The right hand side
+ * @param Z_out (N, Nrhs): The solution of this equation
+ */
 template <typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename RightHandSideOut>
 void solve_upper(const Eigen::MatrixBase<Input> &t,               // (N,)
                  const Eigen::MatrixBase<Coeffs> &c,              // (J,)
@@ -71,6 +111,24 @@ void solve_upper(const Eigen::MatrixBase<Input> &t,               // (N,)
   solve_upper<false>(t, c, U, W, Y, Z_out, F);
 }
 
+/**
+ * \brief Apply a strictly lower matrix multiply
+ *
+ * This computes:
+ *
+ * `Z += tril(U * V^T) * Y`
+ *
+ * where `tril` is the strictly lower triangular function.
+ *
+ * Note that this will *update* the value of `Z`.
+ *
+ * @param t     (N,): The input coordinates (must be sorted)
+ * @param c     (J,): The transport coefficients
+ * @param U     (N, J): The first low rank matrix
+ * @param V     (N, J): The second low rank matrix
+ * @param Y     (N, Nrhs): The matrix to be multiplied
+ * @param Z_out (N, Nrhs): The matrix to be updated
+ */
 template <typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename RightHandSideOut>
 void matmul_lower(const Eigen::MatrixBase<Input> &t,               // (N,)
                   const Eigen::MatrixBase<Coeffs> &c,              // (J,)
@@ -83,6 +141,24 @@ void matmul_lower(const Eigen::MatrixBase<Input> &t,               // (N,)
   matmul_lower<false>(t, c, U, V, Y, Z_out, F);
 }
 
+/**
+ * \brief Apply a strictly upper matrix multiply
+ *
+ * This computes:
+ *
+ * `Z += triu(V * U^T) * Y`
+ *
+ * where `triu` is the strictly lower triangular function.
+ *
+ * Note that this will *update* the value of `Z`.
+ *
+ * @param t     (N,): The input coordinates (must be sorted)
+ * @param c     (J,): The transport coefficients
+ * @param U     (N, J): The first low rank matrix
+ * @param V     (N, J): The second low rank matrix
+ * @param Y     (N, Nrhs): The matrix to be multiplied
+ * @param Z_out (N, Nrhs): The matrix to be updated
+ */
 template <typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename RightHandSideOut>
 void matmul_upper(const Eigen::MatrixBase<Input> &t,               // (N,)
                   const Eigen::MatrixBase<Coeffs> &c,              // (J,)
@@ -103,7 +179,7 @@ void matmul_upper(const Eigen::MatrixBase<Input> &t,               // (N,)
  * @param c      (J,): The transport coefficients
  * @param U      (N, J): The first low rank matrix
  * @param V      (M, J): The second low rank matrix
- * @param Y      (M, Nrhs): The matrix that will be left multiplied by the celerite model
+ * @param Y      (M, Nrhs): The matrix that will be multiplied
  * @param Z_out  (N, Nrhs): The result of the operation
  */
 template <typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename RightHandSideOut>
@@ -127,7 +203,7 @@ void general_matmul_lower(const Eigen::MatrixBase<Input> &t1,              // (N
  * @param c      (J,): The transport coefficients
  * @param U      (N, J): The first low rank matrix
  * @param V      (M, J): The second low rank matrix
- * @param Y      (M, Nrhs): The matrix that will be left multiplied by the celerite model
+ * @param Y      (M, Nrhs): The matrix that will be multiplied
  * @param Z_out  (N, Nrhs): The result of the operation
  */
 template <typename Input, typename Coeffs, typename LowRank, typename RightHandSide, typename RightHandSideOut>
