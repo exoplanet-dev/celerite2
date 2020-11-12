@@ -4,8 +4,15 @@ __all__ = [
     "ConstantMean",
     "BaseConditionalDistribution",
     "BaseGaussianProcess",
+    "ConditionalDistribution",
+    "GaussianProcess",
 ]
+import warnings
+
 import numpy as np
+
+from . import driver
+from .driver import LinAlgError
 
 
 class ConstantMean:
@@ -23,6 +30,7 @@ class BaseConditionalDistribution:
         y,
         t=None,
         *,
+        X=None,
         include_mean=True,
         kernel=None,
     ):
@@ -30,32 +38,65 @@ class BaseConditionalDistribution:
         self.y = y
         self.t = t
         self.include_mean = include_mean
-        self.kernel = kernel
-
-        self._c2 = None
-        self._U1 = None
-        self._V1 = None
-        self._U2 = None
-        self._V2 = None
-
-        self._KxsT = None
-        self._Kinv_KxsT = None
 
         if self.t is None:
+            if X is not None:
+                raise ValueError("'X' can only be defined when 't' is")
             self._xs = self.gp._t
+            self._X = self.gp._X
         else:
             self._xs = self.gp._as_tensor(self.t)
             if self._xs.ndim != 1:
                 raise ValueError("'t' must be one-dimensional")
 
+            if X is None:
+                if self.gp._X is not None:
+                    raise TypeError(
+                        "'X' is required if it is defined for the process"
+                    )
+                self._X = None
+            else:
+                self._X = self.gp._as_tensor(X, dtype=None)
+                if self._X.shape[0] != self._xs.shape[0]:
+                    raise ValueError("Dimension mismatch")
+
+        if kernel is None:
+            self.kernel = self.gp.kernel
+            self._U1 = self.gp._U
+            self._V1 = self.gp._V
+        else:
+            self.kernel = kernel
+            _, _, self._U1, self._V1 = self.kernel.get_celerite_matrices(
+                self.gp._t, self.gp._zeros_like(self.gp._t), X=self.gp._X
+            )
+
+        (
+            self._c2,
+            self._a2,
+            self._U2,
+            self._V2,
+        ) = self.kernel.get_celerite_matrices(
+            self._xs, self.gp._zeros_like(self._xs), X=self._X
+        )
+
+        self._KxsT = None
+        self._Kinv_KxsT = None
+
     @property
     def KxsT(self):
         if self._KxsT is None:
-            tau = self.gp._t[:, None] - self._xs[None, :]
-            if self.kernel is None:
-                self._KxsT = self.gp.kernel.get_value(tau)
-            else:
-                self._KxsT = self.kernel.get_value(tau)
+            K = self.gp._zeros((self.gp._t.shape[0], self._xs.shape[0]))
+            self._KxsT = self.gp._do_general_matmul(
+                self.gp._t,
+                self._xs,
+                self._c2,
+                self._U2,
+                self._V2,
+                self._U1,
+                self._V1,
+                self.gp._eye(self._xs.shape[0]),
+                K,
+            )
         return self._KxsT
 
     @property
@@ -64,48 +105,24 @@ class BaseConditionalDistribution:
             self._Kinv_KxsT = self.gp.apply_inverse(self.KxsT, inplace=False)
         return self._Kinv_KxsT
 
-    def _do_general_matmul(self, c, U1, V1, U2, V2, inp, target):
-        raise NotImplementedError("must be implemented by subclasses")
-
-    def _diagdot(self, a, b):
-        raise NotImplementedError("must be implemented by subclasses")
-
     def _do_dot(self, inp, target):
-        if self.kernel is None:
-            kernel = self.gp.kernel
-            U1 = self.gp._U
-            V1 = self.gp._V
-        else:
-            kernel = self.kernel
-            if self._U1 is None or self._V1 is None:
-                _, _, self._U1, self._V1 = kernel.get_celerite_matrices(
-                    self.gp._t,
-                    self.gp._zeros_like(self.gp._t),
-                    U=self._U1,
-                    V=self._V1,
-                )
-            U1 = self._U1
-            V1 = self._V1
-
-        if self._c2 is None or self._U2 is None or self._V2 is None:
-            self._c2, _, self._U2, self._V2 = kernel.get_celerite_matrices(
-                self._xs,
-                self.gp._zeros_like(self._xs),
-                c=self._c2,
-                U=self._U2,
-                V=self._V2,
-            )
-        c = self._c2
-        U2 = self._U2
-        V2 = self._V2
-
         is_vector = False
         if inp.ndim == 1:
             is_vector = True
             inp = inp[:, None]
             target = target[:, None]
 
-        target = self._do_general_matmul(c, U1, V1, U2, V2, inp, target)
+        target = self.gp._do_general_matmul(
+            self._xs,
+            self.gp._t,
+            self._c2,
+            self._U1,
+            self._V1,
+            self._U2,
+            self._V2,
+            inp,
+            target,
+        )
 
         if is_vector:
             return target[:, 0]
@@ -132,19 +149,17 @@ class BaseConditionalDistribution:
 
     @property
     def variance(self):
-        if self.kernel is None:
-            kernel = self.gp.kernel
-        else:
-            kernel = self.kernel
-        return kernel.get_value(0.0) - self._diagdot(self.KxsT, self.Kinv_KxsT)
+        return self._a2 - self.gp._diagdot(self.KxsT, self.Kinv_KxsT)
 
     @property
     def covariance(self):
-        if self.kernel is None:
-            kernel = self.gp.kernel
-        else:
-            kernel = self.kernel
-        neg_cov = -kernel.get_value(self._xs[:, None] - self._xs[None, :])
+        neg_cov = -self.gp._get_dense_matrix(
+            self._xs,
+            self._c2,
+            self._a2,
+            self._U2,
+            self._V2,
+        )
         neg_cov = self._do_dot(self.Kinv_KxsT, neg_cov)
         return -neg_cov
 
@@ -198,6 +213,7 @@ class BaseGaussianProcess:
 
         # Placeholders for storing data
         self._t = None
+        self._X = None
         self._mean_value = None
         self._diag = None
         self._size = None
@@ -237,10 +253,13 @@ class BaseGaussianProcess:
     def _copy_or_check(self, tensor, *, inplace=False):
         return tensor
 
-    def _as_tensor(self, tensor):
+    def _as_tensor(self, tensor, dtype=np.float64):
         raise NotImplementedError("must be implemented by subclasses")
 
     def _zeros_like(self, tensor):
+        raise NotImplementedError("must be implemented by subclasses")
+
+    def _zeros(self, shape):
         raise NotImplementedError("must be implemented by subclasses")
 
     def _do_compute(self, quiet):
@@ -258,8 +277,27 @@ class BaseGaussianProcess:
     def _do_norm(self, y):
         raise NotImplementedError("must be implemented by subclasses")
 
+    def _get_dense_matrix(self, t, c, a, U, V):
+        raise NotImplementedError("must be implemented by subclasses")
+
+    def _do_general_matmul(self, t1, t2, c, U1, V1, U2, V2, inp, target):
+        raise NotImplementedError("must be implemented by subclasses")
+
+    def _diagdot(self, a, b):
+        raise NotImplementedError("must be implemented by subclasses")
+
+    def _eye(self, n):
+        raise NotImplementedError("must be implemented by subclasses")
+
     def compute(
-        self, t, *, yerr=None, diag=None, check_sorted=True, quiet=False
+        self,
+        t,
+        *,
+        yerr=None,
+        diag=None,
+        X=None,
+        check_sorted=True,
+        quiet=False,
     ):
         """Compute the Cholesky factorization of the GP covariance matrix
 
@@ -288,8 +326,14 @@ class BaseGaussianProcess:
         if check_sorted:
             t = self._check_sorted(t)
 
+        if X is not None:
+            X = self._as_tensor(X, dtype=None)
+            if t.shape[0] != X.shape[0]:
+                raise ValueError("Dimension mismatch")
+
         # Save the diagonal
         self._t = t
+        self._X = X
         self._size = self._t.shape[0]
         self._mean_value = self._mean(self._t)
         self._diag = self._zeros_like(self._t)
@@ -310,7 +354,13 @@ class BaseGaussianProcess:
             self._U,
             self._V,
         ) = self.kernel.get_celerite_matrices(
-            self._t, self._diag, c=self._c, a=self._a, U=self._U, V=self._V
+            self._t,
+            self._diag,
+            c=self._c,
+            a=self._a,
+            U=self._U,
+            V=self._V,
+            X=self._X,
         )
 
         self._do_compute(quiet)
@@ -334,7 +384,11 @@ class BaseGaussianProcess:
                 "you must call 'compute' directly  at least once"
             )
         return self.compute(
-            self._t, diag=self._diag, check_sorted=False, quiet=quiet
+            self._t,
+            diag=self._diag,
+            X=self._X,
+            check_sorted=False,
+            quiet=quiet,
         )
 
     def _process_input(self, y, *, require_vector=False, inplace=False):
@@ -431,6 +485,7 @@ class BaseGaussianProcess:
         y,
         t=None,
         *,
+        X=None,
         return_cov=False,
         return_var=False,
         include_mean=True,
@@ -466,17 +521,19 @@ class BaseGaussianProcess:
                 first.
             ValueError: When the inputs are not valid (shape, number, etc.).
         """
-        cond = self.condition(y, t=t, include_mean=include_mean, kernel=kernel)
+        cond = self.condition(
+            y, t=t, X=X, include_mean=include_mean, kernel=kernel
+        )
         if return_var:
             return cond.mean, cond.variance
         if return_cov:
             return cond.mean, cond.covariance
         return cond.mean
 
-    def condition(self, y, t=None, *, include_mean=True, kernel=None):
+    def condition(self, y, t=None, *, X=None, include_mean=True, kernel=None):
         y = self._process_input(y, require_vector=True, inplace=True)
         return self.conditional_distribution(
-            self, y, t=t, include_mean=include_mean, kernel=kernel
+            self, y, t=t, X=X, include_mean=include_mean, kernel=kernel
         )
 
     def sample(self, *, size=None, include_mean=True):
@@ -498,3 +555,121 @@ class BaseGaussianProcess:
             ValueError: When the inputs are not valid (shape, number, etc.).
         """
         raise NotImplementedError("'sample' is not implemented by extensions")
+
+
+class ConditionalDistribution(BaseConditionalDistribution):
+    def sample(self, *, size=None, regularize=None):
+        mu = self.mean
+        cov = self.covariance
+        if regularize is not None:
+            cov[np.diag_indices_from(cov)] += regularize
+        return np.random.multivariate_normal(mu, cov, size=size)
+
+
+class GaussianProcess(BaseGaussianProcess):
+    conditional_distribution = ConditionalDistribution
+
+    def _setup(self):
+        self._c = np.empty(0, dtype=np.float64)
+        self._a = np.empty(0, dtype=np.float64)
+        self._U = np.empty((0, 0), dtype=np.float64)
+        self._V = np.empty((0, 0), dtype=np.float64)
+
+    def _copy_or_check(self, y, *, inplace=False):
+        if inplace:
+            if (
+                y.dtype != "float64"
+                or not y.flags.c_contiguous
+                or not y.flags.writeable
+            ):
+                warnings.warn(
+                    "Inplace operations can only be made on C-contiguous, "
+                    "writable, float64 arrays; a copy will be made"
+                )
+            y = np.ascontiguousarray(y, dtype=np.float64)
+        else:
+            y = np.array(y, dtype=np.float64, copy=True, order="C")
+        return y
+
+    def _as_tensor(self, y, dtype=np.float64):
+        return np.ascontiguousarray(y, dtype=dtype)
+
+    def _zeros_like(self, y):
+        return np.zeros_like(y)
+
+    def _zeros(self, shape):
+        return np.zeros(shape)
+
+    def _eye(self, n):
+        return np.eye(n)
+
+    def _get_dense_matrix(self, t, c, a, U, V):
+        Y = np.eye(len(t))
+        Z = np.diag(a)
+        Z = driver.matmul_lower(t, c, U, V, Y, Z)
+        return driver.matmul_upper(t, c, U, V, Y, Z)
+
+    def _do_general_matmul(self, t1, t2, c, U1, V1, U2, V2, inp, target):
+        target = driver.general_matmul_lower(t1, t2, c, U2, V1, inp, target)
+        target = driver.general_matmul_upper(t1, t2, c, V2, U1, inp, target)
+        return target
+
+    def _diagdot(self, a, b):
+        return np.einsum("ij,ij->j", a, b)
+
+    def _do_compute(self, quiet):
+        # Compute the Cholesky factorization
+        try:
+            self._d, self._W = driver.factor(
+                self._t,
+                self._c,
+                self._a,
+                self._U,
+                self._V,
+                self._a,
+                np.copy(self._V),
+            )
+        except LinAlgError:
+            if not quiet:
+                raise
+            self._log_det = -np.inf
+            self._norm = np.inf
+        else:
+            self._log_det = np.sum(np.log(self._d))
+            self._norm = -0.5 * (
+                self._log_det + self._size * np.log(2 * np.pi)
+            )
+
+    def _check_sorted(self, t):
+        if np.any(np.diff(t) < 0.0):
+            raise ValueError("The input coordinates must be sorted")
+        return t
+
+    def _do_solve(self, y):
+        z = driver.solve_lower(self._t, self._c, self._U, self._W, y, y)
+        z /= self._d[:, None]
+        z = driver.solve_upper(self._t, self._c, self._U, self._W, z, z)
+        return z
+
+    def _do_dot_tril(self, y):
+        z = y * np.sqrt(self._d)[:, None]
+        return driver.matmul_lower(self._t, self._c, self._U, self._W, z, z)
+
+    def _do_norm(self, y):
+        alpha = y[:, None]
+        alpha = driver.solve_lower(
+            self._t, self._c, self._U, self._W, alpha, alpha
+        )[:, 0]
+        return np.sum(alpha ** 2 / self._d)
+
+    def sample(self, *, size=None, include_mean=True):
+        if self._t is None:
+            raise RuntimeError("you must call 'compute' first")
+        if size is None:
+            n = np.random.randn(self._size)
+        else:
+            n = np.random.randn(self._size, size)
+        result = self.dot_tril(n, inplace=True).T
+        if include_mean:
+            result += self._mean_value
+        return result

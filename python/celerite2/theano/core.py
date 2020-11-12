@@ -70,6 +70,27 @@ class GaussianProcess(BaseGaussianProcess):
     def _zeros_like(self, tensor):
         return tt.zeros_like(tensor)
 
+    def _zeros(self, shape):
+        return tt.zeros(shape)
+
+    def _eye(self, n):
+        return tt.eye(n)
+
+    def _get_dense_matrix(self, t, c, a, U, V):
+        Y = tt.eye(t.shape[0])
+        Z = tt.diag(a)
+        Z += ops.matmul_lower(t, c, U, V, Y)[0]
+        Z += ops.matmul_upper(t, c, U, V, Y)[0]
+        return Z
+
+    def _do_general_matmul(self, t1, t2, c, U1, V1, U2, V2, inp, target):
+        target += ops.general_matmul_lower(t1, t2, c, U2, V1, inp)[0]
+        target += ops.general_matmul_upper(t1, t2, c, V2, U1, inp)[0]
+        return target
+
+    def _diagdot(self, a, b):
+        return tt.batched_dot(a.T, b.T)
+
     def _do_compute(self, quiet):
         if quiet:
             self._d, self._W, _ = ops.factor_quiet(

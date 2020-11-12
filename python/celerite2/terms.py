@@ -3,6 +3,7 @@
 __all__ = [
     "Term",
     "TermSum",
+    "TermSumGeneral",
     "TermProduct",
     "TermDiff",
     "TermConvolution",
@@ -30,8 +31,16 @@ class Term:
 
     """
 
+    __requires_general_addition__ = False
+
     def __add__(self, b):
-        return TermSum(self, b)
+        terms = tuple(self.terms) + (b,)
+        if (
+            self.__requires_general_addition__
+            or b.__requires_general_addition__
+        ):
+            return TermSumGeneral(*terms)
+        return TermSum(*terms)
 
     def __mul__(self, b):
         return TermProduct(self, b)
@@ -114,43 +123,7 @@ class Term:
         K[np.diag_indices_from(K)] += diag
         return K
 
-    def get_celerite_matrices(
-        self, x, diag, *, c=None, a=None, U=None, V=None
-    ):
-        """Get the matrices needed to solve the celerite system
-
-        Pre-allocated arrays can be provided to the Python interface to be
-        re-used for multiple evaluations.
-
-        .. note:: In-place operations are not supported by the modeling
-            extensions.
-
-        Args:
-            x (shape[N]): The independent coordinates of the data.
-            diag (shape[N]): The diagonal variance of the system.
-            a (shape[N], optional): The diagonal of the A matrix.
-            U (shape[N, J], optional): The first low-rank matrix.
-            V (shape[N, J], optional): The second low-rank matrix.
-            P (shape[N-1, J], optional): The regularization matrix used for
-                numerical stability.
-
-        Raises:
-            ValueError: When the inputs are not valid.
-        """
-        x = np.atleast_1d(x)
-        diag = np.atleast_1d(diag)
-        if len(x.shape) != 1:
-            raise ValueError("'x' must be one-dimensional")
-        if x.shape != diag.shape:
-            raise ValueError("dimension mismatch")
-
-        ar, cr, ac, bc, cc, dc = self.get_coefficients()
-
-        N = len(x)
-        Jr = len(ar)
-        Jc = len(ac)
-        J = Jr + 2 * Jc
-
+    def _resize_matrices(self, N, J, c, a, U, V):
         if c is None:
             c = np.empty(J)
         else:
@@ -167,27 +140,66 @@ class Term:
             V = np.empty((N, J))
         else:
             V.resize((N, J), refcheck=False)
+        return c, a, U, V
+
+    def get_celerite_matrices(
+        self, t, diag, *, c=None, a=None, U=None, V=None, X=None
+    ):
+        """Get the matrices needed to solve the celerite system
+
+        Pre-allocated arrays can be provided to the Python interface to be
+        re-used for multiple evaluations.
+
+        .. note:: In-place operations are not supported by the modeling
+            extensions.
+
+        Args:
+            t (shape[N]): The independent coordinates of the data.
+            diag (shape[N]): The diagonal variance of the system.
+            a (shape[N], optional): The diagonal of the A matrix.
+            U (shape[N, J], optional): The first low-rank matrix.
+            V (shape[N, J], optional): The second low-rank matrix.
+            P (shape[N-1, J], optional): The regularization matrix used for
+                numerical stability.
+
+        Raises:
+            ValueError: When the inputs are not valid.
+        """
+        t = np.atleast_1d(t)
+        diag = np.atleast_1d(diag)
+        if len(t.shape) != 1:
+            raise ValueError("'x' must be one-dimensional")
+        if t.shape != diag.shape:
+            raise ValueError("dimension mismatch")
+
+        ar, cr, ac, bc, cc, dc = self.get_coefficients()
+
+        N = len(t)
+        Jr = len(ar)
+        Jc = len(ac)
+        J = Jr + 2 * Jc
+        c, a, U, V = self._resize_matrices(N, J, c, a, U, V)
 
         c[:Jr] = cr
         c[Jr::2] = cc
         c[Jr + 1 :: 2] = cc
         a, U, V = driver.get_celerite_matrices(
-            ar, ac, bc, dc, x, diag, a, U, V
+            ar, ac, bc, dc, t, diag, a, U, V
         )
         return c, a, U, V
 
-    def dot(self, x, diag, y):
+    def dot(self, t, diag, y, *, X=None):
         """Apply a matrix-vector or matrix-matrix product
 
         Args:
-            x (shape[N]): The independent coordinates of the data.
+            t (shape[N]): The independent coordinates of the data.
             diag (shape[N]): The diagonal variance of the system.
             y (shape[N] or shape[N, K]): The target of vector or matrix for
                 this operation.
         """
-        x = np.atleast_1d(x)
+        t = np.atleast_1d(t)
         y = np.atleast_1d(y)
-        if y.shape[0] != x.shape[0]:
+        if y.shape[0] != t.shape[0]:
             raise ValueError("Dimension mismatch")
 
         is_vector = False
@@ -197,10 +209,10 @@ class Term:
         if y.ndim != 2:
             raise ValueError("'y' can only be a vector or matrix")
 
-        c, a, U, V = self.get_celerite_matrices(x, diag)
+        c, a, U, V = self.get_celerite_matrices(t, diag, X=X)
         z = y * a[:, None]
-        z = driver.matmul_lower(x, c, U, V, y, z)
-        z = driver.matmul_upper(x, c, U, V, y, z)
+        z = driver.matmul_lower(t, c, U, V, y, z)
+        z = driver.matmul_upper(t, c, U, V, y, z)
 
         if is_vector:
             return z[:, 0]
@@ -219,10 +231,10 @@ class TermSum(Term):
     """
 
     def __init__(self, *terms):
-        if any(isinstance(term, TermConvolution) for term in terms):
+        if any(term.__requires_general_addition__ for term in terms):
             raise TypeError(
-                "You cannot perform operations on an TermConvolution, it must "
-                "be the outer term in the kernel"
+                "You cannot perform operations on a term that requires general"
+                " addition, it must be the outer term in the kernel"
             )
         self._terms = terms
 
@@ -233,6 +245,71 @@ class TermSum(Term):
     def get_coefficients(self):
         coeffs = (t.get_coefficients() for t in self.terms)
         return tuple(np.concatenate(c) for c in zip(*coeffs))
+
+
+class TermSumGeneral(Term):
+    """A general sum of multiple :class:`Term` objects
+
+    This will be used if any of the terms require "general addition",
+    or if they don't provide a ``get_coefficients`` method.
+
+    Args:
+        *terms: Any number of :class:`Term` subclasses to add together.
+    """
+
+    __requires_general_addition__ = True
+
+    def __init__(self, *terms):
+        basic = [
+            term for term in terms if not term.__requires_general_addition__
+        ]
+        self._terms = [
+            term for term in terms if term.__requires_general_addition__
+        ]
+        if len(basic):
+            self._terms.insert(0, TermSum(*basic))
+        if not len(self._terms):
+            raise ValueError(
+                "A general term sum cannot be instantiated without any terms"
+            )
+
+    @property
+    def terms(self):
+        return self._terms
+
+    def get_value(self, tau):
+        K = self.terms[0].get_value(tau)
+        for term in self.terms[1:]:
+            K += term.get_value(tau)
+        return K
+
+    def get_psd(self, omega):
+        p = self.terms[0].get_psd(omega)
+        for term in self.terms[1:]:
+            p += term.get_psd(omega)
+        return p
+
+    def get_celerite_matrices(
+        self, t, diag, *, c=None, a=None, U=None, V=None, X=None
+    ):
+        diag = np.atleast_1d(diag)
+        matrices = [
+            term.get_celerite_matrices(t, np.zeros_like(diag), X=X)
+            for term in self.terms
+        ]
+        N = matrices[0][1].shape[0]
+        J = sum(m[0].shape[0] for m in matrices)
+        c, a, U, V = self._resize_matrices(N, J, c, a, U, V)
+        a[:] = diag
+        j = 0
+        for c0, a0, U0, V0 in matrices:
+            dj = len(c0)
+            c[j : j + dj] = c0
+            a[:] += a0
+            U[:, j : j + dj] = U0
+            V[:, j : j + dj] = V0
+            j += dj
+        return c, a, U, V
 
 
 class TermProduct(Term):
@@ -248,12 +325,13 @@ class TermProduct(Term):
     """
 
     def __init__(self, term1, term2):
-        int1 = isinstance(term1, TermConvolution)
-        int2 = isinstance(term2, TermConvolution)
-        if int1 or int2:
+        if (
+            term1.__requires_general_addition__
+            or term2.__requires_general_addition__
+        ):
             raise TypeError(
-                "You cannot perform operations on an TermConvolution, it must "
-                "be the outer term in the kernel"
+                "You cannot perform operations on a term that requires general"
+                " addition, it must be the outer term in the kernel"
             )
         self.term1 = term1
         self.term2 = term2
@@ -309,10 +387,10 @@ class TermDiff(Term):
     """
 
     def __init__(self, term):
-        if isinstance(term, TermConvolution):
+        if term.__requires_general_addition__:
             raise TypeError(
-                "You cannot perform operations on an TermConvolution, it must "
-                "be the outer term in the kernel"
+                "You cannot perform operations on a term that requires general"
+                " addition, it must be the outer term in the kernel"
             )
         self.term = term
 
@@ -343,12 +421,27 @@ class TermConvolution(Term):
             exposure time).
     """
 
+    __requires_general_addition__ = True
+
     def __init__(self, term, delta):
+        if term.__requires_general_addition__:
+            raise TypeError(
+                "You cannot perform operations on a term that requires general"
+                " addition, it must be the outer term in the kernel"
+            )
         self.term = term
         self.delta = float(delta)
 
     def get_celerite_matrices(
-        self, x, diag, *, c=None, a=None, U=None, V=None
+        self,
+        t,
+        diag,
+        *,
+        c=None,
+        a=None,
+        U=None,
+        V=None,
+        X=None,
     ):
         dt = self.delta
         ar, cr, a, b, cc, d = self.term.get_coefficients()
@@ -379,7 +472,9 @@ class TermConvolution(Term):
 
         new_diag = diag + delta_diag
 
-        return super().get_celerite_matrices(x, new_diag, c=c, a=a, U=U, V=V)
+        return super().get_celerite_matrices(
+            t, new_diag, c=c, a=a, U=U, V=V, X=X
+        )
 
     def get_coefficients(self):
         ar, cr, a, b, c, d = self.term.get_coefficients()

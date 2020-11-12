@@ -3,7 +3,7 @@
 __all__ = ["__version__", "terms", "GaussianProcess"]
 from . import terms
 from .celerite2_version import __version__
-from .numpy import GaussianProcess
+from .core import GaussianProcess
 
 __uri__ = "https://celerite2.readthedocs.io"
 __author__ = "Daniel Foreman-Mackey"
