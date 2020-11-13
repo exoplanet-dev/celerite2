@@ -6,7 +6,7 @@ import celerite2
 from celerite2 import terms as pyterms
 from celerite2.testing import check_gp_models
 from celerite2.theano import GaussianProcess, terms
-from celerite2.theano.celerite2 import CITATIONS
+from celerite2.theano.core import CITATIONS
 
 term_mark = pytest.mark.parametrize(
     "name,args",

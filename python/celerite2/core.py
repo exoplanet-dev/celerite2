@@ -308,6 +308,8 @@ class BaseGaussianProcess:
                 deviation of the observation model.
             diag (shape[N], optional): If provided, the diagonal variance of
                 the observation model.
+            X (shape[N], optional): If provided, coordinates of the data points
+                in the latent space.
             check_sorted (bool, optional): If ``True``, a check is performed to
                 make sure that ``t`` is correctly sorted. A ``ValueError`` will
                 be thrown when this check fails.

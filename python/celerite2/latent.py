@@ -14,6 +14,11 @@ class LatentTerm(Term):
         self.left = left
         self.right = right
 
+    def get_psd(self, omega):
+        raise NotImplementedError(
+            "The PSD is not implemented for latent models"
+        )
+
     def _get_latent(self, left_or_right, t, X):
         if left_or_right is None:
             return np.ones((1, 1, 1))

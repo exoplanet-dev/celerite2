@@ -64,28 +64,41 @@ class Term:
         """
         raise NotImplementedError("subclasses must implement this method")
 
-    def get_value(self, tau):
+    def get_value(self, t, t2=None, *, diag=None, X=None, X2=None):
         """Compute the value of the kernel as a function of lag
 
+        If ``t2`` is provided, the result will be rectangular.
+
         Args:
-            tau (shape[...]): The lags where the kernel should be evaluated.
+            t (shape[N]): The independent coordinates of the lefthand data.
+            t2 (shape[M], optional): The independent coordinates righthand
+                data.
+            diag (shape[N], optional): The diagonal variance of the system.
+            X (shape[N], optional): The latent coordinates of the lefthand
+                data.
+            X2 (shape[N], optional): The latent coordinates of the righthand
+                data.
         """
-        tau = np.abs(np.atleast_1d(tau))
-        ar, cr, ac, bc, cc, dc = self.get_coefficients()
-        k = np.zeros_like(tau)
-        tau = tau[..., None]
+        t = np.atleast_1d(t)
+        if diag is None:
+            diag = np.zeros_like(t)
+        c1, a1, U1, V1 = self.get_celerite_matrices(t, diag, X=X)
+        if t2 is None:
+            Y = np.eye(t.shape[0])
+            K = driver.matmul_lower(t, c1, U1, V1, Y, np.diag(a1))
+            K = driver.matmul_upper(t, c1, U1, V1, Y, K)
+            return K
 
-        if len(ar):
-            k += np.sum(ar * np.exp(-cr * tau), axis=-1)
-
-        if len(ac):
-            arg = dc * tau
-            k += np.sum(
-                np.exp(-cc * tau) * (ac * np.cos(arg) + bc * np.sin(arg)),
-                axis=-1,
-            )
-
-        return k
+        t2 = np.atleast_1d(t2)
+        c2, a2, U2, V2 = self.get_celerite_matrices(
+            t2, np.zeros_like(t2), X=X2
+        )
+        Y = np.eye(t2.shape[0])
+        K = driver.general_matmul_lower(
+            t, t2, c1, U1, V2, Y, np.zeros((t.shape[0], t2.shape[0]))
+        )
+        K = driver.general_matmul_upper(t, t2, c1, V1, U2, Y, K)
+        return K
 
     def get_psd(self, omega):
         """Compute the value of the power spectral density for this process
@@ -111,17 +124,6 @@ class Term:
             )
 
         return np.sqrt(2 / np.pi) * psd
-
-    def to_dense(self, x, diag):
-        """Evaluate the dense covariance matrix for this term
-
-        Args:
-            x (shape[N]): The independent coordinates of the data.
-            diag (shape[N]): The diagonal variance of the system.
-        """
-        K = self.get_value(x[:, None] - x[None, :])
-        K[np.diag_indices_from(K)] += diag
-        return K
 
     def _resize_matrices(self, N, J, c, a, U, V):
         if c is None:
@@ -156,11 +158,11 @@ class Term:
         Args:
             t (shape[N]): The independent coordinates of the data.
             diag (shape[N]): The diagonal variance of the system.
+            c (shape[J], optional): The transport coefficients.
             a (shape[N], optional): The diagonal of the A matrix.
             U (shape[N, J], optional): The first low-rank matrix.
             V (shape[N, J], optional): The second low-rank matrix.
-            P (shape[N-1, J], optional): The regularization matrix used for
-                numerical stability.
+            X (shape[N], optional): The latent coordinates of the data.
 
         Raises:
             ValueError: When the inputs are not valid.
@@ -196,6 +198,7 @@ class Term:
             diag (shape[N]): The diagonal variance of the system.
             y (shape[N] or shape[N, K]): The target of vector or matrix for
                 this operation.
+            X (shape[N], optional): The latent coordinates of the data.
         """
         t = np.atleast_1d(t)
         y = np.atleast_1d(y)
@@ -277,10 +280,10 @@ class TermSumGeneral(Term):
     def terms(self):
         return self._terms
 
-    def get_value(self, tau):
-        K = self.terms[0].get_value(tau)
+    def get_value(self, *args, **kwargs):
+        K = self.terms[0].get_value(*args, **kwargs)
         for term in self.terms[1:]:
-            K += term.get_value(tau)
+            K += term.get_value(*args, **kwargs)
         return K
 
     def get_psd(self, omega):
@@ -512,69 +515,6 @@ class TermConvolution(Term):
         m = np.abs(arg) > 0.0
         sinc[m] = np.sin(arg[m]) / arg[m]
         return psd0 * sinc ** 2
-
-    def get_value(self, tau0):
-        dt = self.delta
-        ar, cr, a, b, c, d = self.term.get_coefficients()
-
-        # Format the lags correctly
-        tau0 = np.abs(np.atleast_1d(tau0))
-        tau = tau0[..., None]
-
-        # Precompute some factors
-        dpt = dt + tau
-        dmt = dt - tau
-
-        # Real parts:
-        # tau > Delta
-        crd = cr * dt
-        cosh = np.cosh(crd)
-        norm = 2 * ar / crd ** 2
-        K_large = np.sum(norm * (cosh - 1) * np.exp(-cr * tau), axis=-1)
-
-        # tau < Delta
-        crdmt = cr * dmt
-        K_small = K_large + np.sum(norm * (crdmt - np.sinh(crdmt)), axis=-1)
-
-        # Complex part
-        cd = c * dt
-        dd = d * dt
-        c2 = c ** 2
-        d2 = d ** 2
-        c2pd2 = c2 + d2
-        C1 = a * (c2 - d2) + 2 * b * c * d
-        C2 = b * (c2 - d2) - 2 * a * c * d
-        norm = 1.0 / (dt * c2pd2) ** 2
-        k0 = np.exp(-c * tau)
-        cdt = np.cos(d * tau)
-        sdt = np.sin(d * tau)
-
-        # For tau > Delta
-        cos_term = 2 * (np.cosh(cd) * np.cos(dd) - 1)
-        sin_term = 2 * (np.sinh(cd) * np.sin(dd))
-        factor = k0 * norm
-        K_large += np.sum(
-            (C1 * cos_term - C2 * sin_term) * factor * cdt, axis=-1
-        )
-        K_large += np.sum(
-            (C2 * cos_term + C1 * sin_term) * factor * sdt, axis=-1
-        )
-
-        # tau < Delta
-        edmt = np.exp(-c * dmt)
-        edpt = np.exp(-c * dpt)
-        cos_term = (
-            edmt * np.cos(d * dmt) + edpt * np.cos(d * dpt) - 2 * k0 * cdt
-        )
-        sin_term = (
-            edmt * np.sin(d * dmt) + edpt * np.sin(d * dpt) - 2 * k0 * sdt
-        )
-        K_small += np.sum(2 * (a * c + b * d) * c2pd2 * dmt * norm, axis=-1)
-        K_small += np.sum((C1 * cos_term + C2 * sin_term) * norm, axis=-1)
-
-        mask = tau0 >= dt
-        K_small[mask] = K_large[mask]
-        return K_small
 
 
 class RealTerm(Term):

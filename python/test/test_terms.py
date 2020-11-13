@@ -94,10 +94,9 @@ def test_consistency(oterm):
     np.random.seed(40582)
     x = np.sort(np.random.uniform(0, 10, 50))
     diag = np.random.uniform(0.1, 0.3, len(x))
-    assert np.allclose(oterm.get_value(x), term.get_value(x))
 
     tau = x[:, None] - x[None, :]
-    K = term.get_value(tau)
+    K = term.get_value(x, x)
     assert np.allclose(oterm.get_value(tau), K)
 
     # And the power spectrum
