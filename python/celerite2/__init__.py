@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-__all__ = ["__version__", "terms", "GaussianProcess"]
-from . import terms
+__all__ = ["__version__", "terms", "latent", "GaussianProcess"]
+from . import latent, terms
 from .celerite2_version import __version__
 from .core import GaussianProcess
 

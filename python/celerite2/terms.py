@@ -182,12 +182,24 @@ class Term:
         J = Jr + 2 * Jc
         c, a, U, V = self._resize_matrices(N, J, c, a, U, V)
 
+        arg = dc[None, :] * t[:, None]
+        cos = np.cos(arg)
+        sin = np.sin(arg)
+
         c[:Jr] = cr
-        c[Jr::2] = cc
-        c[Jr + 1 :: 2] = cc
-        a, U, V = driver.get_celerite_matrices(
-            ar, ac, bc, dc, t, diag, a, U, V
-        )
+        c[Jr : Jr + Jc] = cc
+        c[Jr + Jc :] = cc
+
+        a[:] = diag + np.sum(ar) + np.sum(ac)
+
+        U[:, :Jr] = ar[None, :]
+        U[:, Jr : Jr + Jc] = ac[None, :] * cos + bc[None, :] * sin
+        U[:, Jr + Jc :] = ac[None, :] * sin - bc[None, :] * cos
+
+        V[:, :Jr] = 1.0
+        V[:, Jr : Jr + Jc] = cos
+        V[:, Jr + Jc :] = sin
+
         return c, a, U, V
 
     def dot(self, t, diag, y, *, X=None):
