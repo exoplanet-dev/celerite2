@@ -140,7 +140,7 @@ class _DerivativeHelperTerm(terms.Term):
         final_coeffs = [
             -coeffs[0] * coeffs[1],
             coeffs[1],
-            b * d - c * a,
+            b * d - a * c,
             -(a * d + b * c),
             c,
             d,
@@ -159,19 +159,29 @@ class DerivativeLatentTerm(LatentTerm):
         ar, cr, ac, bc, cc, dc = term.get_coefficients()
 
         Jr = len(cr)
-        Jc = 2 * len(cc)
-        J = Jr + Jc
+        Jc = len(cc)
+        J = Jr + 2 * Jc
 
         self.left = np.zeros((2, 4 * J, 1))
         self.right = np.zeros((2, 4 * J, 1))
 
-        self.left[0, :Jr] = 1.0
-        self.left[0, 2 * Jr : 3 * Jr] = -1.0
-        self.left[1, Jr : 2 * Jr] = 1.0
-        self.left[1, 3 * Jr : 4 * Jr] = 1.0
+        if Jr:
+            self.left[0, :Jr] = 1.0
+            self.left[0, 2 * Jr : 3 * Jr] = -1.0
+            self.left[1, Jr : 2 * Jr] = 1.0
+            self.left[1, 3 * Jr : 4 * Jr] = 1.0
+            self.right[0, : 2 * Jr] = 1.0
+            self.right[1, 2 * Jr : 4 * Jr] = 1.0
 
-        self.right[0, : 2 * Jr] = 1.0
-        self.right[1, 2 * Jr : 4 * Jr] = 1.0
+        if Jc:
+            J0 = 4 * Jr
+            for J0 in [4 * Jr, 4 * Jr + 4 * Jc]:
+                self.left[0, J0 : J0 + Jc] = 1.0
+                self.left[0, J0 + 2 * Jc : J0 + 3 * Jc] = -1.0
+                self.left[1, J0 + Jc : J0 + 2 * Jc] = 1.0
+                self.left[1, J0 + 3 * Jc : J0 + 4 * Jc] = 1.0
+                self.right[0, J0 : J0 + 2 * Jc] = 1.0
+                self.right[1, J0 + 2 * Jc : J0 + 4 * Jc] = 1.0
 
         dterm = _DerivativeHelperTerm(term)
         d2term = terms.TermDiff(term)
