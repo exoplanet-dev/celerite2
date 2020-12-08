@@ -107,16 +107,16 @@ class LatentTerm(terms.Term):
 
 
 class KroneckerLatentTerm(LatentTerm):
-    def __init__(self, term, *, R=None, L=None):
-        self.R = None
+    def __init__(self, term, *, K=None, L=None):
+        self.K = None
         self.L = None
-        if R is not None:
+        if K is not None:
             if L is not None:
-                raise ValueError("Only one of 'R' and 'L' can be defined")
-            self.R = np.ascontiguousarray(np.atleast_2d(R), dtype=np.float64)
+                raise ValueError("Only one of 'K' and 'L' can be defined")
+            self.K = np.ascontiguousarray(np.atleast_2d(K), dtype=np.float64)
             super().__init__(
                 term,
-                dimension=self.R.shape[0],
+                dimension=self.K.shape[0],
                 left_latent=self._left_latent,
                 right_latent=self._right_latent,
             )
@@ -132,14 +132,14 @@ class KroneckerLatentTerm(LatentTerm):
             )
 
         else:
-            raise ValueError("One of 'R' and 'L' must be defined")
+            raise ValueError("One of 'K' and 'L' must be defined")
 
     def _left_latent(self, t, inds):
-        return self.R[inds][:, None, :]
+        return self.K[inds][:, None, :]
 
     def _right_latent(self, t, inds):
         N = len(t)
-        latent = np.zeros((N, 1, self.R.shape[0]))
+        latent = np.zeros((N, 1, self.K.shape[0]))
         latent[(np.arange(N), 0, inds)] = 1.0
         return latent
 

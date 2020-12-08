@@ -27,7 +27,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install -U pip
-          python -m pip install --use-feature=2020-resolver ".[tutorials]"
+          python -m pip install --use-feature=2020-resolver jupytext ipykernel theano jupyter
+          python -m ipykernel install --name python
+          # python -m pip install --use-feature=2020-resolver ".[tutorials]"
 
       - name: Get theano compiledir
         id: compiledir

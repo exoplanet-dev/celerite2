@@ -27,7 +27,7 @@ def test_value(data):
 
     term = terms.SHOTerm(sigma=1.5, rho=1.3, Q=0.3)
     term += terms.SHOTerm(sigma=0.23456, rho=3.4, Q=2.3)
-    kernel = latent.KroneckerLatentTerm(term, R=R)
+    kernel = latent.KroneckerLatentTerm(term, K=R)
 
     ar, cr, ac, bc, cc, dc = term.get_coefficients()
     c0, a0, U0, V0 = term.get_celerite_matrices(t0, np.zeros_like(t0))
@@ -49,63 +49,28 @@ def test_value(data):
     assert np.allclose(K, np.kron(K0, R))
 
 
-# def test_low_rank_value(data):
-#     N, M, x, diag, y, t = data
+def test_low_rank_value(data):
+    N, M, t0, t, X, y = data
 
-#     alpha = np.random.randn(M)
-#     term0 = terms.SHOTerm(sigma=1.5, rho=1.3, Q=0.3)
-#     term = kron.KronTerm(term0, L=alpha)
+    alpha = np.random.randn(M)
+    R = np.outer(alpha, alpha)
+    term = terms.SHOTerm(sigma=1.5, rho=1.3, Q=0.3)
+    term += terms.SHOTerm(sigma=0.23456, rho=3.4, Q=2.3)
+    kernel = latent.KroneckerLatentTerm(term, L=alpha)
 
-#     a, U, V, P = term.get_celerite_matrices(x, diag)
-#     assert a.shape == (N * M,)
-#     assert U.shape == (N * M, 2)
-#     assert V.shape == (N * M, 2)
-#     assert P.shape == (N * M - 1, 2)
+    ar, cr, ac, bc, cc, dc = term.get_coefficients()
+    c0, a0, U0, V0 = term.get_celerite_matrices(t0, np.zeros_like(t0))
+    c, a, U, V = kernel.get_celerite_matrices(t, np.zeros_like(t), X=X)
 
-#     check_value(term, x, diag, y, t)
+    assert c.shape == (len(c0),)
+    assert a.shape == (N * M,)
+    assert U.shape == (N * M, len(c0))
+    assert V.shape == (N * M, len(c0))
 
-#     full_term = kron.KronTerm(term0, R=np.outer(alpha, alpha))
-#     assert np.allclose(full_term.dot(x, diag, y), term.dot(x, diag, y))
+    assert np.allclose(c, c0)
+    assert np.allclose(a, (a0[:, None] * np.diag(R)[None, :]).flatten())
 
+    K = kernel.get_value(t, X=X)
+    K0 = term.get_value(t0)
 
-# def test_sum_value(data):
-#     N, M, x, diag, y, t = data
-
-#     alpha = np.random.randn(M)
-#     R = np.random.randn(M, M)
-#     R[np.diag_indices_from(R)] = np.exp(R[np.diag_indices_from(R)])
-#     R[np.triu_indices_from(R, 1)] = 0.0
-#     R = np.dot(R, R.T)
-
-#     term0 = terms.SHOTerm(sigma=1.5, rho=1.3, Q=0.3)
-#     term = kron.KronTerm(term0, R=R) + kron.KronTerm(term0, L=alpha)
-
-#     a, U, V, P = term.get_celerite_matrices(x, diag)
-#     assert a.shape == (N * M,)
-#     assert U.shape == (N * M, 2 * M + 2)
-#     assert V.shape == (N * M, 2 * M + 2)
-#     assert P.shape == (N * M - 1, 2 * M + 2)
-
-#     check_value(term, x, diag, y, t)
-
-
-# def test_missing_values(data):
-#     N, M, x, diag, y, t = data
-#     mask = np.random.rand(N, M) > 0.1
-#     assert np.all(mask.sum(axis=1) > 0)
-
-#     R = np.random.randn(M, M)
-#     R[np.diag_indices_from(R)] = np.exp(R[np.diag_indices_from(R)])
-#     R[np.triu_indices_from(R, 1)] = 0.0
-#     R = np.dot(R, R.T)
-
-#     term0 = terms.SHOTerm(sigma=1.5, rho=1.3, Q=0.3)
-#     term = kron.KronTerm(term0, R=R)
-
-#     a, U, V, P = term.get_celerite_matrices(x, diag, mask=mask)
-#     assert a.shape == (mask.sum(),)
-#     assert U.shape == (mask.sum(), 2 * M)
-#     assert V.shape == (mask.sum(), 2 * M)
-#     assert P.shape == (mask.sum() - 1, 2 * M)
-
-#     check_value(term, x, diag, y, t, mask=mask)
+    assert np.allclose(K, np.kron(K0, R))
