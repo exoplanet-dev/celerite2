@@ -29,8 +29,7 @@ jobs:
         shell: bash -l {0}
         run: |
           python -m pip install -U pip
-          python -m pip install jupytext ipykernel theano jupyter
-          # python -m pip install --use-feature=2020-resolver ".[tutorials]"
+          python -m pip install ".[tutorials]"
 
       - name: Get theano compiledir
         shell: bash -l {0}
