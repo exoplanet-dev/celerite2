@@ -55,7 +55,7 @@ EXTRA_REQUIRE = {
     "tutorials": [
         "jupytext",
         "jupyter",
-        # "nbconvert",
+        "nbconvert",
         "matplotlib",
         "scipy",
         "emcee",
