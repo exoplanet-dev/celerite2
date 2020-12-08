@@ -62,6 +62,7 @@ EXTRA_REQUIRE = {
         "pymc3",
         "tqdm",
         "numpyro",
+        "ipykernel",
     ],
 }
 EXTRA_REQUIRE["dev"] = (
