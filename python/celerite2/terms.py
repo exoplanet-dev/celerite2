@@ -495,6 +495,78 @@ class TermConvolution(Term):
             t, new_diag, c=c, a=a, U=U, V=V, X=X
         )
 
+    def get_value(self, t, t2=None, *, diag=None, X=None, X2=None):
+        t = np.atleast_1d(t)
+        if t2 is None:
+            tau0 = t[:, None] - t[None, :]
+        else:
+            tau0 = t[:, None] - np.atleast_1d(t2)[None, :]
+
+        dt = self.delta
+        ar, cr, a, b, c, d = self.term.get_coefficients()
+
+        # Format the lags correctly
+        tau0 = np.abs(np.atleast_1d(tau0))
+        tau = tau0[..., None]
+
+        # Precompute some factors
+        dpt = dt + tau
+        dmt = dt - tau
+
+        # Real parts:
+        # tau > Delta
+        crd = cr * dt
+        cosh = np.cosh(crd)
+        norm = 2 * ar / crd ** 2
+        K_large = np.sum(norm * (cosh - 1) * np.exp(-cr * tau), axis=-1)
+
+        # tau < Delta
+        crdmt = cr * dmt
+        K_small = K_large + np.sum(norm * (crdmt - np.sinh(crdmt)), axis=-1)
+
+        # Complex part
+        cd = c * dt
+        dd = d * dt
+        c2 = c ** 2
+        d2 = d ** 2
+        c2pd2 = c2 + d2
+        C1 = a * (c2 - d2) + 2 * b * c * d
+        C2 = b * (c2 - d2) - 2 * a * c * d
+        norm = 1.0 / (dt * c2pd2) ** 2
+        k0 = np.exp(-c * tau)
+        cdt = np.cos(d * tau)
+        sdt = np.sin(d * tau)
+
+        # For tau > Delta
+        cos_term = 2 * (np.cosh(cd) * np.cos(dd) - 1)
+        sin_term = 2 * (np.sinh(cd) * np.sin(dd))
+        factor = k0 * norm
+        K_large += np.sum(
+            (C1 * cos_term - C2 * sin_term) * factor * cdt, axis=-1
+        )
+        K_large += np.sum(
+            (C2 * cos_term + C1 * sin_term) * factor * sdt, axis=-1
+        )
+
+        # tau < Delta
+        edmt = np.exp(-c * dmt)
+        edpt = np.exp(-c * dpt)
+        cos_term = (
+            edmt * np.cos(d * dmt) + edpt * np.cos(d * dpt) - 2 * k0 * cdt
+        )
+        sin_term = (
+            edmt * np.sin(d * dmt) + edpt * np.sin(d * dpt) - 2 * k0 * sdt
+        )
+        K_small += np.sum(2 * (a * c + b * d) * c2pd2 * dmt * norm, axis=-1)
+        K_small += np.sum((C1 * cos_term + C2 * sin_term) * norm, axis=-1)
+
+        mask = tau0 >= dt
+        K = K_large * mask + K_small * (~mask)
+
+        if diag is not None:
+            K[np.diag_indices_from(K)] += diag
+        return K
+
     def get_coefficients(self):
         ar, cr, a, b, c, d = self.term.get_coefficients()
 
