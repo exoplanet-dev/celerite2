@@ -1,34 +1,31 @@
 # -*- coding: utf-8 -*-
 
-__all__ = ["GaussianProcess", "ConditionalDistribution"]
+__all__ = ["GaussianProcess"]
 from jax import numpy as np
 
-from ..core import BaseConditionalDistribution, BaseGaussianProcess
+from ..core import BaseGaussianProcess
 from . import distribution, ops
 
 
-class ConditionalDistribution(BaseConditionalDistribution):
-    def _do_general_matmul(self, c, U1, V1, U2, V2, inp, target):
-        target += ops.general_matmul_lower(
-            self._xs, self.gp._t, c, U2, V1, inp
-        )
-        target += ops.general_matmul_upper(
-            self._xs, self.gp._t, c, V2, U1, inp
-        )
-        return target
-
-    def _diagdot(self, a, b):
-        return np.einsum("ij,ij->j", a, b)
-
-
 class GaussianProcess(BaseGaussianProcess):
-    conditional_distribution = ConditionalDistribution
-
     def _as_tensor(self, tensor):
         return np.asarray(tensor, dtype=np.float64)
 
     def _zeros_like(self, tensor):
         return np.zeros_like(tensor)
+
+    def _zeros(self, shape):
+        return np.zeros(shape)
+
+    def _eye(self, n):
+        return np.eye(n)
+
+    def _get_dense_matrix(self, t, c, a, U, V):
+        Y = np.eye(len(t))
+        Z = np.diag(a)
+        Z += ops.matmul_lower(t, c, U, V, Y)
+        Z += ops.matmul_upper(t, c, U, V, Y)
+        return Z
 
     def _do_compute(self, quiet):
         self._d, self._W = ops.factor(
@@ -56,6 +53,14 @@ class GaussianProcess(BaseGaussianProcess):
             self._t, self._c, self._U, self._W, y[:, None]
         )[:, 0]
         return np.sum(alpha ** 2 / self._d)
+
+    def _do_general_matmul(self, t1, t2, c, U1, V1, U2, V2, inp, target):
+        target += ops.general_matmul_lower(t1, t2, c, U2, V1, inp)
+        target += ops.general_matmul_upper(t1, t2, c, V2, U1, inp)
+        return target
+
+    def _diagdot(self, a, b):
+        return np.einsum("ij,ij->j", a, b)
 
     def numpyro_dist(self):
         return distribution.CeleriteNormal(self)

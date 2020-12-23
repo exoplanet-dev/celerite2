@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-__all__ = ["__version__", "terms", "GaussianProcess"]
-from . import terms
+__all__ = ["__version__", "terms", "latent", "GaussianProcess"]
+from . import latent, terms
 from .celerite2_version import __version__
-from .numpy import GaussianProcess
+from .core import GaussianProcess
 
 __uri__ = "https://celerite2.readthedocs.io"
 __author__ = "Daniel Foreman-Mackey"
@@ -11,7 +11,7 @@ __email__ = "foreman.mackey@gmail.com"
 __license__ = "MIT"
 __description__ = "Fast and scalable Gaussian Processes in 1D"
 __bibtex__ = __citation__ = r"""
-@article{celerite1,
+@article{celerite2:foremanmackey17,
    author = {{Foreman-Mackey}, D. and {Agol}, E. and {Ambikasaran}, S. and
              {Angus}, R.},
     title = "{Fast and Scalable Gaussian Process Modeling with Applications to
@@ -25,7 +25,7 @@ __bibtex__ = __citation__ = r"""
    adsurl = {http://adsabs.harvard.edu/abs/2017AJ....154..220F},
   adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
-@article{celerite2,
+@article{celerite2:foremanmackey18,
    author = {{Foreman-Mackey}, D.},
     title = "{Scalable Backpropagation for Gaussian Processes using Celerite}",
   journal = {Research Notes of the American Astronomical Society},
@@ -36,6 +36,21 @@ __bibtex__ = __citation__ = r"""
     pages = {31},
       doi = {10.3847/2515-5172/aaaf6c},
    adsurl = {http://adsabs.harvard.edu/abs/2018RNAAS...2a..31F},
+  adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+@article{celerite2:gordon20,
+   author = {{Gordon}, Tyler A. and {Agol}, Eric and {Foreman-Mackey}, Daniel},
+    title = "{A Fast, Two-dimensional Gaussian Process Method Based on
+              Celerite: Applications to Transiting Exoplanet Discovery and
+              Characterization}",
+  journal = {\aj},
+     year = 2020,
+    month = nov,
+   volume = 160,
+   number = 5,
+    pages = {240},
+      doi = {10.3847/1538-3881/abbc16},
+   adsurl = {https://ui.adsabs.harvard.edu/abs/2020AJ....160..240G},
   adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 """

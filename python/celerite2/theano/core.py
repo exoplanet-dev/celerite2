@@ -14,9 +14,13 @@ except ImportError:
     pm = None
 
 CITATIONS = (
-    ("celerite2:foremanmackey17", "celerite2:foremanmackey18"),
+    (
+        "celerite2:foremanmackey17",
+        "celerite2:foremanmackey18",
+        "celerite2:gordon20",
+    ),
     r"""
-@article{exoplanet:foremanmackey17,
+@article{celerite2:foremanmackey17,
    author = {{Foreman-Mackey}, D. and {Agol}, E. and {Ambikasaran}, S. and
              {Angus}, R.},
     title = "{Fast and Scalable Gaussian Process Modeling with Applications to
@@ -30,7 +34,7 @@ CITATIONS = (
    adsurl = {http://adsabs.harvard.edu/abs/2017AJ....154..220F},
   adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
-@article{exoplanet:foremanmackey18,
+@article{celerite2:foremanmackey18,
    author = {{Foreman-Mackey}, D.},
     title = "{Scalable Backpropagation for Gaussian Processes using Celerite}",
   journal = {Research Notes of the American Astronomical Society},
@@ -41,6 +45,21 @@ CITATIONS = (
     pages = {31},
       doi = {10.3847/2515-5172/aaaf6c},
    adsurl = {http://adsabs.harvard.edu/abs/2018RNAAS...2a..31F},
+  adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+@article{celerite2:gordon20,
+   author = {{Gordon}, Tyler A. and {Agol}, Eric and {Foreman-Mackey}, Daniel},
+    title = "{A Fast, Two-dimensional Gaussian Process Method Based on
+              Celerite: Applications to Transiting Exoplanet Discovery and
+              Characterization}",
+  journal = {\aj},
+     year = 2020,
+    month = nov,
+   volume = 160,
+   number = 5,
+    pages = {240},
+      doi = {10.3847/1538-3881/abbc16},
+   adsurl = {https://ui.adsabs.harvard.edu/abs/2020AJ....160..240G},
   adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 """,
@@ -69,6 +88,27 @@ class GaussianProcess(BaseGaussianProcess):
 
     def _zeros_like(self, tensor):
         return tt.zeros_like(tensor)
+
+    def _zeros(self, shape):
+        return tt.zeros(shape)
+
+    def _eye(self, n):
+        return tt.eye(n)
+
+    def _get_dense_matrix(self, t, c, a, U, V):
+        Y = tt.eye(t.shape[0])
+        Z = tt.diag(a)
+        Z += ops.matmul_lower(t, c, U, V, Y)[0]
+        Z += ops.matmul_upper(t, c, U, V, Y)[0]
+        return Z
+
+    def _do_general_matmul(self, t1, t2, c, U1, V1, U2, V2, inp, target):
+        target += ops.general_matmul_lower(t1, t2, c, U2, V1, inp)[0]
+        target += ops.general_matmul_upper(t1, t2, c, V2, U1, inp)[0]
+        return target
+
+    def _diagdot(self, a, b):
+        return tt.batched_dot(a.T, b.T)
 
     def _do_compute(self, quiet):
         if quiet:

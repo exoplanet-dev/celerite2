@@ -53,7 +53,7 @@ EXTRA_REQUIRE = {
         "ipython",
     ],
     "tutorials": [
-        "jupytext",
+        "jupytext<1.7.0",
         "jupyter",
         "nbconvert",
         "matplotlib",
@@ -62,6 +62,7 @@ EXTRA_REQUIRE = {
         "pymc3",
         "tqdm",
         "numpyro",
+        "ipykernel",
     ],
 }
 EXTRA_REQUIRE["dev"] = (

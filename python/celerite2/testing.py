@@ -30,7 +30,7 @@ def get_matrices(
     c, a, U, V = kernel.get_celerite_matrices(x, diag)
 
     if include_dense:
-        K = kernel.get_value(x[:, None] - x[None, :])
+        K = kernel.get_value(x, x)
         K[np.diag_indices_from(K)] += diag
 
     if not conditional:
@@ -42,7 +42,7 @@ def get_matrices(
     _, _, U2, V2 = kernel.get_celerite_matrices(t, np.zeros_like(t))
 
     if include_dense:
-        K_star = kernel.get_value(t[:, None] - x[None, :])
+        K_star = kernel.get_value(t, x)
         return x, c, a, U, V, K, Y, t, U2, V2, K_star
 
     return x, c, a, U, V, Y, t, U2, V2
@@ -128,17 +128,16 @@ def check_tensor_term(eval_func, term, pyterm, atol=1e-8):
 
     _compare_tensor(
         eval_func,
-        term.to_dense(x, diag),
-        pyterm.to_dense(x, diag),
-        "to_dense",
+        term.get_value(x),
+        pyterm.get_value(x),
+        "get_value",
         atol=atol,
     )
 
-    tau = x[:, None] - x[None, :]
     _compare_tensor(
         eval_func,
-        term.get_value(tau),
-        pyterm.get_value(tau),
+        term.get_value(x, t),
+        pyterm.get_value(x, t),
         "get_value",
         atol=atol,
     )
