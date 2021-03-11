@@ -145,6 +145,7 @@ if __name__ == "__main__":
         packages=PACKAGES,
         package_dir={"": "python"},
         include_package_data=True,
+        python_requires=">=3.6",
         install_requires=INSTALL_REQUIRES,
         setup_requires=SETUP_REQUIRES,
         extras_require=EXTRA_REQUIRE,
