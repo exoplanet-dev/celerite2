@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 __all__ = ["GaussianProcess", "ConditionalDistribution"]
-import numpy as np
 import aesara_theano_fallback.tensor as tt
+import numpy as np
 
 from ..core import BaseConditionalDistribution, BaseGaussianProcess
 from . import ops

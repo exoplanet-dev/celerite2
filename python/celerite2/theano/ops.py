@@ -13,10 +13,11 @@ __all__ = [
 import json
 from itertools import chain
 
+import aesara_theano_fallback.tensor as tt
 import numpy as np
 import pkg_resources
-from aesara_theano_fallback import ifelse, aesara as theano
-import aesara_theano_fallback.tensor as tt
+from aesara_theano_fallback import aesara as theano
+from aesara_theano_fallback import ifelse
 from aesara_theano_fallback.graph import basic, op
 
 from .. import backprop, driver

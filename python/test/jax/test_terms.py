@@ -3,7 +3,6 @@ from functools import partial
 
 import numpy as np
 import pytest
-
 from celerite2 import terms as pyterms
 from celerite2.testing import check_tensor_term
 

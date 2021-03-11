@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 __all__ = ["CeleriteNormal"]
-import numpy as np
 import aesara_theano_fallback.tensor as tt
+import numpy as np
 
 try:
     import pymc3  # noqa
