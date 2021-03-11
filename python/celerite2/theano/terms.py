@@ -14,7 +14,7 @@ __all__ = [
 ]
 import aesara_theano_fallback.tensor as tt
 import numpy as np
-import theano
+from aesara_theano_fallback import aesara as theano
 from aesara_theano_fallback import ifelse
 
 from .. import terms as base_terms

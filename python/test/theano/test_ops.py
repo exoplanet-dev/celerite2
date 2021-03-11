@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
+import aesara_theano_fallback.tensor as tt
 import numpy as np
-import theano
+from aesara_theano_fallback import aesara as theano
+
 from celerite2 import backprop, driver
 from celerite2.testing import get_matrices
 from celerite2.theano import ops
-from theano import tensor as tt
 
 
 def convert_values_to_types(values):
