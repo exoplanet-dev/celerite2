@@ -63,6 +63,7 @@ EXTRA_REQUIRE = {
         "scipy",
         "emcee",
         "pymc3",
+        "aesara-theano-fallback",
         "tqdm",
         "numpyro",
     ],
