@@ -32,7 +32,7 @@ jobs:
       - name: Run the unit tests
         run: python -m pytest --cov celerite2 python/test
       - name: Coveralls
-        if: matrix.os == "ubuntu-latest"
+        if: startsWith(matrix.os, 'ubuntu')
         uses: AndreMiras/coveralls-python-action@v20201129
         with:
           parallel: true
