@@ -2,7 +2,7 @@
 
 __all__ = ["CeleriteNormal"]
 import numpy as np
-from theano import tensor as tt
+import aesara_theano_fallback.tensor as tt
 
 try:
     import pymc3  # noqa

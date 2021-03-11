@@ -7,7 +7,6 @@ on:
 
 jobs:
   style:
-    name: "style"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -29,7 +28,6 @@ jobs:
           black_nbconvert --check .
 
   build:
-    name: "py${{ matrix.python-version }} / ${{ matrix.os }}"
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -61,7 +59,6 @@ jobs:
           path: .coverage
 
   theano:
-    name: "theano"
     runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v2
@@ -101,7 +98,6 @@ jobs:
           path: .coverage
 
   jax:
-    name: "jax"
     runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v2
@@ -127,7 +123,6 @@ jobs:
           path: .coverage
 
   coverage:
-    name: coverage
     needs: [build, theano, jax]
     runs-on: ubuntu-latest
     steps:

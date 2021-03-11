@@ -15,8 +15,9 @@ from itertools import chain
 
 import numpy as np
 import pkg_resources
-import theano
-from theano import tensor as tt
+from aesara_theano_fallback import ifelse, aesara as theano
+import aesara_theano_fallback.tensor as tt
+from aesara_theano_fallback.graph import basic, op
 
 from .. import backprop, driver
 
@@ -31,7 +32,7 @@ def _resize_or_set(outputs, n, shape):
     return outputs[n][0]
 
 
-class _CeleriteOp(theano.Op):
+class _CeleriteOp(op.Op):
     __props__ = ("name", "quiet")
 
     def __init__(self, name, spec, *, quiet=False):
@@ -84,7 +85,7 @@ class _CeleriteOp(theano.Op):
             )()
             for spec in self.spec["outputs"] + self.spec["extra_outputs"]
         ]
-        return theano.Apply(self, inputs, otypes)
+        return basic.Apply(self, inputs, otypes)
 
     def infer_shape(self, node, shapes):
         dims = {
