@@ -88,7 +88,8 @@ class _CeleriteOp(op.Op):
         ]
         return basic.Apply(self, inputs, otypes)
 
-    def infer_shape(self, node, shapes):
+    def infer_shape(self, *args):
+        shapes = args[-1]
         dims = {
             spec["name"]: shapes[spec["coords"][0]][spec["coords"][1]]
             for spec in self.spec["dimensions"]
