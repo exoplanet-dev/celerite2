@@ -12,10 +12,10 @@ __all__ = [
     "Matern32Term",
     "RotationTerm",
 ]
+import aesara_theano_fallback.tensor as tt
 import numpy as np
-import theano
-from theano import tensor as tt
-from theano.ifelse import ifelse
+from aesara_theano_fallback import aesara as theano
+from aesara_theano_fallback import ifelse
 
 from .. import terms as base_terms
 from . import ops

@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
+import aesara_theano_fallback.tensor as tt
 import numpy as np
-import theano
-from theano import tensor as tt
-
+from aesara_theano_fallback import aesara as theano
 from celerite2 import backprop, driver
 from celerite2.testing import get_matrices
 from celerite2.theano import ops

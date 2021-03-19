@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.6.0
+#       jupytext_version: 1.10.3
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -248,20 +248,26 @@ from celerite2.theano import terms as theano_terms
 with pm.Model() as model:
 
     mean = pm.Normal("mean", mu=0.0, sigma=prior_sigma)
-    jitter = pm.Lognormal("jitter", mu=0.0, sigma=prior_sigma)
+    log_jitter = pm.Normal("log_jitter", mu=0.0, sigma=prior_sigma)
 
-    sigma1 = pm.Lognormal("sigma1", mu=0.0, sigma=prior_sigma)
-    rho1 = pm.Lognormal("rho1", mu=0.0, sigma=prior_sigma)
-    tau = pm.Lognormal("tau", mu=0.0, sigma=prior_sigma)
-    term1 = theano_terms.SHOTerm(sigma=sigma1, rho=rho1, tau=tau)
+    log_sigma1 = pm.Normal("log_sigma1", mu=0.0, sigma=prior_sigma)
+    log_rho1 = pm.Normal("log_rho1", mu=0.0, sigma=prior_sigma)
+    log_tau = pm.Normal("log_tau", mu=0.0, sigma=prior_sigma)
+    term1 = theano_terms.SHOTerm(
+        sigma=pm.math.exp(log_sigma1),
+        rho=pm.math.exp(log_rho1),
+        tau=pm.math.exp(log_tau),
+    )
 
-    sigma2 = pm.Lognormal("sigma2", mu=0.0, sigma=prior_sigma)
-    rho2 = pm.Lognormal("rho2", mu=0.0, sigma=prior_sigma)
-    term2 = theano_terms.SHOTerm(sigma=sigma2, rho=rho2, Q=0.25)
+    log_sigma2 = pm.Normal("log_sigma2", mu=0.0, sigma=prior_sigma)
+    log_rho2 = pm.Normal("log_rho2", mu=0.0, sigma=prior_sigma)
+    term2 = theano_terms.SHOTerm(
+        sigma=pm.math.exp(log_sigma2), rho=pm.math.exp(log_rho2), Q=0.25
+    )
 
     kernel = term1 + term2
     gp = celerite2.theano.GaussianProcess(kernel, mean=mean)
-    gp.compute(t, diag=yerr ** 2 + jitter, quiet=True)
+    gp.compute(t, diag=yerr ** 2 + pm.math.exp(log_jitter), quiet=True)
     gp.marginal("obs", observed=y)
 
     pm.Deterministic("psd", kernel.get_psd(omega))
@@ -269,7 +275,7 @@ with pm.Model() as model:
     trace = pm.sample(
         tune=1000,
         draws=1000,
-        target_accept=0.8,
+        target_accept=0.9,
         init="adapt_full",
         cores=2,
         chains=2,
@@ -304,6 +310,7 @@ from jax.config import config
 config.update("jax_enable_x64", True)
 
 from jax import random
+import jax.numpy as jnp
 
 import numpyro
 import numpyro.distributions as dist
@@ -315,20 +322,24 @@ from celerite2.jax import terms as jax_terms
 
 def numpyro_model(t, yerr, y=None):
     mean = numpyro.sample("mean", dist.Normal(0.0, prior_sigma))
-    jitter = numpyro.sample("jitter", dist.LogNormal(0.0, prior_sigma))
+    log_jitter = numpyro.sample("log_jitter", dist.Normal(0.0, prior_sigma))
 
-    sigma1 = numpyro.sample("sigma1", dist.LogNormal(0.0, prior_sigma))
-    rho1 = numpyro.sample("rho1", dist.LogNormal(0.0, prior_sigma))
-    tau = numpyro.sample("tau", dist.LogNormal(0.0, prior_sigma))
-    term1 = jax_terms.UnderdampedSHOTerm(sigma=sigma1, rho=rho1, tau=tau)
+    log_sigma1 = numpyro.sample("log_sigma1", dist.Normal(0.0, prior_sigma))
+    log_rho1 = numpyro.sample("log_rho1", dist.Normal(0.0, prior_sigma))
+    log_tau = numpyro.sample("log_tau", dist.Normal(0.0, prior_sigma))
+    term1 = jax_terms.UnderdampedSHOTerm(
+        sigma=jnp.exp(log_sigma1), rho=jnp.exp(log_rho1), tau=jnp.exp(log_tau)
+    )
 
-    sigma2 = numpyro.sample("sigma2", dist.LogNormal(0.0, prior_sigma))
-    rho2 = numpyro.sample("rho2", dist.LogNormal(0.0, prior_sigma))
-    term2 = jax_terms.OverdampedSHOTerm(sigma=sigma2, rho=rho2, Q=0.25)
+    log_sigma2 = numpyro.sample("log_sigma2", dist.Normal(0.0, prior_sigma))
+    log_rho2 = numpyro.sample("log_rho2", dist.Normal(0.0, prior_sigma))
+    term2 = jax_terms.OverdampedSHOTerm(
+        sigma=jnp.exp(log_sigma2), rho=jnp.exp(log_rho2), Q=0.25
+    )
 
     kernel = term1 + term2
     gp = celerite2.jax.GaussianProcess(kernel, mean=mean)
-    gp.compute(t, diag=yerr ** 2 + jitter, check_sorted=False)
+    gp.compute(t, diag=yerr ** 2 + jnp.exp(log_jitter), check_sorted=False)
 
     numpyro.sample("obs", gp.numpyro_dist(), obs=y)
     numpyro.deterministic("psd", kernel.get_psd(omega))
@@ -379,9 +390,6 @@ emcee_data = az.from_emcee(
         "log_jitter",
     ],
 )
-for k in emcee_data.posterior.data_vars:
-    if k.startswith("log_"):
-        emcee_data.posterior[k[4:]] = np.exp(emcee_data.posterior[k])
 
 with model:
     pm_data = az.from_pymc3(trace)
@@ -390,21 +398,21 @@ numpyro_data = az.from_numpyro(mcmc)
 
 bins = np.linspace(1.5, 2.75, 25)
 plt.hist(
-    np.asarray((emcee_data.posterior["rho1"].T)).flatten(),
+    np.exp(np.asarray((emcee_data.posterior["log_rho1"].T)).flatten()),
     bins,
     histtype="step",
     density=True,
     label="emcee",
 )
 plt.hist(
-    np.asarray((pm_data.posterior["rho1"].T)).flatten(),
+    np.exp(np.asarray((pm_data.posterior["log_rho1"].T)).flatten()),
     bins,
     histtype="step",
     density=True,
     label="PyMC3",
 )
 plt.hist(
-    np.asarray((numpyro_data.posterior["rho1"].T)).flatten(),
+    np.exp(np.asarray((numpyro_data.posterior["log_rho1"].T)).flatten()),
     bins,
     histtype="step",
     density=True,
@@ -422,17 +430,41 @@ _ = plt.ylabel(r"$p(\rho_1)$")
 
 az.summary(
     emcee_data,
-    var_names=["mean", "sigma1", "rho1", "tau", "sigma2", "rho2", "jitter"],
+    var_names=[
+        "mean",
+        "log_sigma1",
+        "log_rho1",
+        "log_tau",
+        "log_sigma2",
+        "log_rho2",
+        "log_jitter",
+    ],
 )
 
 az.summary(
     pm_data,
-    var_names=["mean", "sigma1", "rho1", "tau", "sigma2", "rho2", "jitter"],
+    var_names=[
+        "mean",
+        "log_sigma1",
+        "log_rho1",
+        "log_tau",
+        "log_sigma2",
+        "log_rho2",
+        "log_jitter",
+    ],
 )
 
 az.summary(
     numpyro_data,
-    var_names=["mean", "sigma1", "rho1", "tau", "sigma2", "rho2", "jitter"],
+    var_names=[
+        "mean",
+        "log_sigma1",
+        "log_rho1",
+        "log_tau",
+        "log_sigma2",
+        "log_rho2",
+        "log_jitter",
+    ],
 )
 
 # Overall these results are consistent, but the $\hat{R}$ values are a bit high for the emcee run, so I'd probably run that for longer.
