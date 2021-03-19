@@ -1,13 +1,5 @@
 # -*- coding: utf-8 -*-
 
-"""
-Note: for better performance, these should be implemented as JAX primitives
-with custom XLA calls:
-
-- https://jax.readthedocs.io/en/stable/notebooks/How_JAX_primitives_work.html
-- https://github.com/danieljtait/jax_xla_adventures
-"""
-
 __all__ = [
     "factor",
     "solve_lower",
