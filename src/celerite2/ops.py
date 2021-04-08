@@ -64,10 +64,20 @@ def matmul_upper(U, V, P, Y):
 #
 
 
+def _pdot(P, other, transpose=False):
+    if P.ndim == 1:
+        if transpose:
+            return other * P[None, :]
+        return P[:, None] * other
+    if transpose:
+        return other @ P
+    return P.T @ other
+
+
 def _factor_impl(state, data):
     Sp, dp, Wp = state
     an, Un, Vn, Pn = data
-    Sn = Pn[:, None] * (Sp + dp * jnp.outer(Wp, Wp)) * Pn[None, :]
+    Sn = _pdot(Pn, _pdot(Pn, Sp + dp * jnp.outer(Wp, Wp), transpose=True))
     tmp = Sn @ Un
     dn = an - tmp @ Un
     Wn = (Vn - tmp) / dn
@@ -77,9 +87,16 @@ def _factor_impl(state, data):
 def _solve_impl(state, data):
     Fp, Wp, Zp = state
     Un, Wn, Pn, Yn = data
-    Fn = Pn[:, None] * (Fp + jnp.outer(Wp, Zp))
+    Fn = _pdot(Pn, Fp + jnp.outer(Wp, Zp))
     Zn = Yn - Un @ Fn
     return (Fn, Wn, Zn), Zn
+
+
+def _matmul_impl(state, data):
+    (Fp, Vp, Yp) = state
+    Vn, Pn, Yn = data
+    Fn = _pdot(Pn, Fp + jnp.outer(Vp, Yp))
+    return (Fn, Vn, Yn), Fn
 
 
 def _get_matmul_lower_f(V, P, Y):
@@ -103,10 +120,3 @@ def _get_matmul_upper_f(U, P, Y):
         (U, jnp.roll(P, -1, axis=0), Y),
         reverse=True,
     )[1]
-
-
-def _matmul_impl(state, data):
-    (Fp, Vp, Yp) = state
-    Vn, Pn, Yn = data
-    Fn = Pn[:, None] * (Fp + jnp.outer(Vp, Yp))
-    return (Fn, Vn, Yn), Fn
