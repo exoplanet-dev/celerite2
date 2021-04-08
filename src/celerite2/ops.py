@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
 
-__all__ = ["factor", "solve_lower"]
+__all__ = [
+    "factor",
+    "solve_lower",
+    "solve_upper",
+    "matmul_lower",
+    "matmul_upper",
+]
 
 import jax.numpy as jnp
 from jax import lax
