@@ -5,16 +5,14 @@
 import codecs
 import os
 import re
-import sys
 
-from pybind11.setup_helpers import Pybind11Extension, build_ext
 from setuptools import find_packages, setup
 
 # PROJECT SPECIFIC
 
 NAME = "celerite2"
-PACKAGES = find_packages(where="python")
-META_PATH = os.path.join("python", "celerite2", "__init__.py")
+PACKAGES = find_packages(where="src")
+META_PATH = os.path.join("src", "celerite2", "__init__.py")
 CLASSIFIERS = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -75,35 +73,6 @@ EXTRA_REQUIRE["dev"] = (
     + ["pre-commit", "nbstripout", "flake8"]
 )
 
-include_dirs = [
-    "c++/include",
-    "c++/vendor/eigen",
-    "python/celerite2",
-]
-if "READTHEDOCS" in os.environ:
-    ext_modules = []
-else:
-    ext_modules = [
-        Pybind11Extension(
-            "celerite2.driver",
-            ["python/celerite2/driver.cpp"],
-            include_dirs=include_dirs,
-            language="c++",
-        ),
-        Pybind11Extension(
-            "celerite2.backprop",
-            ["python/celerite2/backprop.cpp"],
-            include_dirs=include_dirs,
-            language="c++",
-        ),
-        Pybind11Extension(
-            "celerite2.jax.xla_ops",
-            ["python/celerite2/jax/xla_ops.cpp"],
-            include_dirs=include_dirs,
-            language="c++",
-        ),
-    ]
-
 # END PROJECT SPECIFIC
 
 
@@ -129,7 +98,7 @@ if __name__ == "__main__":
         name=NAME,
         use_scm_version={
             "write_to": os.path.join(
-                "python", NAME, "{0}_version.py".format(NAME)
+                "src", NAME, "{0}_version.py".format(NAME)
             ),
             "write_to_template": '__version__ = "{version}"\n',
         },
@@ -143,7 +112,7 @@ if __name__ == "__main__":
         long_description=read("README.md"),
         long_description_content_type="text/markdown",
         packages=PACKAGES,
-        package_dir={"": "python"},
+        package_dir={"": "src"},
         include_package_data=True,
         python_requires=">=3.6",
         install_requires=INSTALL_REQUIRES,
@@ -151,6 +120,4 @@ if __name__ == "__main__":
         extras_require=EXTRA_REQUIRE,
         classifiers=CLASSIFIERS,
         zip_safe=False,
-        ext_modules=ext_modules,
-        cmdclass={"build_ext": build_ext},
     )
