@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import pytest
+from jax.config import config
 
 from celerite2 import terms
+
+config.update("jax_enable_x64", True)
 
 cterms = pytest.importorskip("celerite.terms")
 
@@ -28,7 +31,6 @@ test_terms = [
     + cterms.SHOTerm(
         log_S0=np.log(1.1), log_Q=np.log(0.15), log_omega0=np.log(1.2)
     ),
-    cterms.Matern32Term(log_sigma=0.1, log_rho=0.4),
 ]
 
 
@@ -52,7 +54,7 @@ def _convert_kernel(celerite_kernel):
             )
         return terms.CeleriteTerm(
             a=np.exp(celerite_kernel.log_a),
-            b=np.exp(celerite_kernel.log_b),
+            b=np.exp(2 * (celerite_kernel.log_b - celerite_kernel.log_a)),
             c=np.exp(celerite_kernel.log_c),
             d=np.exp(celerite_kernel.log_d),
         )
@@ -79,26 +81,26 @@ def test_consistency(oterm):
     np.random.seed(40582)
     x = np.sort(np.random.uniform(0, 10, 50))
     diag = np.random.uniform(0.1, 0.3, len(x))
-    assert np.allclose(oterm.get_value(x), term.get_value(x))
+    np.testing.assert_allclose(oterm.get_value(x), term.get_value(x))
 
     tau = x[:, None] - x[None, :]
     K = term.get_value(tau)
-    assert np.allclose(oterm.get_value(tau), K)
+    np.testing.assert_allclose(oterm.get_value(tau), K)
 
     # And the power spectrum
     omega = np.linspace(-10, 10, 500)
-    assert np.allclose(oterm.get_psd(omega), term.get_psd(omega))
+    np.testing.assert_allclose(oterm.get_psd(omega), term.get_psd(omega))
 
-    # # Add in the diagonal
-    # K[np.diag_indices_from(K)] += diag
+    # Add in the diagonal
+    K += np.diag(diag)
 
-    # # Matrix vector multiply
-    # y = np.sin(x)
-    # value = term.dot(x, diag, y)
-    # assert np.allclose(y, np.sin(x))
-    # assert np.allclose(value, np.dot(K, y))
+    # Matrix vector multiply
+    y = np.sin(x)
+    value = term.dot(x, diag, y)
+    np.testing.assert_allclose(y, np.sin(x))
+    np.testing.assert_allclose(value, K @ y)
 
-    # # Matrix-matrix multiply
-    # y = np.vstack([x]).T
-    # value = term.dot(x, diag, y)
-    # assert np.allclose(value, np.dot(K, y))
+    # Matrix-matrix multiply
+    y = np.vstack([x]).T
+    value = term.dot(x, diag, y)
+    np.testing.assert_allclose(value, K @ y)

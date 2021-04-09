@@ -2,23 +2,26 @@
 
 __all__ = [
     "Term",
-    # "TermSum",
-    # "TermProduct",
+    "TermSum",
     # "TermDiff",
     # "TermConvolution",
-    # "RealTerm",
-    # "ComplexTerm",
-    # "SHOTerm",
-    # "Matern32Term",
-    # "RotationTerm",
-    # "OriginalCeleriteTerm",
+    "CeleriteTerm",
+    "SHOTerm",
+    "RotationTerm",
+    "Matern32Term",
 ]
 
+from collections import namedtuple
 from functools import wraps
 
+import jax
 import jax.numpy as jnp
+import jax.scipy as jsp
 import numpy as np
-from jax import lax
+
+from . import ops
+
+CeleriteSystem = namedtuple("CeleriteSystem", ["a", "U", "V", "P"])
 
 
 class Term:
@@ -31,10 +34,6 @@ class Term:
 
     def __add__(self, other):
         return TermSum(self, other)
-
-    @property
-    def terms(self):
-        return [self]
 
     def get_celerite_matrices(self, x, diag=None):
         """Get the matrices needed to solve the celerite system
@@ -62,6 +61,69 @@ class Term:
         """
         raise NotImplementedError("subclasses must implement this method")
 
+    def dot(self, x, diag, y):
+        """Apply a matrix-vector or matrix-matrix product
+
+        Args:
+            x (shape[N]): The independent coordinates of the data.
+            diag (shape[N]): The diagonal variance of the system.
+            y (shape[N] or shape[N, K]): The target of vector or matrix for
+                this operation.
+        """
+        is_vector = False
+        y = jnp.atleast_1d(y)
+        if y.ndim == 1:
+            is_vector = True
+            y = y[:, None]
+
+        a, U, V, P = self.get_celerite_matrices(x, diag=diag)
+        res = (
+            a[:, None] * y
+            + ops.matmul_upper(U, V, P, y)
+            + ops.matmul_lower(U, V, P, y)
+        )
+        if is_vector:
+            return res[:, 0]
+        return res
+
+
+class TermSum(Term):
+    def __init__(self, *terms):
+        if not len(terms):
+            raise ValueError("A TermSum must include at least one term")
+        self.terms = terms
+
+    def get_celerite_matrices(self, x, diag=None):
+        # Helper function to handle general Ps
+        def combine_p(P1, P2):
+            if P1.ndim == P2.ndim:
+                return jnp.concatenate((P1, P2), axis=-1)
+            if P1.ndim < P2.ndim:
+                P1 = jax.vmap(jnp.diag)(P1)
+            else:
+                P2 = jax.vmap(jnp.diag)(P2)
+            return jax.vmap(jsp.linalg.block_diag)(P1, P2)
+
+        a, U, V, P = self.terms[0].get_celerite_matrices(x, diag=diag)
+        for term in self.terms[1:]:
+            a, Up, Vp, Pp = term.get_celerite_matrices(x, diag=a)
+            U = jnp.concatenate((U, Up), axis=-1)
+            V = jnp.concatenate((V, Vp), axis=-1)
+            P = combine_p(P, Pp)
+        return CeleriteSystem(a, U, V, P)
+
+    def get_value(self, tau):
+        k = self.terms[0].get_value(tau)
+        for term in self.terms[1:]:
+            k += term.get_value(tau)
+        return k
+
+    def get_psd(self, omega):
+        p = self.terms[0].get_psd(omega)
+        for term in self.terms[1:]:
+            p += term.get_psd(omega)
+        return p
+
 
 class CeleriteTerm(Term):
     r"""A general celerite term
@@ -75,8 +137,18 @@ class CeleriteTerm(Term):
         self.a, self.b, self.c, self.d = jnp.broadcast_arrays(
             *map(jnp.atleast_1d, (a, b, c, d))
         )
-        self.is_real = self.b <= 0
+        self.is_real = self.b < 0
         self.abs_b = jnp.sqrt(jnp.abs(self.b))
+
+    def __add__(self, other):
+        if isinstance(other, CeleriteTerm):
+            return CeleriteTerm(
+                a=jnp.concatenate((self.a, other.a)),
+                b=jnp.concatenate((self.b, other.b)),
+                c=jnp.concatenate((self.c, other.c)),
+                d=jnp.concatenate((self.d, other.d)),
+            )
+        return TermSum(self, other)
 
     def get_celerite_matrices(self, x, diag=None):
         x = jnp.asarray(x)
@@ -114,7 +186,7 @@ class CeleriteTerm(Term):
         P1 = jnp.where(self.is_real, jnp.exp(-(self.c - self.d) * dx), arg)
         P2 = jnp.where(self.is_real, jnp.exp(-(self.c + self.d) * dx), arg)
 
-        return (
+        return CeleriteSystem(
             diag + jnp.sum(self.a),
             jnp.concatenate((U1, U2), axis=-1),
             jnp.concatenate((V1, V2), axis=-1),
@@ -168,11 +240,15 @@ class CeleriteTerm(Term):
             d2 = jnp.square(self.d)
             w02 = c2 + d2
             return (
-                (self.a * self.c + self.abs_b * self.d) * w02
-                + (self.a * self.c - self.abs_b * self.d) * w2
-            ) / (jnp.square(w2) + 2 * (c2 - d2) * w2 + w02 * w02)
+                self.a
+                * (
+                    (self.c + self.abs_b * self.d) * w02
+                    + (self.c - self.abs_b * self.d) * w2
+                )
+                / (jnp.square(w2) + 2 * (c2 - d2) * w2 + w02 * w02)
+            )
 
-        w2 = jnp.square(omega)
+        w2 = jnp.square(omega)[..., None]
         return np.sqrt(2 / np.pi) * jnp.sum(
             jnp.where(self.is_real, real(w2), comp(w2)), axis=-1
         )
@@ -250,10 +326,86 @@ class SHOTerm(CeleriteTerm):
 
     @handle_parameter_spec
     def __init__(self):
-        f2 = 4.0 * jnp.square(self.Q) - 1.0
-        a = self.S0 * self.w0 * self.Q
-        c = 0.5 * self.w0 / self.Q
-        super().__init__(a=a, b=1 / f2, c=c, d=c * jnp.sqrt(jnp.abs(f2)))
+        a, b, c, d = SHOTerm.get_parameters(
+            *jnp.broadcast_arrays(
+                *map(jnp.atleast_1d, (self.S0, self.w0, self.Q))
+            )
+        )
+        super().__init__(a=a, b=b, c=c, d=d)
+
+    @staticmethod
+    def get_parameters(S0, w0, Q):
+        f2 = 4.0 * jnp.square(Q) - 1.0
+        a = S0 * w0 * Q
+        c = 0.5 * w0 / Q
+        return a, 1 / f2, c, c * jnp.sqrt(jnp.abs(f2))
+
+
+class RotationTerm(CeleriteTerm):
+    r"""A mixture of two SHO terms that can be used to model stellar rotation
+
+    This term has two modes in Fourier space: one at ``period`` and one at
+    ``0.5 * period``. This can be a good descriptive model for a wide range of
+    stochastic variability in stellar time series from rotation to pulsations.
+
+    More precisely, the parameters of the two :class:`SHOTerm` terms are
+    defined as
+
+    .. math::
+
+        Q_1 = 1/2 + Q_0 + \delta Q \\
+        \omega_1 = \frac{4\,\pi\,Q_1}{P\,\sqrt{4\,Q_1^2 - 1}} \\
+        S_1 = \frac{\sigma^2}{(1 + f)\,\omega_1\,Q_1}
+
+    for the primary term, and
+
+    .. math::
+
+        Q_2 = 1/2 + Q_0 \\
+        \omega_2 = \frac{8\,\pi\,Q_1}{P\,\sqrt{4\,Q_1^2 - 1}} \\
+        S_2 = \frac{f\,\sigma^2}{(1 + f)\,\omega_2\,Q_2}
+
+    for the secondary term.
+
+    Args:
+        sigma: The standard deviation of the process.
+        period: The primary period of variability.
+        Q0: The quality factor (or really the quality factor minus one half;
+            this keeps the system underdamped) for the secondary oscillation.
+        dQ: The difference between the quality factors of the first and the
+            second modes. This parameterization (if ``dQ > 0``) ensures that
+            the primary mode alway has higher quality.
+        f: The fractional amplitude of the secondary mode compared to the
+            primary. This should probably always be ``0 < f < 1``, but that
+            is not enforced.
+    """
+
+    def __init__(self, *, sigma, period, Q0, dQ, f):
+        sigma, period, Q0, dQ, f = jnp.broadcast_arrays(
+            *map(jnp.atleast_1d, (sigma, period, Q0, dQ, f))
+        )
+
+        amp = jnp.square(sigma) / (1 + f)
+
+        # One term with a period of period
+        Q1 = 0.5 + Q0 + dQ
+        w1 = 4 * np.pi * Q1 / (period * jnp.sqrt(4 * jnp.square(Q1) - 1))
+        S1 = amp / (w1 * Q1)
+
+        # Another term at half the period
+        Q2 = 0.5 + Q0
+        w2 = 8 * np.pi * Q2 / (period * jnp.sqrt(4 * jnp.square(Q2) - 1))
+        S2 = f * amp / (w2 * Q2)
+
+        a1, b1, c1, d1 = SHOTerm.get_parameters(S1, w1, Q1)
+        a2, b2, c2, d2 = SHOTerm.get_parameters(S2, w2, Q2)
+
+        super().__init__(
+            a=jnp.concatenate((a1, a2)),
+            b=jnp.concatenate((b1, b2)),
+            c=jnp.concatenate((c1, c2)),
+            d=jnp.concatenate((d1, d2)),
+        )
 
 
 class KalmanTerm(Term):
@@ -276,7 +428,7 @@ class KalmanTerm(Term):
         dx = jnp.append(0, jnp.diff(x))
         P = self.phi(dx)
         V = jnp.repeat(self.h[None], x.shape[0], axis=0)
-        return self.s2 + diag, self.s2 * V, V, P
+        return CeleriteSystem(self.s2 + diag, self.s2 * V, V, P)
 
 
 class Matern32Term(KalmanTerm):
