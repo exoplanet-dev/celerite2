@@ -330,13 +330,18 @@ class Matern52Term(KalmanTerm):
     def __init__(self, *, sigma, rho):
         f = self.f = np.sqrt(5) / rho
         f2 = jnp.square(f)
+        f3 = f * f2
         self.phi1 = jnp.array(
-            [[f, 1.0, 0.0], [0.0, f, 1.0], [-f2 * f, -3 * f2, -3 * f]]
+            [[f, 1.0, 0.0], [0.0, f, 1.0], [-f3, -3 * f2, -2 * f]]
         )[None]
-        self.phi2 = jnp.outer(
-            jnp.array([1, -f, f2]), jnp.array([0.5 * f2, f, 0.5])
+        self.phi2 = 0.5 * jnp.array(
+            [
+                [f2, 2 * f, 1.0],
+                [-f3, -2 * f2, -f],
+                [f2 * f2, 2 * f3, f2],
+            ]
         )[None]
-        super().__init__(sigma=sigma, h=jnp.array([1.0, 0.0, 0.0]))
+        super().__init__(sigma=sigma, h=jnp.array([1.0, 0, 0]))
 
     def phi(self, dx):
         return jnp.exp(-self.f * dx)[:, None, None] * (
