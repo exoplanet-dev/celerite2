@@ -341,7 +341,7 @@ class Matern52Term(KalmanTerm):
                 [f2 * f2, 2 * f3, f2],
             ]
         )[None]
-        super().__init__(sigma=sigma, h=jnp.array([1.0, 0, 0]))
+        super().__init__(sigma=sigma, h=jnp.array([1.0, 0.0, 0.0]))
 
     def phi(self, dx):
         return jnp.exp(-self.f * dx)[:, None, None] * (
