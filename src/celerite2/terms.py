@@ -16,7 +16,6 @@ __all__ = [
 
 from functools import wraps
 
-import jax
 import jax.numpy as jnp
 import numpy as np
 from jax import lax
@@ -30,8 +29,8 @@ class Term:
 
     """
 
-    def __add__(self, b):
-        return TermSum(self, b)
+    def __add__(self, other):
+        return TermSum(self, other)
 
     @property
     def terms(self):
@@ -73,11 +72,9 @@ class CeleriteTerm(Term):
     """
 
     def __init__(self, *, a, b, c, d):
-        self.a = a
-        self.b = b
-        self.c = c
-        self.d = d
-
+        self.a, self.b, self.c, self.d = jnp.broadcast_arrays(
+            *map(jnp.atleast_1d, (a, b, c, d))
+        )
         self.is_real = self.b <= 0
         self.abs_b = jnp.sqrt(jnp.abs(self.b))
 
@@ -90,57 +87,38 @@ class CeleriteTerm(Term):
             if diag.shape != x.shape:
                 raise ValueError("dimension mismatch")
 
-        U1 = lax.cond(
+        dtype = x.dtype
+        shape = tuple(x.shape) + tuple(self.a.shape)
+
+        t = x[..., None]
+        arg = self.d * t
+        sin = jnp.sin(arg)
+        cos = jnp.cos(arg)
+
+        U1 = jnp.where(
             self.is_real,
-            lambda x_: jnp.broadcast_to(
-                0.5 * self.a * (1 + self.abs_b), x_.shape
-            ),
-            lambda x_: self.a
-            * (jnp.cos(self.d * x_) + self.abs_b * jnp.sin(self.d * x_)),
-            operand=x,
+            jnp.broadcast_to(0.5 * self.a * (1 + self.abs_b), shape),
+            self.a * (cos + self.abs_b * sin),
         )
-        U2 = lax.cond(
+        U2 = jnp.where(
             self.is_real,
-            lambda x_: jnp.broadcast_to(
-                0.5 * self.a * (1 - self.abs_b), x_.shape
-            ),
-            lambda x_: self.a
-            * (jnp.sin(self.d * x_) - self.abs_b * jnp.cos(self.d * x_)),
-            operand=x,
+            jnp.broadcast_to(0.5 * self.a * (1 - self.abs_b), shape),
+            self.a * (sin - self.abs_b * cos),
         )
 
-        V1 = lax.cond(
-            self.is_real,
-            lambda x_: jnp.ones_like(x_),
-            lambda x_: jnp.cos(self.d * x_),
-            operand=x,
-        )
-        V2 = lax.cond(
-            self.is_real,
-            lambda x_: jnp.ones_like(x_),
-            lambda x_: jnp.sin(self.d * x_),
-            operand=x,
-        )
+        V1 = jnp.where(self.is_real, jnp.ones(shape, dtype=dtype), cos)
+        V2 = jnp.where(self.is_real, jnp.ones(shape, dtype=dtype), sin)
 
-        dx = jnp.append(0, jnp.diff(x))
-        P1 = lax.cond(
-            self.is_real,
-            lambda dx_: jnp.exp(-(self.c - self.d) * dx_),
-            lambda dx_: jnp.exp(-self.c * dx_),
-            operand=dx,
-        )
-        P2 = lax.cond(
-            self.is_real,
-            lambda dx_: jnp.exp(-(self.c + self.d) * dx_),
-            lambda dx_: jnp.exp(-self.c * dx_),
-            operand=dx,
-        )
+        dx = jnp.append(0, jnp.diff(x))[..., None]
+        arg = jnp.exp(-self.c * dx)
+        P1 = jnp.where(self.is_real, jnp.exp(-(self.c - self.d) * dx), arg)
+        P2 = jnp.where(self.is_real, jnp.exp(-(self.c + self.d) * dx), arg)
 
         return (
-            diag + self.a,
-            jnp.stack((U1, U2), axis=-1),
-            jnp.stack((V1, V2), axis=-1),
-            jnp.stack((P1, P2), axis=-1),
+            diag + jnp.sum(self.a),
+            jnp.concatenate((U1, U2), axis=-1),
+            jnp.concatenate((V1, V2), axis=-1),
+            jnp.concatenate((P1, P2), axis=-1),
         )
 
     def get_value(self, tau):
@@ -151,9 +129,9 @@ class CeleriteTerm(Term):
         """
 
         def real(tau):
-            ar1 = self.a * (1 + self.abs_b)
+            ar1 = 0.5 * self.a * (1 + self.abs_b)
             cr1 = self.c - self.d
-            ar2 = self.a * (1 - self.abs_b)
+            ar2 = 0.5 * self.a * (1 - self.abs_b)
             cr2 = self.c + self.d
             return ar1 * jnp.exp(-cr1 * tau) + ar2 * jnp.exp(-cr2 * tau)
 
@@ -165,7 +143,8 @@ class CeleriteTerm(Term):
                 * (jnp.cos(arg) + self.abs_b * jnp.sin(arg))
             )
 
-        return lax.cond(self.is_real, real, comp, operand=jnp.abs(tau))
+        tau = jnp.abs(tau)[..., None]
+        return jnp.sum(jnp.where(self.is_real, real(tau), comp(tau)), axis=-1)
 
     def get_psd(self, omega):
         """Compute the value of the power spectral density for this process
@@ -176,9 +155,9 @@ class CeleriteTerm(Term):
         """
 
         def real(w2):
-            ar1 = self.a + self.abs_b
+            ar1 = 0.5 * self.a * (1 + self.abs_b)
             cr1 = self.c - self.d
-            ar2 = self.a - self.abs_b
+            ar2 = 0.5 * self.a * (1 - self.abs_b)
             cr2 = self.c + self.d
             return ar1 * cr1 / (jnp.square(cr1) + w2) + ar2 * cr2 / (
                 jnp.square(cr2) + w2
@@ -193,8 +172,9 @@ class CeleriteTerm(Term):
                 + (self.a * self.c - self.abs_b * self.d) * w2
             ) / (jnp.square(w2) + 2 * (c2 - d2) * w2 + w02 * w02)
 
-        return np.sqrt(2 / np.pi) * lax.cond(
-            self.is_real, real, comp, operand=jnp.square(omega)
+        w2 = jnp.square(omega)
+        return np.sqrt(2 / np.pi) * jnp.sum(
+            jnp.where(self.is_real, real(w2), comp(w2)), axis=-1
         )
 
 
@@ -293,7 +273,6 @@ class KalmanTerm(Term):
             if diag.shape != x.shape:
                 raise ValueError("dimension mismatch")
 
-        # V = jnp.stack((jnp.ones_like(x), jnp.zeros_like(x)), axis=-1)
         dx = jnp.append(0, jnp.diff(x))
         P = self.phi(dx)
         V = jnp.repeat(self.h[None], x.shape[0], axis=0)
@@ -305,7 +284,7 @@ class Matern32Term(KalmanTerm):
 
     .. math::
 
-        k(\tau) = \sigma^2\,\left(1+ \frac{\sqrt{3}\,\tau}{\rho}\right)\,
+        k(\tau) = \sigma^2\,\left(1+\frac{\sqrt{3}\,\tau}{\rho}\right)\,
         \exp\left(-\frac{\sqrt{3}\,\tau}{\rho}\right)
 
     with the parameters ``sigma`` and ``rho``.
@@ -325,27 +304,27 @@ class Matern32Term(KalmanTerm):
             jnp.eye(2)[None] + dx[:, None, None] * self.phi1
         )
 
+    def get_value(self, tau):
+        """Compute the value of the kernel as a function of lag
 
-class Matern52Term(KalmanTerm):
-    def __init__(self, *, sigma, rho):
-        f = self.f = np.sqrt(5) / rho
-        f2 = jnp.square(f)
-        f3 = f * f2
-        self.phi1 = jnp.array(
-            [[f, 1.0, 0.0], [0.0, f, 1.0], [-f3, -3 * f2, -2 * f]]
-        )[None]
-        self.phi2 = 0.5 * jnp.array(
-            [
-                [f2, 2 * f, 1.0],
-                [-f3, -2 * f2, -f],
-                [f2 * f2, 2 * f3, f2],
-            ]
-        )[None]
-        super().__init__(sigma=sigma, h=jnp.array([1.0, 0.0, 0.0]))
+        Args:
+            tau (shape[...]): The lags where the kernel should be evaluated.
+        """
+        tau = self.f * jnp.abs(tau)
+        return self.s2 * (1 + tau) * jnp.exp(-tau)
 
-    def phi(self, dx):
-        return jnp.exp(-self.f * dx)[:, None, None] * (
-            jnp.eye(3)[None]
-            + dx[:, None, None] * self.phi1
-            + jnp.square(dx)[:, None, None] * self.phi2
+    def get_psd(self, omega):
+        """Compute the value of the power spectral density for this process
+
+        Args:
+            omega (shape[...]): The (angular) frequencies where the power
+                should be evaluated.
+        """
+        w2 = jnp.square(omega)
+        return (
+            2
+            * np.sqrt(2 / np.pi)
+            * self.s2
+            * self.f ** 3
+            / (w2 + self.f ** 2) ** 2
         )
