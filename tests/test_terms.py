@@ -72,24 +72,14 @@ def _convert_kernel(celerite_kernel):
     raise NotImplementedError()
 
 
-@pytest.mark.parametrize("oterm", test_terms)
-def test_consistency(oterm):
-    # Check that the coefficients are all correct
-    term = _convert_kernel(oterm)
-
-    # Make sure that the covariance matrix is right
-    np.random.seed(40582)
-    x = np.sort(np.random.uniform(0, 10, 50))
-    diag = np.random.uniform(0.1, 0.3, len(x))
-    np.testing.assert_allclose(oterm.get_value(x), term.get_value(x))
-
+def _check_term(term, x, diag, K, psd_term):
     tau = x[:, None] - x[None, :]
-    K = term.get_value(tau)
-    np.testing.assert_allclose(oterm.get_value(tau), K)
+
+    np.testing.assert_allclose(term.get_value(tau), K)
 
     # And the power spectrum
     omega = np.linspace(-10, 10, 500)
-    np.testing.assert_allclose(oterm.get_psd(omega), term.get_psd(omega))
+    np.testing.assert_allclose(psd_term.get_psd(omega), term.get_psd(omega))
 
     # Add in the diagonal
     K += np.diag(diag)
@@ -104,3 +94,47 @@ def test_consistency(oterm):
     y = np.vstack([x]).T
     value = term.dot(x, diag, y)
     np.testing.assert_allclose(value, K @ y)
+
+
+@pytest.mark.parametrize("oterm", test_terms)
+def test_consistency(oterm):
+    # Check that the coefficients are all correct
+    term = _convert_kernel(oterm)
+
+    # Make sure that the covariance matrix is right
+    np.random.seed(40582)
+    x = np.sort(np.random.uniform(0, 10, 50))
+    diag = np.random.uniform(0.1, 0.3, len(x))
+    np.testing.assert_allclose(oterm.get_value(x), term.get_value(x))
+    _check_term(
+        term,
+        x,
+        diag,
+        oterm.get_value(x[:, None] - x[None, :]),
+        oterm,
+    )
+
+
+def test_matern32():
+    sigma = 3.5
+    rho = 2.75
+    term = terms.Matern32Term(sigma=sigma, rho=rho)
+
+    np.random.seed(40582)
+    x = np.sort(np.random.uniform(0, 10, 50))
+    diag = np.random.uniform(0.1, 0.3, len(x))
+    tau = np.abs(x[:, None] - x[None, :])
+    f = np.sqrt(3) * tau / rho
+    K = sigma ** 2 * (1 + f) * np.exp(-f)
+
+    _check_term(
+        term,
+        x,
+        diag,
+        K,
+        (
+            terms.SHOTerm(
+                sigma=sigma, rho=2 * np.pi * rho / np.sqrt(3), Q=0.5 + 1e-8
+            )
+        ),
+    )
