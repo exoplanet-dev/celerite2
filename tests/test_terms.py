@@ -72,14 +72,17 @@ def _convert_kernel(celerite_kernel):
     raise NotImplementedError()
 
 
-def _check_term(term, x, diag, K, psd_term):
+def _check_term(term, x, diag, K, psd_term=None):
     tau = x[:, None] - x[None, :]
 
     np.testing.assert_allclose(term.get_value(tau), K)
 
     # And the power spectrum
-    omega = np.linspace(-10, 10, 500)
-    np.testing.assert_allclose(psd_term.get_psd(omega), term.get_psd(omega))
+    if psd_term:
+        omega = np.linspace(-10, 10, 500)
+        np.testing.assert_allclose(
+            psd_term.get_psd(omega), term.get_psd(omega)
+        )
 
     # Add in the diagonal
     K += np.diag(diag)
@@ -138,3 +141,20 @@ def test_matern32():
             )
         ),
     )
+
+
+def test_matern32_sum():
+    sigma = 3.5
+    rho = 2.75
+    term = terms.Matern32Term(sigma=sigma, rho=rho)
+    term2 = terms.SHOTerm(sigma=1.3, rho=2.1, Q=0.3)
+    term += term2
+
+    np.random.seed(40582)
+    x = np.sort(np.random.uniform(0, 10, 50))
+    diag = np.random.uniform(0.1, 0.3, len(x))
+    tau = np.abs(x[:, None] - x[None, :])
+    f = np.sqrt(3) * tau / rho
+    K = sigma ** 2 * (1 + f) * np.exp(-f) + term2.get_value(tau)
+
+    _check_term(term, x, diag, K)
