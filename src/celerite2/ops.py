@@ -51,6 +51,16 @@ def matmul_upper(U, V, P, Y):
     return jnp.einsum("nj,njk->nk", V, _get_matmul_upper_f(U, P, Y))
 
 
+def general_matmul_lower(inds, Up, V, P, Pp, Y):
+    F = _get_matmul_lower_f(V, P, Y)
+    return jnp.einsum("nj,njk->nk", Pp * Up, F[inds])
+
+
+def general_matmul_upper(inds, U, Vp, P, Pp, Y):
+    F = _get_matmul_upper_f(U, P, Y)
+    return jnp.einsum("nj,njk->nk", Pp * Vp, F[inds])
+
+
 # # General op:
 # F = _get_matmul_lower_f(V, P, y)
 # inds = np.searchsorted(t, x)

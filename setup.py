@@ -22,7 +22,7 @@ CLASSIFIERS = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
 ]
-INSTALL_REQUIRES = ["numpy>=1.13.0"]
+INSTALL_REQUIRES = ["jax", "jaxlib"]
 SETUP_REQUIRES = INSTALL_REQUIRES + [
     "pybind11>=2.4",
     "setuptools>=40.6.0",
@@ -42,7 +42,6 @@ EXTRA_REQUIRE = {
         "pymc3>=3.9, <3.12",
         "aesara-theano-fallback>=0.0.2",
     ],
-    "jax": ["jax", "jaxlib"],
     "release": ["pep517", "twine"],
     "docs": [
         "sphinx",
