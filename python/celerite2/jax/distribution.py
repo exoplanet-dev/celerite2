@@ -14,7 +14,6 @@ except ImportError:
                 "pymc3 is required to use the CeleriteNormal distribution"
             )
 
-
 else:
     from numpyro import distributions as dist
 
