@@ -22,7 +22,7 @@ auto {{mod.name}} (
     {% for dim in mod.dimensions -%}
     if ({{mod.inputs[dim.coords[0]].name}}buf.ndim <= {{dim.coords[1]}})
         throw std::invalid_argument("Invalid number of dimensions: {{mod.inputs[dim.coords[0]].name}}");
-    ssize_t {{dim.name}} = {{mod.inputs[dim.coords[0]].name}}buf.shape[{{dim.coords[1]}}];
+    py::ssize_t {{dim.name}} = {{mod.inputs[dim.coords[0]].name}}buf.shape[{{dim.coords[1]}}];
     {% endfor %}
     // Check shapes
     {% for arg in mod.inputs + mod.outputs -%}
@@ -98,7 +98,7 @@ auto get_celerite_matrices(
     auto U = U_out.mutable_unchecked<2>();
     auto V = V_out.mutable_unchecked<2>();
 
-    ssize_t N = x.shape(0), Jr = ar.shape(0), Jc = ac.shape(0), J = Jr + 2 * Jc;
+    py::ssize_t N = x.shape(0), Jr = ar.shape(0), Jc = ac.shape(0), J = Jr + 2 * Jc;
 
     if (bc.shape(0) != Jc) throw std::invalid_argument("dimension mismatch: bc");
     if (dc.shape(0) != Jc) throw std::invalid_argument("dimension mismatch: dc");
@@ -110,16 +110,16 @@ auto get_celerite_matrices(
     if (V.shape(0) != N || V.shape(1) != J) throw std::invalid_argument("dimension mismatch: V");
 
     double sum = 0.0;
-    for (ssize_t j = 0; j < Jr; ++j) sum += ar(j);
-    for (ssize_t j = 0; j < Jc; ++j) sum += ac(j);
+    for (py::ssize_t j = 0; j < Jr; ++j) sum += ar(j);
+    for (py::ssize_t j = 0; j < Jc; ++j) sum += ac(j);
 
-    for (ssize_t n = 0; n < N; ++n) {
+    for (py::ssize_t n = 0; n < N; ++n) {
         a(n) = diag(n) + sum;
-        for (ssize_t j = 0; j < Jr; ++j) {
+        for (py::ssize_t j = 0; j < Jr; ++j) {
             V(n, j) = 1.0;
             U(n, j) = ar(j);
         }
-        for (ssize_t j = 0, ind = Jr; j < Jc; ++j, ind += 2) {
+        for (py::ssize_t j = 0, ind = Jr; j < Jc; ++j, ind += 2) {
             double arg = dc(j) * x(n);
             double cos = V(n, ind) = std::cos(arg);
             double sin = V(n, ind + 1) = std::sin(arg);
