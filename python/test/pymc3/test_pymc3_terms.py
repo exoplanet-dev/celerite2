@@ -1,17 +1,18 @@
 # -*- coding: utf-8 -*-
 
-import pytest
-
-pytest.importorskip("pymc3")
-
 from functools import partial
 
+import pytest
 import numpy as np
-from celerite2 import terms as pyterms
-from celerite2.testing import check_tensor_term
-from celerite2.theano import terms
 
-compare_terms = partial(check_tensor_term, lambda x: x.eval())
+try:
+    from celerite2 import terms as pyterms
+    from celerite2.testing import check_tensor_term
+    from celerite2.theano import terms
+except (ImportError, ModuleNotFoundError):
+    pytestmark = pytest.mark.skip("aesara_theano_fallback not installed")
+else:
+    compare_terms = partial(check_tensor_term, lambda x: x.eval())
 
 
 def test_complete_implementation():

@@ -27,6 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install -U pip
+          python -m pip install "numpy<1.22"
           python -m pip install ".[tutorials]"
 
       - name: Get theano compiledir

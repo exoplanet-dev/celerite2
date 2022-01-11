@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 import pytest
-
-pytest.importorskip("jax")
-
 import numpy as np
-from celerite2 import terms as pyterms
-from celerite2.jax import GaussianProcess, terms
-from celerite2.testing import check_gp_models
+
+try:
+    from celerite2 import terms as pyterms
+    from celerite2.jax import GaussianProcess, terms
+    from celerite2.testing import check_gp_models
+except (ImportError, ModuleNotFoundError):
+    pytestmark = pytest.mark.skip("jax not installed")
 
 term_mark = pytest.mark.parametrize(
     "name,args",

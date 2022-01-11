@@ -35,7 +35,7 @@ EXTRA_REQUIRE = {
     "style": ["isort", "black", "black_nbconvert"],
     "test": [
         "coverage[toml]",
-        "pytest==6.0.0rc1",
+        "pytest",
         "pytest-cov",
         "scipy",
         "celerite>=0.3.1",
