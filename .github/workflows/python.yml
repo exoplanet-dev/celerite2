@@ -20,10 +20,10 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.9"]
-        extras: ["", "jax", "pymc3"]
+        extras: ["core", "jax", "pymc3"]
         include:
           - python-version: "3.10"
-            extras: ""
+            extras: "core"
 
     steps:
       - name: Checkout
