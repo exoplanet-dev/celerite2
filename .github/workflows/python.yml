@@ -46,14 +46,11 @@ jobs:
           submodules: true
           fetch-depth: 0
       - name: Install dependencies
-        shell: bash -l {0}
         run: |
-          conda install -q numpy scipy
           python -m pip install -U pip
           python -m pip install -e ".[test,pymc3]"
       - name: Get theano compiledir
         id: compiledir
-        shell: bash -l {0}
         run: |
           python -c "import theano; print('::set-output name=compiledir::' + theano.config.compiledir.split('/')[-1])"
       - name: "Cache ~/.theano"
@@ -65,7 +62,6 @@ jobs:
             theano-${{ steps.compiledir.outputs.compiledir }}-
             theano-
       - name: Run the unit tests
-        shell: bash -l {0}
         run: python -m pytest --cov celerite2 python/test/theano
       - name: Coveralls
         uses: AndreMiras/coveralls-python-action@v20201129
