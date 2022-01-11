@@ -2,6 +2,8 @@
 import numpy as np
 import pytest
 
+import celerite2
+
 try:
     from celerite2 import terms as pyterms
     from celerite2.jax import GaussianProcess, terms
