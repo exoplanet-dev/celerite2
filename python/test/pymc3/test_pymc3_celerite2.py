@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-import celerite2
 import numpy as np
 import pytest
+
+import celerite2
 
 try:
     from celerite2 import terms as pyterms
