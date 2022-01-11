@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import pytest
+
 pytest.importorskip("jax")
 
 import numpy as np

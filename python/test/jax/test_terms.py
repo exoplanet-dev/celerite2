@@ -6,11 +6,10 @@ pytest.importorskip("jax")
 from functools import partial
 
 import numpy as np
-from jax.config import config
-
 from celerite2 import terms as pyterms
 from celerite2.jax import terms
 from celerite2.testing import check_tensor_term
+from jax.config import config
 
 config.update("jax_enable_x64", True)
 
