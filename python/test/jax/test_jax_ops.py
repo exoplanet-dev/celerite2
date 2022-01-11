@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-import pytest
 import numpy as np
+import pytest
 
 try:
     from celerite2 import driver
@@ -10,6 +10,7 @@ try:
     from jax.test_util import check_grads
 except (ImportError, ModuleNotFoundError):
     pytestmark = pytest.mark.skip("jax not installed")
+
 
 def check_op(op, input_arrays, expected_outputs, grad=True):
     output_tensors = op(*input_arrays)

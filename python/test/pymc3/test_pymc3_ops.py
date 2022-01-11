@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import pytest
 import numpy as np
+import pytest
 
 try:
     import aesara_theano_fallback.tensor as tt
@@ -11,6 +11,7 @@ try:
     from celerite2.theano import ops
 except (ImportError, ModuleNotFoundError):
     pytestmark = pytest.mark.skip("aesara_theano_fallback not installed")
+
 
 def convert_values_to_types(values):
     types = []
