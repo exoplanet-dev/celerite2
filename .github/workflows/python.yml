@@ -38,24 +38,19 @@ jobs:
           parallel: true
           flag-name: Unit Tests
 
-  theano:
+  pymc3:
     runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v2
         with:
           submodules: true
           fetch-depth: 0
-      - name: Set up Python
-        uses: conda-incubator/setup-miniconda@v2
-        with:
-          python-version: 3.8
-          auto-update-conda: true
       - name: Install dependencies
         shell: bash -l {0}
         run: |
-          conda install -q numpy scipy theano mkl-service
+          conda install -q numpy scipy
           python -m pip install -U pip
-          python -m pip install --use-feature=2020-resolver -e ".[test,theano]"
+          python -m pip install -e ".[test,pymc3]"
       - name: Get theano compiledir
         id: compiledir
         shell: bash -l {0}

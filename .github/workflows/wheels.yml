@@ -2,6 +2,8 @@ name: Wheels
 on:
   release:
     types: [published]
+  push:
+    branches: [py310]
 
 jobs:
   build_wheels:
@@ -14,14 +16,11 @@ jobs:
         with:
           submodules: true
           fetch-depth: 0
-      - uses: ilammy/msvc-dev-cmd@v1
       - uses: joerick/cibuildwheel@v1.9.0
         env:
-          CIBW_BUILD: "cp3?-*"
-          CIBW_SKIP: "cp35-* *-win32 *-manylinux_i686"
+          CIBW_SKIP: "pp* *-win32 *-manylinux_i686 *-musllinux*"
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-          DISTUTILS_USE_SDK: 1
-          MSSdk: 1
+          CIBW_ARCHS_MACOS: "x86_64 universal2 arm64"
       - uses: actions/upload-artifact@v2
         with:
           path: ./wheelhouse/*.whl
