@@ -41,7 +41,7 @@ omit = [
 ]
 
 [tool.coverage.paths]
-source = ["src", "*/site-packages"]
+source = ["python", "*/site-packages"]
 
 [tool.coverage.report]
 show_missing = true
