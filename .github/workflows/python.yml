@@ -100,7 +100,7 @@ jobs:
           flag-name: Unit Tests
 
   coverage:
-    needs: [build, theano, jax]
+    needs: [build, pymc3, jax]
     runs-on: ubuntu-latest
     steps:
       - name: Coveralls Finished
