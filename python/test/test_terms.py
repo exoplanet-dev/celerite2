@@ -2,7 +2,6 @@
 import numpy as np
 import pytest
 from celerite import terms as cterms
-
 from celerite2 import terms
 
 test_terms = [
