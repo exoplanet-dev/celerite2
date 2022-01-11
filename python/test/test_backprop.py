@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import pytest
+
 from celerite2 import backprop, driver
 from celerite2.testing import get_matrices
 
