@@ -1,8 +1,0 @@
-[run]
-relative_files = true
-
-[report]
-exclude_lines =
-  raise NotImplementedError
-  except ImportError
-  def backward

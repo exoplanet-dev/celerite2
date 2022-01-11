@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=40.6.0", "wheel", "setuptools_scm", "numpy>=1.13.0", "pybind11>=2.4"]
+requires = ["setuptools>=40.6.0", "wheel", "setuptools_scm", "oldest-supported-numpy", "pybind11>=2.4"]
 build-backend = "setuptools.build_meta"
 
 [tool.black]
@@ -28,5 +28,27 @@ use_parentheses = true
 known_third_party = ["numpy"]
 
 [tool.pytest.ini_options]
-norecursedirs = "python/test/*"
 addopts = "-v"
+
+[tool.coverage.run]
+parallel = true
+branch = true
+source = ["celerite2"]
+omit = [
+  "*_test.py",
+  "*__init__*",
+  "*/celerite2/celerite2_version.py",
+]
+
+[tool.coverage.paths]
+source = ["python", "*/site-packages"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+  "raise NotImplementedError",
+  "except ImportError",
+  "pragma: no cover",
+  "def R_op",
+  "if verbose"
+]

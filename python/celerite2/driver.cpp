@@ -31,10 +31,10 @@ auto factor (
     // Parse dimensions
     if (tbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t");
-    ssize_t N = tbuf.shape[0];
+    py::ssize_t N = tbuf.shape[0];
     if (cbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: c");
-    ssize_t J = cbuf.shape[0];
+    py::ssize_t J = cbuf.shape[0];
 
     // Check shapes
     if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
@@ -82,13 +82,13 @@ auto solve_lower (
     // Parse dimensions
     if (tbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t");
-    ssize_t N = tbuf.shape[0];
+    py::ssize_t N = tbuf.shape[0];
     if (cbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: c");
-    ssize_t J = cbuf.shape[0];
+    py::ssize_t J = cbuf.shape[0];
     if (Ybuf.ndim <= 1)
         throw std::invalid_argument("Invalid number of dimensions: Y");
-    ssize_t nrhs = Ybuf.shape[1];
+    py::ssize_t nrhs = Ybuf.shape[1];
 
     // Check shapes
     if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
@@ -139,13 +139,13 @@ auto solve_upper (
     // Parse dimensions
     if (tbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t");
-    ssize_t N = tbuf.shape[0];
+    py::ssize_t N = tbuf.shape[0];
     if (cbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: c");
-    ssize_t J = cbuf.shape[0];
+    py::ssize_t J = cbuf.shape[0];
     if (Ybuf.ndim <= 1)
         throw std::invalid_argument("Invalid number of dimensions: Y");
-    ssize_t nrhs = Ybuf.shape[1];
+    py::ssize_t nrhs = Ybuf.shape[1];
 
     // Check shapes
     if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
@@ -196,13 +196,13 @@ auto matmul_lower (
     // Parse dimensions
     if (tbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t");
-    ssize_t N = tbuf.shape[0];
+    py::ssize_t N = tbuf.shape[0];
     if (cbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: c");
-    ssize_t J = cbuf.shape[0];
+    py::ssize_t J = cbuf.shape[0];
     if (Ybuf.ndim <= 1)
         throw std::invalid_argument("Invalid number of dimensions: Y");
-    ssize_t nrhs = Ybuf.shape[1];
+    py::ssize_t nrhs = Ybuf.shape[1];
 
     // Check shapes
     if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
@@ -253,13 +253,13 @@ auto matmul_upper (
     // Parse dimensions
     if (tbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t");
-    ssize_t N = tbuf.shape[0];
+    py::ssize_t N = tbuf.shape[0];
     if (cbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: c");
-    ssize_t J = cbuf.shape[0];
+    py::ssize_t J = cbuf.shape[0];
     if (Ybuf.ndim <= 1)
         throw std::invalid_argument("Invalid number of dimensions: Y");
-    ssize_t nrhs = Ybuf.shape[1];
+    py::ssize_t nrhs = Ybuf.shape[1];
 
     // Check shapes
     if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
@@ -312,16 +312,16 @@ auto general_matmul_lower (
     // Parse dimensions
     if (t1buf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t1");
-    ssize_t N = t1buf.shape[0];
+    py::ssize_t N = t1buf.shape[0];
     if (t2buf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t2");
-    ssize_t M = t2buf.shape[0];
+    py::ssize_t M = t2buf.shape[0];
     if (cbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: c");
-    ssize_t J = cbuf.shape[0];
+    py::ssize_t J = cbuf.shape[0];
     if (Ybuf.ndim <= 1)
         throw std::invalid_argument("Invalid number of dimensions: Y");
-    ssize_t nrhs = Ybuf.shape[1];
+    py::ssize_t nrhs = Ybuf.shape[1];
 
     // Check shapes
     if (t1buf.ndim != 1 || t1buf.shape[0] != N) throw std::invalid_argument("Invalid shape: t1");
@@ -376,16 +376,16 @@ auto general_matmul_upper (
     // Parse dimensions
     if (t1buf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t1");
-    ssize_t N = t1buf.shape[0];
+    py::ssize_t N = t1buf.shape[0];
     if (t2buf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t2");
-    ssize_t M = t2buf.shape[0];
+    py::ssize_t M = t2buf.shape[0];
     if (cbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: c");
-    ssize_t J = cbuf.shape[0];
+    py::ssize_t J = cbuf.shape[0];
     if (Ybuf.ndim <= 1)
         throw std::invalid_argument("Invalid number of dimensions: Y");
-    ssize_t nrhs = Ybuf.shape[1];
+    py::ssize_t nrhs = Ybuf.shape[1];
 
     // Check shapes
     if (t1buf.ndim != 1 || t1buf.shape[0] != N) throw std::invalid_argument("Invalid shape: t1");
@@ -442,7 +442,7 @@ auto get_celerite_matrices(
     auto U = U_out.mutable_unchecked<2>();
     auto V = V_out.mutable_unchecked<2>();
 
-    ssize_t N = x.shape(0), Jr = ar.shape(0), Jc = ac.shape(0), J = Jr + 2 * Jc;
+    py::ssize_t N = x.shape(0), Jr = ar.shape(0), Jc = ac.shape(0), J = Jr + 2 * Jc;
 
     if (bc.shape(0) != Jc) throw std::invalid_argument("dimension mismatch: bc");
     if (dc.shape(0) != Jc) throw std::invalid_argument("dimension mismatch: dc");
@@ -454,16 +454,16 @@ auto get_celerite_matrices(
     if (V.shape(0) != N || V.shape(1) != J) throw std::invalid_argument("dimension mismatch: V");
 
     double sum = 0.0;
-    for (ssize_t j = 0; j < Jr; ++j) sum += ar(j);
-    for (ssize_t j = 0; j < Jc; ++j) sum += ac(j);
+    for (py::ssize_t j = 0; j < Jr; ++j) sum += ar(j);
+    for (py::ssize_t j = 0; j < Jc; ++j) sum += ac(j);
 
-    for (ssize_t n = 0; n < N; ++n) {
+    for (py::ssize_t n = 0; n < N; ++n) {
         a(n) = diag(n) + sum;
-        for (ssize_t j = 0; j < Jr; ++j) {
+        for (py::ssize_t j = 0; j < Jr; ++j) {
             V(n, j) = 1.0;
             U(n, j) = ar(j);
         }
-        for (ssize_t j = 0, ind = Jr; j < Jc; ++j, ind += 2) {
+        for (py::ssize_t j = 0, ind = Jr; j < Jc; ++j, ind += 2) {
             double arg = dc(j) * x(n);
             double cos = V(n, ind) = std::cos(arg);
             double sin = V(n, ind + 1) = std::sin(arg);

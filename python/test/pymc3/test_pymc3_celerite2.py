@@ -1,11 +1,16 @@
 # -*- coding: utf-8 -*-
+
 import celerite2
 import numpy as np
 import pytest
-from celerite2 import terms as pyterms
-from celerite2.testing import check_gp_models
-from celerite2.theano import GaussianProcess, terms
-from celerite2.theano.celerite2 import CITATIONS
+
+try:
+    from celerite2 import terms as pyterms
+    from celerite2.testing import check_gp_models
+    from celerite2.theano import GaussianProcess, terms
+    from celerite2.theano.celerite2 import CITATIONS
+except (ImportError, ModuleNotFoundError):
+    pytestmark = pytest.mark.skip("aesara_theano_fallback not installed")
 
 term_mark = pytest.mark.parametrize(
     "name,args",
@@ -97,7 +102,7 @@ def test_errors(data):
 
 
 def test_marginal(data):
-    import pymc3 as pm
+    pm = pytest.importorskip("pymc3")
 
     x, diag, y, t = data
 
@@ -113,7 +118,7 @@ def test_marginal(data):
 
 
 def test_citations(data):
-    import pymc3 as pm
+    pm = pytest.importorskip("pymc3")
 
     x, diag, y, t = data
 

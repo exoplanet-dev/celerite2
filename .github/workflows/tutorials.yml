@@ -9,6 +9,10 @@ on:
     types:
       - published
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
 jobs:
   notebooks:
     name: "Build the notebooks for the docs"
@@ -27,6 +31,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install -U pip
+          python -m pip install "numpy<1.22"
           python -m pip install ".[tutorials]"
 
       - name: Get theano compiledir

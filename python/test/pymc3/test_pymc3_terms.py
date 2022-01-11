@@ -1,31 +1,33 @@
 # -*- coding: utf-8 -*-
+
 from functools import partial
 
 import numpy as np
 import pytest
-from celerite2 import terms as pyterms
-from celerite2.testing import check_tensor_term
 
 try:
-    from jax.config import config
-except ImportError:
-    HAS_JAX = False
+    from celerite2 import terms as pyterms
+    from celerite2.testing import check_tensor_term
+    from celerite2.theano import terms
+except (ImportError, ModuleNotFoundError):
+    pytestmark = pytest.mark.skip("aesara_theano_fallback not installed")
 else:
-    HAS_JAX = True
-
-    config.update("jax_enable_x64", True)
-
-    from celerite2.jax import terms
-
-pytestmark = pytest.mark.skipif(not HAS_JAX, reason="jax is not installed")
+    compare_terms = partial(check_tensor_term, lambda x: x.eval())
 
 
-def evaluate(x):
-    assert x.dtype == np.float64 or x.dtype == np.int64
-    return np.asarray(x)
-
-
-compare_terms = partial(check_tensor_term, evaluate)
+def test_complete_implementation():
+    x = np.linspace(-10, 10, 500)
+    for name in pyterms.__all__:
+        if name == "OriginalCeleriteTerm":
+            continue
+        term = getattr(terms, name)
+        if name.startswith("Term"):
+            continue
+        pyterm = getattr(pyterms, name)
+        args = pyterm.get_test_parameters()
+        term = term(**args)
+        pyterm = pyterm(**args)
+        assert np.allclose(term.get_value(x).eval(), pyterm.get_value(x))
 
 
 @pytest.mark.parametrize(
@@ -34,10 +36,7 @@ compare_terms = partial(check_tensor_term, evaluate)
         ("RealTerm", dict(a=1.5, c=0.3)),
         ("ComplexTerm", dict(a=1.5, b=0.7, c=0.3, d=0.1)),
         ("SHOTerm", dict(S0=1.5, w0=2.456, Q=0.1)),
-        (
-            "SHOTerm",
-            dict(S0=np.float64(1.5), w0=np.float64(2.456), Q=np.float64(3.4)),
-        ),
+        ("SHOTerm", dict(S0=1.5, w0=2.456, Q=3.4)),
         ("SHOTerm", dict(sigma=1.5, w0=2.456, Q=3.4)),
         ("SHOTerm", dict(sigma=1.5, rho=2.456, Q=3.4)),
         ("SHOTerm", dict(S0=1.5, rho=2.456, tau=0.5)),
@@ -52,9 +51,7 @@ def test_base_terms(name, args):
 
     compare_terms(terms.TermDiff(term), pyterms.TermDiff(pyterm))
     compare_terms(
-        terms.TermConvolution(term, 0.5),
-        pyterms.TermConvolution(pyterm, 0.5),
-        atol=5e-6,
+        terms.TermConvolution(term, 0.5), pyterms.TermConvolution(pyterm, 0.5)
     )
 
     term0 = terms.SHOTerm(S0=1.0, w0=0.5, Q=1.5)

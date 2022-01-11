@@ -24,9 +24,9 @@ auto factor_fwd(py::array_t<double, py::array::c_style> t, py::array_t<double, p
 
   // Parse dimensions
   if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  ssize_t N = tbuf.shape[0];
+  py::ssize_t N = tbuf.shape[0];
   if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  ssize_t J = cbuf.shape[0];
+  py::ssize_t J = cbuf.shape[0];
 
   // Check shapes
   if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
@@ -80,9 +80,9 @@ auto factor_rev(py::array_t<double, py::array::c_style> t, py::array_t<double, p
 
   // Parse dimensions
   if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  ssize_t N = tbuf.shape[0];
+  py::ssize_t N = tbuf.shape[0];
   if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  ssize_t J = cbuf.shape[0];
+  py::ssize_t J = cbuf.shape[0];
 
   // Check shapes
   if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
@@ -140,11 +140,11 @@ auto solve_lower_fwd(py::array_t<double, py::array::c_style> t, py::array_t<doub
 
   // Parse dimensions
   if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  ssize_t N = tbuf.shape[0];
+  py::ssize_t N = tbuf.shape[0];
   if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  ssize_t J = cbuf.shape[0];
+  py::ssize_t J = cbuf.shape[0];
   if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  ssize_t nrhs = Ybuf.shape[1];
+  py::ssize_t nrhs = Ybuf.shape[1];
 
   // Check shapes
   if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
@@ -203,11 +203,11 @@ auto solve_lower_rev(py::array_t<double, py::array::c_style> t, py::array_t<doub
 
   // Parse dimensions
   if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  ssize_t N = tbuf.shape[0];
+  py::ssize_t N = tbuf.shape[0];
   if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  ssize_t J = cbuf.shape[0];
+  py::ssize_t J = cbuf.shape[0];
   if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  ssize_t nrhs = Ybuf.shape[1];
+  py::ssize_t nrhs = Ybuf.shape[1];
 
   // Check shapes
   if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
@@ -270,11 +270,11 @@ auto solve_upper_fwd(py::array_t<double, py::array::c_style> t, py::array_t<doub
 
   // Parse dimensions
   if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  ssize_t N = tbuf.shape[0];
+  py::ssize_t N = tbuf.shape[0];
   if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  ssize_t J = cbuf.shape[0];
+  py::ssize_t J = cbuf.shape[0];
   if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  ssize_t nrhs = Ybuf.shape[1];
+  py::ssize_t nrhs = Ybuf.shape[1];
 
   // Check shapes
   if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
@@ -333,11 +333,11 @@ auto solve_upper_rev(py::array_t<double, py::array::c_style> t, py::array_t<doub
 
   // Parse dimensions
   if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  ssize_t N = tbuf.shape[0];
+  py::ssize_t N = tbuf.shape[0];
   if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  ssize_t J = cbuf.shape[0];
+  py::ssize_t J = cbuf.shape[0];
   if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  ssize_t nrhs = Ybuf.shape[1];
+  py::ssize_t nrhs = Ybuf.shape[1];
 
   // Check shapes
   if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
@@ -400,11 +400,11 @@ auto matmul_lower_fwd(py::array_t<double, py::array::c_style> t, py::array_t<dou
 
   // Parse dimensions
   if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  ssize_t N = tbuf.shape[0];
+  py::ssize_t N = tbuf.shape[0];
   if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  ssize_t J = cbuf.shape[0];
+  py::ssize_t J = cbuf.shape[0];
   if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  ssize_t nrhs = Ybuf.shape[1];
+  py::ssize_t nrhs = Ybuf.shape[1];
 
   // Check shapes
   if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
@@ -463,11 +463,11 @@ auto matmul_lower_rev(py::array_t<double, py::array::c_style> t, py::array_t<dou
 
   // Parse dimensions
   if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  ssize_t N = tbuf.shape[0];
+  py::ssize_t N = tbuf.shape[0];
   if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  ssize_t J = cbuf.shape[0];
+  py::ssize_t J = cbuf.shape[0];
   if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  ssize_t nrhs = Ybuf.shape[1];
+  py::ssize_t nrhs = Ybuf.shape[1];
 
   // Check shapes
   if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
@@ -530,11 +530,11 @@ auto matmul_upper_fwd(py::array_t<double, py::array::c_style> t, py::array_t<dou
 
   // Parse dimensions
   if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  ssize_t N = tbuf.shape[0];
+  py::ssize_t N = tbuf.shape[0];
   if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  ssize_t J = cbuf.shape[0];
+  py::ssize_t J = cbuf.shape[0];
   if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  ssize_t nrhs = Ybuf.shape[1];
+  py::ssize_t nrhs = Ybuf.shape[1];
 
   // Check shapes
   if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
@@ -593,11 +593,11 @@ auto matmul_upper_rev(py::array_t<double, py::array::c_style> t, py::array_t<dou
 
   // Parse dimensions
   if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  ssize_t N = tbuf.shape[0];
+  py::ssize_t N = tbuf.shape[0];
   if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  ssize_t J = cbuf.shape[0];
+  py::ssize_t J = cbuf.shape[0];
   if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  ssize_t nrhs = Ybuf.shape[1];
+  py::ssize_t nrhs = Ybuf.shape[1];
 
   // Check shapes
   if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
@@ -662,13 +662,13 @@ auto general_matmul_lower_fwd(py::array_t<double, py::array::c_style> t1, py::ar
 
   // Parse dimensions
   if (t1buf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t1");
-  ssize_t N = t1buf.shape[0];
+  py::ssize_t N = t1buf.shape[0];
   if (t2buf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t2");
-  ssize_t M = t2buf.shape[0];
+  py::ssize_t M = t2buf.shape[0];
   if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  ssize_t J = cbuf.shape[0];
+  py::ssize_t J = cbuf.shape[0];
   if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  ssize_t nrhs = Ybuf.shape[1];
+  py::ssize_t nrhs = Ybuf.shape[1];
 
   // Check shapes
   if (t1buf.ndim != 1 || t1buf.shape[0] != N) throw std::invalid_argument("Invalid shape: t1");
@@ -723,13 +723,13 @@ auto general_matmul_upper_fwd(py::array_t<double, py::array::c_style> t1, py::ar
 
   // Parse dimensions
   if (t1buf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t1");
-  ssize_t N = t1buf.shape[0];
+  py::ssize_t N = t1buf.shape[0];
   if (t2buf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t2");
-  ssize_t M = t2buf.shape[0];
+  py::ssize_t M = t2buf.shape[0];
   if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  ssize_t J = cbuf.shape[0];
+  py::ssize_t J = cbuf.shape[0];
   if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  ssize_t nrhs = Ybuf.shape[1];
+  py::ssize_t nrhs = Ybuf.shape[1];
 
   // Check shapes
   if (t1buf.ndim != 1 || t1buf.shape[0] != N) throw std::invalid_argument("Invalid shape: t1");

@@ -1,10 +1,17 @@
 name: C++
-
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+    tags:
+      - "*"
+    paths-ignore:
+      - "docs/**"
   pull_request:
-    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
 
 jobs:
   build:

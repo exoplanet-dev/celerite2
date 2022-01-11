@@ -35,12 +35,12 @@ EXTRA_REQUIRE = {
     "style": ["isort", "black", "black_nbconvert"],
     "test": [
         "coverage[toml]",
-        "pytest==6.0.0rc1",
+        "pytest",
         "pytest-cov",
         "scipy",
         "celerite>=0.3.1",
     ],
-    "theano": [
+    "pymc3": [
         "pymc3>=3.9, <3.12",
         "aesara-theano-fallback>=0.0.2",
     ],
@@ -68,6 +68,7 @@ EXTRA_REQUIRE = {
         "numpyro",
     ],
 }
+EXTRA_REQUIRE["theano"] = EXTRA_REQUIRE["pymc3"]
 EXTRA_REQUIRE["dev"] = (
     EXTRA_REQUIRE["style"]
     + EXTRA_REQUIRE["test"]

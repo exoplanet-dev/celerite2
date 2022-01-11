@@ -21,7 +21,7 @@ auto {{mod.name}}_fwd (
     {% for dim in mod.dimensions -%}
     if ({{mod.inputs[dim.coords[0]].name}}buf.ndim <= {{dim.coords[1]}})
         throw std::invalid_argument("Invalid number of dimensions: {{mod.inputs[dim.coords[0]].name}}");
-    ssize_t {{dim.name}} = {{mod.inputs[dim.coords[0]].name}}buf.shape[{{dim.coords[1]}}];
+    py::ssize_t {{dim.name}} = {{mod.inputs[dim.coords[0]].name}}buf.shape[{{dim.coords[1]}}];
     {% endfor %}
     // Check shapes
     {% for arg in mod.inputs + mod.outputs + mod.extra_outputs -%}
@@ -97,7 +97,7 @@ auto {{mod.name}}_rev (
     {% for dim in mod.dimensions -%}
     if ({{mod.inputs[dim.coords[0]].name}}buf.ndim <= {{dim.coords[1]}})
         throw std::invalid_argument("Invalid number of dimensions: {{mod.inputs[dim.coords[0]].name}}");
-    ssize_t {{dim.name}} = {{mod.inputs[dim.coords[0]].name}}buf.shape[{{dim.coords[1]}}];
+    py::ssize_t {{dim.name}} = {{mod.inputs[dim.coords[0]].name}}buf.shape[{{dim.coords[1]}}];
     {% endfor %}
     // Check shapes
     {% for arg in mod.rev_inputs + mod.rev_outputs -%}
