@@ -5,20 +5,21 @@ import numpy as np
 import pytest
 
 try:
+    from jax.config import config
+
     from celerite2 import terms as pyterms
     from celerite2.jax import terms
     from celerite2.testing import check_tensor_term
-    from jax.config import config
 except (ImportError, ModuleNotFoundError):
     pytestmark = pytest.mark.skip("jax not installed")
 else:
     config.update("jax_enable_x64", True)
+
+    def evaluate(x):
+        assert x.dtype == np.float64 or x.dtype == np.int64
+        return np.asarray(x)
+
     compare_terms = partial(check_tensor_term, evaluate)
-
-
-def evaluate(x):
-    assert x.dtype == np.float64 or x.dtype == np.int64
-    return np.asarray(x)
 
 
 @pytest.mark.parametrize(
