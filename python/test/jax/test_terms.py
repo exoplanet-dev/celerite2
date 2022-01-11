@@ -1,23 +1,18 @@
 # -*- coding: utf-8 -*-
+import pytest
+
+pytest.importorskip("jax")
+
 from functools import partial
 
 import numpy as np
-import pytest
+from jax.config import config
+
 from celerite2 import terms as pyterms
+from celerite2.jax import terms
 from celerite2.testing import check_tensor_term
 
-try:
-    from jax.config import config
-except ImportError:
-    HAS_JAX = False
-else:
-    HAS_JAX = True
-
-    config.update("jax_enable_x64", True)
-
-    from celerite2.jax import terms
-
-pytestmark = pytest.mark.skipif(not HAS_JAX, reason="jax is not installed")
+config.update("jax_enable_x64", True)
 
 
 def evaluate(x):

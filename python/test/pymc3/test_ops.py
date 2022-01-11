@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+
+import pytest
+
+pytest.importorskip("pymc3")
+
 import aesara_theano_fallback.tensor as tt
 import numpy as np
 from aesara_theano_fallback import aesara as theano

@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
+
+import pytest
+
+pytest.importorskip("pymc3")
+
 import celerite2
 import numpy as np
-import pytest
 from celerite2 import terms as pyterms
 from celerite2.testing import check_gp_models
 from celerite2.theano import GaussianProcess, terms

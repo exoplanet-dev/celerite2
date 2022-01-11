@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-import celerite2
-import numpy as np
 import pytest
+pytest.importorskip("jax")
+
+import numpy as np
 from celerite2 import terms as pyterms
 from celerite2.jax import GaussianProcess, terms
 from celerite2.testing import check_gp_models

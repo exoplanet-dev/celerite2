@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+import pytest
+pytest.importorskip("jax")
+
 import numpy as np
 from celerite2 import driver
 from celerite2.jax import ops

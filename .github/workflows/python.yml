@@ -1,109 +1,89 @@
 name: Python
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+    tags:
+      - "*"
+    paths-ignore:
+      - "docs/**"
   pull_request:
-    branches: [main]
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
+  tests:
+    runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9"]
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.9"]
+        extras: ["", "jax", "pymc3"]
+        include:
+          python-version: "3.10"
+          extras: ""
+
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
         with:
-          submodules: true
           fetch-depth: 0
-      - name: Set up Python ${{ matrix.python-version }}
+
+      - name: Setup Python
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-      - uses: ilammy/msvc-dev-cmd@v1
+
       - name: Install dependencies
         run: |
           python -m pip install -U pip
-          python -m pip install -e ".[test]"
-        env:
-          DISTUTILS_USE_SDK: 1
-          MSSdk: 1
-      - name: Run the unit tests
-        run: python -m pytest --cov celerite2 python/test
-      - name: Coveralls
-        if: startsWith(matrix.os, 'ubuntu')
-        uses: AndreMiras/coveralls-python-action@v20201129
-        with:
-          parallel: true
-          flag-name: Unit Tests
+          python -m pip install -U coveralls coverage[toml] tox tox-gh-actions
 
-  pymc3:
-    runs-on: "ubuntu-latest"
+      - name: Run tests
+        run: python -m tox
+        env:
+          EXTRAS: ${{ matrix.extras }}
+
+      - name: Combine and upload coverage
+        run: |
+          python -m coverage combine
+          python -m coverage xml -i
+          python -m coveralls --service=github
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COVERALLS_PARALLEL: true
+          COVERALLS_FLAG_NAME: py${{ matrix.python-version }}-${{ matrix.extras }}
+
+  coverage:
+    needs: tests
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: true
-          fetch-depth: 0
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v2
         with:
           python-version: "3.9"
-      - name: Install dependencies
+      - name: Finish coverage collection
         run: |
           python -m pip install -U pip
-          python -m pip install -e ".[test,pymc3]"
-      - name: Get theano compiledir
-        id: compiledir
-        run: |
-          python -c "import theano; print('::set-output name=compiledir::' + theano.config.compiledir.split('/')[-1])"
-      - name: "Cache ~/.theano"
-        uses: actions/cache@v2
-        with:
-          path: ~/.theano
-          key: theano-${{ steps.compiledir.outputs.compiledir }}-${{ hashFiles('python/test/theano/*.py') }}
-          restore-keys: |
-            theano-${{ steps.compiledir.outputs.compiledir }}-
-            theano-
-      - name: Run the unit tests
-        run: python -m pytest --cov celerite2 python/test/theano
-      - name: Coveralls
-        uses: AndreMiras/coveralls-python-action@v20201129
-        with:
-          parallel: true
-          flag-name: Unit Tests
+          python -m pip install -U coveralls
+          python -m coveralls --finish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  jax:
-    runs-on: "ubuntu-latest"
+  lint:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
-          submodules: true
           fetch-depth: 0
-      - name: Set up Python
-        uses: conda-incubator/setup-miniconda@v2
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
         with:
-          python-version: 3.8
-          auto-update-conda: true
+          python-version: "3.9"
+
       - name: Install dependencies
-        shell: bash -l {0}
         run: |
           python -m pip install -U pip
-          python -m pip install --use-feature=2020-resolver -e ".[test,jax]"
-      - name: Run the unit tests
-        shell: bash -l {0}
-        run: python -m pytest --cov celerite2 python/test/jax
-      - name: Coveralls
-        uses: AndreMiras/coveralls-python-action@v20201129
-        with:
-          parallel: true
-          flag-name: Unit Tests
+          python -m pip install tox
 
-  coverage:
-    needs: [build, pymc3, jax]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Coveralls Finished
-        uses: AndreMiras/coveralls-python-action@v20201129
-        with:
-          parallel-finished: true
+      - name: Lint the code
+        run: python -m tox -e lint
