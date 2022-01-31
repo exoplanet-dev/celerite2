@@ -105,7 +105,7 @@ class GaussianProcess(BaseGaussianProcess):
         alpha = ops.solve_lower(
             self._t, self._c, self._U, self._W, y[:, None]
         )[0][:, 0]
-        return tt.sum(alpha ** 2 / self._d)
+        return tt.sum(alpha**2 / self._d)
 
     def _add_citations_to_pymc3_model(self, **kwargs):
         if not pm:

@@ -105,7 +105,7 @@ class GaussianProcess(BaseGaussianProcess):
         alpha = driver.solve_lower(
             self._t, self._c, self._U, self._W, alpha, alpha
         )[:, 0]
-        return np.sum(alpha ** 2 / self._d)
+        return np.sum(alpha**2 / self._d)
 
     def sample(self, *, size=None, include_mean=True):
         if self._t is None:
