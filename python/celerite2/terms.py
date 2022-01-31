@@ -91,13 +91,13 @@ class Term:
         w2 = w2[..., None]
 
         if len(ar):
-            psd += np.sum(ar * cr / (cr ** 2 + w2), axis=-1)
+            psd += np.sum(ar * cr / (cr**2 + w2), axis=-1)
 
         if len(ac):
-            w02 = cc ** 2 + dc ** 2
+            w02 = cc**2 + dc**2
             psd += np.sum(
                 ((ac * cc + bc * dc) * w02 + (ac * cc - bc * dc) * w2)
-                / (w2 ** 2 + 2.0 * (cc * cc - dc * dc) * w2 + w02 * w02),
+                / (w2**2 + 2.0 * (cc * cc - dc * dc) * w2 + w02 * w02),
                 axis=-1,
             )
 
@@ -322,8 +322,8 @@ class TermDiff(Term):
         final_coeffs = [
             -coeffs[0] * coeffs[1] ** 2,
             coeffs[1],
-            a * (d ** 2 - c ** 2) + 2 * b * c * d,
-            b * (d ** 2 - c ** 2) - 2 * a * c * d,
+            a * (d**2 - c**2) + 2 * b * c * d,
+            b * (d**2 - c**2) - 2 * a * c * d,
             c,
             d,
         ]
@@ -355,13 +355,13 @@ class TermConvolution(Term):
 
         # Real part
         cd = cr * dt
-        delta_diag = 2 * np.sum(ar * (cd - np.sinh(cd)) / cd ** 2)
+        delta_diag = 2 * np.sum(ar * (cd - np.sinh(cd)) / cd**2)
 
         # Complex part
         cd = cc * dt
         dd = d * dt
-        c2 = cc ** 2
-        d2 = d ** 2
+        c2 = cc**2
+        d2 = d**2
         c2pd2 = c2 + d2
         C1 = a * (c2 - d2) + 2 * b * cc * d
         C2 = b * (c2 - d2) - 2 * a * cc * d
@@ -386,13 +386,13 @@ class TermConvolution(Term):
 
         # Real componenets
         crd = cr * self.delta
-        coeffs = [2 * ar * (np.cosh(crd) - 1) / crd ** 2, cr]
+        coeffs = [2 * ar * (np.cosh(crd) - 1) / crd**2, cr]
 
         # Imaginary coefficients
         cd = c * self.delta
         dd = d * self.delta
-        c2 = c ** 2
-        d2 = d ** 2
+        c2 = c**2
+        d2 = d**2
         factor = 2.0 / (self.delta * (c2 + d2)) ** 2
         cos_term = np.cosh(cd) * np.cos(dd) - 1
         sin_term = np.sinh(cd) * np.sin(dd)
@@ -416,7 +416,7 @@ class TermConvolution(Term):
         sinc = np.ones_like(arg)
         m = np.abs(arg) > 0.0
         sinc[m] = np.sin(arg[m]) / arg[m]
-        return psd0 * sinc ** 2
+        return psd0 * sinc**2
 
     def get_value(self, tau0):
         dt = self.delta
@@ -434,7 +434,7 @@ class TermConvolution(Term):
         # tau > Delta
         crd = cr * dt
         cosh = np.cosh(crd)
-        norm = 2 * ar / crd ** 2
+        norm = 2 * ar / crd**2
         K_large = np.sum(norm * (cosh - 1) * np.exp(-cr * tau), axis=-1)
 
         # tau < Delta
@@ -444,8 +444,8 @@ class TermConvolution(Term):
         # Complex part
         cd = c * dt
         dd = d * dt
-        c2 = c ** 2
-        d2 = d ** 2
+        c2 = c**2
+        d2 = d**2
         c2pd2 = c2 + d2
         C1 = a * (c2 - d2) + 2 * b * c * d
         C2 = b * (c2 - d2) - 2 * a * c * d
@@ -639,7 +639,7 @@ class SHOTerm(Term):
         ("Q", (("tau", lambda self, tau: 0.5 * self.w0 * tau),)),
         (
             "S0",
-            (("sigma", lambda self, sigma: sigma ** 2 / (self.w0 * self.Q)),),
+            (("sigma", lambda self, sigma: sigma**2 / (self.w0 * self.Q)),),
         ),
     )
 
@@ -653,7 +653,7 @@ class SHOTerm(Term):
 
     def overdamped(self):
         Q = self.Q
-        f = np.sqrt(np.maximum(1.0 - 4.0 * Q ** 2, self.eps))
+        f = np.sqrt(np.maximum(1.0 - 4.0 * Q**2, self.eps))
         e = np.empty(0)
         return (
             0.5
@@ -670,7 +670,7 @@ class SHOTerm(Term):
 
     def underdamped(self):
         Q = self.Q
-        f = np.sqrt(np.maximum(4.0 * Q ** 2 - 1.0, self.eps))
+        f = np.sqrt(np.maximum(4.0 * Q**2 - 1.0, self.eps))
         a = self.S0 * self.w0 * Q
         c = 0.5 * self.w0 / Q
         e = np.empty(0)
@@ -729,13 +729,13 @@ class Matern32Term(Term):
 
     def get_coefficients(self):
         w0 = np.sqrt(3) / self.rho
-        S0 = self.sigma ** 2 / w0
+        S0 = self.sigma**2 / w0
         e = np.empty(0)
         return (
             e,
             e,
             np.array([w0 * S0]),
-            np.array([w0 ** 2 * S0 / self.eps]),
+            np.array([w0**2 * S0 / self.eps]),
             np.array([w0]),
             np.array([self.eps]),
         )
@@ -791,16 +791,16 @@ class RotationTerm(TermSum):
         self.dQ = float(dQ)
         self.f = float(f)
 
-        self.amp = self.sigma ** 2 / (1 + self.f)
+        self.amp = self.sigma**2 / (1 + self.f)
 
         # One term with a period of period
         Q1 = 0.5 + self.Q0 + self.dQ
-        w1 = 4 * np.pi * Q1 / (self.period * np.sqrt(4 * Q1 ** 2 - 1))
+        w1 = 4 * np.pi * Q1 / (self.period * np.sqrt(4 * Q1**2 - 1))
         S1 = self.amp / (w1 * Q1)
 
         # Another term at half the period
         Q2 = 0.5 + self.Q0
-        w2 = 8 * np.pi * Q2 / (self.period * np.sqrt(4 * Q2 ** 2 - 1))
+        w2 = 8 * np.pi * Q2 / (self.period * np.sqrt(4 * Q2**2 - 1))
         S2 = self.f * self.amp / (w2 * Q2)
 
         super().__init__(

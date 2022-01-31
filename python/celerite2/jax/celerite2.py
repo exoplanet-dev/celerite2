@@ -55,7 +55,7 @@ class GaussianProcess(BaseGaussianProcess):
         alpha = ops.solve_lower(
             self._t, self._c, self._U, self._W, y[:, None]
         )[:, 0]
-        return np.sum(alpha ** 2 / self._d)
+        return np.sum(alpha**2 / self._d)
 
     def numpyro_dist(self):
         return distribution.CeleriteNormal(self)

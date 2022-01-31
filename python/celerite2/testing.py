@@ -20,7 +20,7 @@ def get_matrices(
         Y = np.sin(x)
     else:
         Y = np.ascontiguousarray(
-            np.vstack([np.sin(x), np.cos(x), x ** 2]).T, dtype=np.float64
+            np.vstack([np.sin(x), np.cos(x), x**2]).T, dtype=np.float64
         )
     if no_diag:
         diag = np.zeros_like(x)

@@ -296,7 +296,7 @@ class GaussianProcess:
         alpha = driver.solve_lower(
             self._t, self._c, self._U, self._W, alpha, alpha
         )[:, 0]
-        loglike = self._norm - 0.5 * np.sum(alpha ** 2 / self._d)
+        loglike = self._norm - 0.5 * np.sum(alpha**2 / self._d)
         if not np.isfinite(loglike):
             return -np.inf
         return loglike

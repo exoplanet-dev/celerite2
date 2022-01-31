@@ -145,7 +145,7 @@ def set_params(params, gp):
     gp.kernel = terms.SHOTerm(
         sigma=theta[0], rho=theta[1], tau=theta[2]
     ) + terms.SHOTerm(sigma=theta[3], rho=theta[4], Q=0.25)
-    gp.compute(t, diag=yerr ** 2 + theta[5], quiet=True)
+    gp.compute(t, diag=yerr**2 + theta[5], quiet=True)
     return gp
 
 
@@ -267,7 +267,7 @@ with pm.Model() as model:
 
     kernel = term1 + term2
     gp = celerite2.theano.GaussianProcess(kernel, mean=mean)
-    gp.compute(t, diag=yerr ** 2 + pm.math.exp(log_jitter), quiet=True)
+    gp.compute(t, diag=yerr**2 + pm.math.exp(log_jitter), quiet=True)
     gp.marginal("obs", observed=y)
 
     pm.Deterministic("psd", kernel.get_psd(omega))
@@ -339,7 +339,7 @@ def numpyro_model(t, yerr, y=None):
 
     kernel = term1 + term2
     gp = celerite2.jax.GaussianProcess(kernel, mean=mean)
-    gp.compute(t, diag=yerr ** 2 + jnp.exp(log_jitter), check_sorted=False)
+    gp.compute(t, diag=yerr**2 + jnp.exp(log_jitter), check_sorted=False)
 
     numpyro.sample("obs", gp.numpyro_dist(), obs=y)
     numpyro.deterministic("psd", kernel.get_psd(omega))
