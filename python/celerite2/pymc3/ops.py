@@ -18,8 +18,10 @@ import numpy as np
 import pkg_resources
 import theano
 import theano.tensor as tt
-from celerite2 import backprop, driver
 from theano.graph import basic, op
+
+import celerite2.backprop as backprob
+import celerite2.driver as driver
 
 
 def _resize_or_set(outputs, n, shape):

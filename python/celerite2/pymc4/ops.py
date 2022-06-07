@@ -19,7 +19,9 @@ import aesara.tensor as tt
 import numpy as np
 import pkg_resources
 from aesara.graph import basic, op
-from celerite2 import backprop, driver
+
+import celerite2.backprop as backprop
+import celerite2.driver as driver
 
 
 def _resize_or_set(outputs, n, shape):

@@ -5,8 +5,9 @@ __all__ = ["CeleriteNormal"]
 import numpy as np
 import pymc3 as pm
 import theano.tensor as tt
-from celerite2 import driver
 from pymc3.distributions.distribution import Continuous
+
+import celerite2.driver
 
 
 class CeleriteNormal(Continuous):
@@ -42,7 +43,8 @@ class CeleriteNormal(Continuous):
         n = np.random.randn(*(size + tuple([d.shape[-1]])))
 
         func = np.vectorize(
-            driver.dot_tril, signature="(n,j),(m,j),(n),(n,j),(n)->(n)"
+            celerite2.driver.dot_tril,
+            signature="(n,j),(m,j),(n),(n,j),(n)->(n)",
         )
         return func(U, P, d, W, n) + mu
 

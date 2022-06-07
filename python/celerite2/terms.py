@@ -18,7 +18,8 @@ from functools import wraps
 from itertools import chain, product
 
 import numpy as np
-from celerite2 import driver
+
+import celerite2.driver as driver
 
 
 class Term:

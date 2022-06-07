@@ -17,7 +17,8 @@ import aesara
 import aesara.tensor as tt
 import numpy as np
 from aesara.ifelse import ifelse
-from celerite2 import terms as base_terms
+
+import celerite2.terms as base_terms
 from celerite2.pymc4 import ops
 
 

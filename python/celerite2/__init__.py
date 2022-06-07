@@ -2,7 +2,7 @@
 
 __all__ = ["__version__", "terms", "GaussianProcess"]
 
-from celerite2 import terms
+import celerite2.terms as terms
 from celerite2.celerite2_version import __version__
 from celerite2.numpy import GaussianProcess
 
