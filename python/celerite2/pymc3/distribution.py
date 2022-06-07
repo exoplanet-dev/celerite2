@@ -5,9 +5,8 @@ __all__ = ["CeleriteNormal"]
 import numpy as np
 import pymc3 as pm
 import theano.tensor as tt
-from pymc3.distributions.distribution import Continuous
-
 from celerite2 import driver
+from pymc3.distributions.distribution import Continuous
 
 
 class CeleriteNormal(Continuous):
