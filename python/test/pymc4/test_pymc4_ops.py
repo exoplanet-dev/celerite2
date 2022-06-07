@@ -81,7 +81,7 @@ def check_basic(ref_func, op, values):
     check_shape(op, inputs, outputs, values, result, multi)
     assert len(result) == len(expected)
     for a, b in zip(result, expected):
-        assert np.allclose(a, b)
+        np.testing.assert_allclose(a, b)
 
     if jax is not None:
         fg = FunctionGraph(inputs, outputs)
@@ -116,7 +116,7 @@ def check_grad(op, values, num_out, eps=1.234e-8):
             )(*values)
 
             for n, b in enumerate(res):
-                assert np.allclose(
+                np.testing.assert_allclose(
                     b.flatten(), grads[n][k][:, i], atol=1e-3
                 ), (k, i, n)
 

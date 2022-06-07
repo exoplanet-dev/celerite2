@@ -82,26 +82,26 @@ def test_consistency(oterm):
     # Check that the coefficients are all correct
     term = _convert_kernel(oterm)
     for v1, v2 in zip(oterm.get_all_coefficients(), term.get_coefficients()):
-        assert np.allclose(v1, v2)
+        np.testing.assert_allclose(v1, v2)
     for v1, v2 in zip(
         terms.OriginalCeleriteTerm(oterm).get_coefficients(),
         term.get_coefficients(),
     ):
-        assert np.allclose(v1, v2)
+        np.testing.assert_allclose(v1, v2)
 
     # Make sure that the covariance matrix is right
     np.random.seed(40582)
     x = np.sort(np.random.uniform(0, 10, 50))
     diag = np.random.uniform(0.1, 0.3, len(x))
-    assert np.allclose(oterm.get_value(x), term.get_value(x))
+    np.testing.assert_allclose(oterm.get_value(x), term.get_value(x))
 
     tau = x[:, None] - x[None, :]
     K = term.get_value(tau)
-    assert np.allclose(oterm.get_value(tau), K)
+    np.testing.assert_allclose(oterm.get_value(tau), K)
 
     # And the power spectrum
     omega = np.linspace(-10, 10, 500)
-    assert np.allclose(oterm.get_psd(omega), term.get_psd(omega))
+    np.testing.assert_allclose(oterm.get_psd(omega), term.get_psd(omega))
 
     # Add in the diagonal
     K[np.diag_indices_from(K)] += diag
@@ -109,10 +109,10 @@ def test_consistency(oterm):
     # Matrix vector multiply
     y = np.sin(x)
     value = term.dot(x, diag, y)
-    assert np.allclose(y, np.sin(x))
-    assert np.allclose(value, np.dot(K, y))
+    np.testing.assert_allclose(y, np.sin(x))
+    np.testing.assert_allclose(value, np.dot(K, y))
 
     # Matrix-matrix multiply
     y = np.vstack([x]).T
     value = term.dot(x, diag, y)
-    assert np.allclose(value, np.dot(K, y))
+    np.testing.assert_allclose(value, np.dot(K, y))

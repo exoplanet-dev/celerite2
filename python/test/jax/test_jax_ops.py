@@ -19,9 +19,11 @@ def check_op(op, input_arrays, expected_outputs, grad=True):
 
     if len(expected_outputs) > 1:
         for array, tensor in zip(expected_outputs, output_tensors):
-            assert np.allclose(array, np.asarray(tensor))
+            np.testing.assert_allclose(array, np.asarray(tensor))
     else:
-        assert np.allclose(expected_outputs[0], np.asarray(output_tensors))
+        np.testing.assert_allclose(
+            expected_outputs[0], np.asarray(output_tensors)
+        )
 
     if grad:
         check_grads(op, input_arrays, 1, modes=["rev"], eps=1e-6)

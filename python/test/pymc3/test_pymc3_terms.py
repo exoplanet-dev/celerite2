@@ -29,7 +29,9 @@ def test_complete_implementation():
         args = pyterm.get_test_parameters()
         term = term(**args)
         pyterm = pyterm(**args)
-        assert np.allclose(term.get_value(x).eval(), pyterm.get_value(x))
+        np.testing.assert_allclose(
+            term.get_value(x).eval(), pyterm.get_value(x)
+        )
 
 
 @pytest.mark.parametrize(

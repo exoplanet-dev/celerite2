@@ -113,7 +113,7 @@ def test_marginal(data):
         gp = GaussianProcess(term, t=x, diag=diag)
         gp.marginal("obs", observed=y)
 
-        assert np.allclose(
+        np.testing.assert_allclose(
             model.fastfn(model.logpt)(model.test_point),
             model.fastfn(gp.log_likelihood(y))(model.test_point),
         )

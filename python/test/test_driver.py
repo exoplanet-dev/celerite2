@@ -10,8 +10,8 @@ def test_factor():
     d, W = driver.factor(x, c, a, U, V, a, V)
 
     # Make sure that no copy is made if possible
-    assert np.allclose(a, d)
-    assert np.allclose(V, W)
+    np.testing.assert_allclose(a, d)
+    np.testing.assert_allclose(V, W)
 
 
 @pytest.mark.parametrize("vector", [True, False])
@@ -30,10 +30,10 @@ def test_solve_lower(vector):
     Y /= np.sqrt(d)[:, None]
 
     # Make sure that no copy is made if possible
-    assert np.allclose(value, Y)
+    np.testing.assert_allclose(value, Y)
 
     # Check that the solution is correct
-    assert np.allclose(value, expect)
+    np.testing.assert_allclose(value, expect)
 
 
 @pytest.mark.parametrize("vector", [True, False])
@@ -52,10 +52,10 @@ def test_solve_upper(vector):
     value = driver.solve_upper(x, c, U, W, Y, Y)
 
     # Make sure that no copy is made if possible
-    assert np.allclose(value, Y)
+    np.testing.assert_allclose(value, Y)
 
     # Check that the solution is correct
-    assert np.allclose(value, expect)
+    np.testing.assert_allclose(value, expect)
 
 
 @pytest.mark.parametrize("vector", [True, False])
@@ -72,7 +72,7 @@ def test_matmul_lower(vector):
     value = driver.matmul_lower(x, c, U, V, Y, np.zeros_like(Y))
 
     # Check that the solution is correct
-    assert np.allclose(value, expect)
+    np.testing.assert_allclose(value, expect)
 
 
 @pytest.mark.parametrize("vector", [True, False])
@@ -89,7 +89,7 @@ def test_matmul_upper(vector):
     value = driver.matmul_upper(x, c, U, V, Y, np.zeros_like(Y))
 
     # Check that the solution is correct
-    assert np.allclose(value, expect)
+    np.testing.assert_allclose(value, expect)
 
 
 @pytest.mark.parametrize("vector", [True, False])
@@ -110,7 +110,7 @@ def test_general_matmul(vector):
     Z = driver.general_matmul_upper(t, x, c, V2, U, Y, Z)
 
     # Check that the solution is correct
-    assert np.allclose(Z, expect)
+    np.testing.assert_allclose(Z, expect)
 
 
 @pytest.mark.parametrize("vector", [True, False])
@@ -131,4 +131,4 @@ def test_general_matmul_fallback(vector):
     Z = driver.general_matmul_upper(x, x, c, V, U, Y, Z)
 
     # Check that the solution is correct
-    assert np.allclose(Z, expect)
+    np.testing.assert_allclose(Z, expect)
