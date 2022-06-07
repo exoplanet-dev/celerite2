@@ -24,17 +24,6 @@ extensions = [
     "breathe",
 ]
 
-# autodoc_mock_imports = [
-#     "numpy",
-#     "theano",
-#     "aesara",
-#     "jax",
-#     "pymc3",
-#     "pymc",
-#     "celerite2.driver",
-#     "celerite2.backprop",
-# ]
-
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
     "numpy": ("https://docs.scipy.org/doc/numpy/", None),
@@ -54,15 +43,6 @@ author = "Dan Foreman-Mackey"
 copyright = "2020-2022" + author
 version = __version__
 release = __version__
-
-# # RTDs-action
-# if "GITHUB_TOKEN" in os.environ:
-#     extensions.append("rtds_action")
-
-#     rtds_action_github_repo = "exoplanet-dev/celerite2"
-#     rtds_action_path = "tutorials"
-#     rtds_action_artifact_prefix = "notebooks-for-"
-#     rtds_action_github_token = os.environ["GITHUB_TOKEN"]
 
 # HTML theme
 html_show_sourcelink = False
@@ -110,3 +90,7 @@ html_theme_options = {
 breathe_projects = {"celerite2": "c++/xml/"}
 breathe_default_project = "celerite2"
 breathe_default_members = ("members", "undoc-members")
+
+# Myst notebooks
+nb_execution_mode = "auto"
+nb_execution_timeout = -1
