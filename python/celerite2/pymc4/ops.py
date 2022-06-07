@@ -16,11 +16,12 @@ from itertools import chain
 
 import aesara
 import aesara.tensor as tt
-import celerite2.backprop as backprop
-import celerite2.driver as driver
 import numpy as np
 import pkg_resources
 from aesara.graph import basic, op
+
+import celerite2.backprop as backprop
+import celerite2.driver as driver
 
 
 def _resize_or_set(outputs, n, shape):

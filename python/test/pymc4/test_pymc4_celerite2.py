@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-import celerite2
 import numpy as np
 import pytest
+
+import celerite2
 
 pytest.importorskip("celerite2.pymc4")
 

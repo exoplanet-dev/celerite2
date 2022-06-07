@@ -2,11 +2,12 @@
 
 __all__ = ["CeleriteNormal"]
 
-import celerite2.driver
 import numpy as np
 import pymc3 as pm
 import theano.tensor as tt
 from pymc3.distributions.distribution import Continuous
+
+import celerite2.driver
 
 
 class CeleriteNormal(Continuous):
