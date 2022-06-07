@@ -4,8 +4,9 @@ __all__ = ["ConditionalDistribution", "GaussianProcess"]
 
 import warnings
 
-import celerite2.driver as driver
 import numpy as np
+
+import celerite2.driver as driver
 from celerite2.core import BaseConditionalDistribution, BaseGaussianProcess
 from celerite2.driver import LinAlgError
 

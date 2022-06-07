@@ -23,12 +23,13 @@ from functools import partial
 
 import numpy as np
 import pkg_resources
-from celerite2.jax import xla_ops
 from jax import core, lax
 from jax import numpy as jnp
 from jax.abstract_arrays import ShapedArray
 from jax.interpreters import ad, xla
 from jax.lib import xla_client
+
+from celerite2.jax import xla_ops
 
 xops = xla_client.ops
 

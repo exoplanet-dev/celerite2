@@ -2,8 +2,9 @@
 
 __all__ = ["get_matrices"]
 
-import celerite2.terms as terms
 import numpy as np
+
+import celerite2.terms as terms
 
 
 def get_matrices(

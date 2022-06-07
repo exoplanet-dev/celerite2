@@ -5,8 +5,9 @@ __all__ = ["GaussianProcess"]
 import warnings
 from functools import wraps
 
-import celerite2.driver as driver
 import numpy as np
+
+import celerite2.driver as driver
 from celerite2.driver import LinAlgError
 
 

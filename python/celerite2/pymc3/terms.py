@@ -13,12 +13,13 @@ __all__ = [
     "RotationTerm",
 ]
 
-import celerite2.terms as base_terms
 import numpy as np
 import theano
 import theano.tensor as tt
-from celerite2.pymc3 import ops
 from theano.ifelse import ifelse
+
+import celerite2.terms as base_terms
+from celerite2.pymc3 import ops
 
 
 class Term(base_terms.Term):
