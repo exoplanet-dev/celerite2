@@ -24,14 +24,6 @@ extensions = [
     "breathe",
 ]
 
-intersphinx_mapping = {
-    "python": ("https://docs.python.org/3/", None),
-    "numpy": ("https://docs.scipy.org/doc/numpy/", None),
-    "scipy": ("https://docs.scipy.org/doc/scipy/reference/", None),
-    "pymc3": ("https://docs.pymc.io/", None),
-    "celerite": ("https://celerite.readthedocs.io/en/stable/", None),
-}
-
 exclude_patterns = ["_build"]
 templates_path = ["_templates"]
 source_suffix = ".rst"

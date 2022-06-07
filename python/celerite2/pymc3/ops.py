@@ -20,7 +20,7 @@ import theano
 import theano.tensor as tt
 from theano.graph import basic, op
 
-import celerite2.backprop as backprob
+import celerite2.backprop as backprop
 import celerite2.driver as driver
 
 

@@ -58,3 +58,12 @@ def full_mamba(session):
 def lint(session):
     session.install("pre-commit")
     session.run("pre-commit", "run", "--all-files", *session.posargs)
+
+
+@nox.session
+def docs(session):
+    session.install(".[docs]")
+    with session.chdir("docs"):
+        session.run(
+            *"python -m sphinx -T -E -b dirhtml -d _build/doctrees -D language=en . _build/html".split()
+        )

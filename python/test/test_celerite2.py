@@ -78,7 +78,7 @@ def test_consistency(oterm, mean, data):
     mu, cov = original_gp.predict(y, t=t, return_cov=True)
     np.testing.assert_allclose(conditional_t.mean, mu)
     np.testing.assert_allclose(conditional_t.variance, np.diag(cov))
-    np.testing.assert_allclose(conditional_t.covariance, cov)
+    np.testing.assert_allclose(conditional_t.covariance, cov, atol=1e-8)
 
     conditional = gp.condition(y)
     mu, cov = original_gp.predict(y, return_cov=True)
