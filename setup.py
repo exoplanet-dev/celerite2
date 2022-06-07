@@ -77,29 +77,29 @@ include_dirs = [
     "c++/vendor/eigen",
     "python/celerite2",
 ]
-if "READTHEDOCS" in os.environ:
-    ext_modules = []
-else:
-    ext_modules = [
-        Pybind11Extension(
-            "celerite2.driver",
-            ["python/celerite2/driver.cpp"],
-            include_dirs=include_dirs,
-            language="c++",
-        ),
-        Pybind11Extension(
-            "celerite2.backprop",
-            ["python/celerite2/backprop.cpp"],
-            include_dirs=include_dirs,
-            language="c++",
-        ),
-        Pybind11Extension(
-            "celerite2.jax.xla_ops",
-            ["python/celerite2/jax/xla_ops.cpp"],
-            include_dirs=include_dirs,
-            language="c++",
-        ),
-    ]
+# if "READTHEDOCS" in os.environ:
+#     ext_modules = []
+# else:
+ext_modules = [
+    Pybind11Extension(
+        "celerite2.driver",
+        ["python/celerite2/driver.cpp"],
+        include_dirs=include_dirs,
+        language="c++",
+    ),
+    Pybind11Extension(
+        "celerite2.backprop",
+        ["python/celerite2/backprop.cpp"],
+        include_dirs=include_dirs,
+        language="c++",
+    ),
+    Pybind11Extension(
+        "celerite2.jax.xla_ops",
+        ["python/celerite2/jax/xla_ops.cpp"],
+        include_dirs=include_dirs,
+        language="c++",
+    ),
+]
 
 # END PROJECT SPECIFIC
 
