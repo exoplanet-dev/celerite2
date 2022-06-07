@@ -7,8 +7,8 @@ from functools import wraps
 
 import numpy as np
 
-from . import driver
-from .driver import LinAlgError
+from celerite2 import driver
+from celerite2.driver import LinAlgError
 
 
 class ConstantMean:

@@ -10,17 +10,17 @@ __all__ = [
     "general_matmul_lower",
     "general_matmul_upper",
 ]
+
 import json
 from itertools import chain
 
-import aesara_theano_fallback.tensor as tt
 import numpy as np
 import pkg_resources
-from aesara_theano_fallback import aesara as theano
-from aesara_theano_fallback import ifelse
-from aesara_theano_fallback.graph import basic, op
+import theano
+import theano.tensor as tt
+from theano.graph import basic, op
 
-from .. import backprop, driver
+from celerite2 import backprop, driver
 
 
 def _resize_or_set(outputs, n, shape):

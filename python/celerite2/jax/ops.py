@@ -29,7 +29,7 @@ from jax.abstract_arrays import ShapedArray
 from jax.interpreters import ad, xla
 from jax.lib import xla_client
 
-from . import xla_ops
+from celerite2.jax import xla_ops
 
 xops = xla_client.ops
 

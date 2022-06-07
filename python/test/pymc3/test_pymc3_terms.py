@@ -5,12 +5,14 @@ from functools import partial
 import numpy as np
 import pytest
 
+pytest.importorskip("celerite2.pymc3")
+
 try:
     from celerite2 import terms as pyterms
+    from celerite2.pymc3 import terms
     from celerite2.testing import check_tensor_term
-    from celerite2.theano import terms
 except (ImportError, ModuleNotFoundError):
-    pytestmark = pytest.mark.skip("aesara_theano_fallback not installed")
+    pass
 else:
     compare_terms = partial(check_tensor_term, lambda x: x.eval())
 

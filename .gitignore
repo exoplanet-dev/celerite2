@@ -38,3 +38,5 @@ dist
 .coverage*
 .eggs
 .tox
+.nox
+.coverage.*

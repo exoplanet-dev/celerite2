@@ -1,20 +1,21 @@
 # -*- coding: utf-8 -*-
 
 __all__ = ["CeleriteNormal"]
-import aesara_theano_fallback.tensor as tt
+
 import numpy as np
 
+from celerite2 import driver
+import aesara.tensor as tt
+
 try:
-    import pymc3  # noqa
+    import pymc as pm
 except ImportError:
+    HAS_PYMC = False
+    pm = None
     Continuous = object
-    HAS_PYMC3 = False
 else:
-    from pymc3.distributions.distribution import Continuous, draw_values
-
-    HAS_PYMC3 = True
-
-from .. import driver
+    HAS_PYMC = True
+    Continuous = pm.distributions.distribution.Continuous
 
 
 class CeleriteNormal(Continuous):
@@ -26,9 +27,9 @@ class CeleriteNormal(Continuous):
     """
 
     def __init__(self, gp, *args, **kwargs):
-        if not HAS_PYMC3:
+        if not HAS_PYMC:
             raise ImportError(
-                "pymc3 is required to use the CeleriteNormal distribution"
+                "PyMC is required to use the CeleriteNormal distribution"
             )
 
         super().__init__(*args, **kwargs)
@@ -47,7 +48,7 @@ class CeleriteNormal(Continuous):
                 except TypeError:
                     size = (size,)
 
-        mu, U, P, d, W = draw_values(
+        mu, U, P, d, W = pm.distributions.distribution.draw_values(
             [self.mean, self.gp._U, self.gp._P, self.gp._d, self.gp._W],
             point=point,
             size=size,

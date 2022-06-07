@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 
 __all__ = ["ConditionalDistribution", "GaussianProcess"]
+
 import warnings
 
 import numpy as np
 
-from . import driver
-from .core import BaseConditionalDistribution, BaseGaussianProcess
-from .driver import LinAlgError
+from celerite2 import driver
+from celerite2.core import BaseConditionalDistribution, BaseGaussianProcess
+from celerite2.driver import LinAlgError
 
 
 class ConditionalDistribution(BaseConditionalDistribution):

@@ -5,6 +5,7 @@ __all__ = [
     "BaseConditionalDistribution",
     "BaseGaussianProcess",
 ]
+
 import numpy as np
 
 

@@ -2,14 +2,17 @@
 import numpy as np
 import pytest
 
+pytest.importorskip("celerite2.jax")
+
 try:
+    from jax import jit
+    from jax.test_util import check_grads
+
     from celerite2 import driver
     from celerite2.jax import ops
     from celerite2.testing import get_matrices
-    from jax import jit
-    from jax.test_util import check_grads
 except (ImportError, ModuleNotFoundError):
-    pytestmark = pytest.mark.skip("jax not installed")
+    pass
 
 
 def check_op(op, input_arrays, expected_outputs, grad=True):

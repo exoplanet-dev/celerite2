@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
 __all__ = ["__version__", "terms", "GaussianProcess"]
-from . import terms
-from .celerite2_version import __version__
-from .numpy import GaussianProcess
+
+from celerite2 import terms
+from celerite2.celerite2_version import __version__
+from celerite2.numpy import GaussianProcess
 
 __uri__ = "https://celerite2.readthedocs.io"
 __author__ = "Daniel Foreman-Mackey"

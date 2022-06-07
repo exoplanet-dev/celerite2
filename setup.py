@@ -40,10 +40,8 @@ EXTRA_REQUIRE = {
         "scipy",
         "celerite>=0.3.1",
     ],
-    "pymc3": [
-        "pymc3>=3.9, <3.12",
-        "aesara-theano-fallback>=0.0.2",
-    ],
+    "pymc3": ["pymc3>=3.9", "numpy<1.22"],
+    "pymc4": ["pymc"],
     "jax": ["jax", "jaxlib"],
     "release": ["pep517", "twine"],
     "docs": [

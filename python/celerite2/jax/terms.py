@@ -14,12 +14,13 @@ __all__ = [
     "Matern32Term",
     "RotationTerm",
 ]
+
 from itertools import chain, product
 
 from jax import numpy as np
 
-from .. import terms as base_terms
-from . import ops
+from celerite2 import terms as base_terms
+from celerite2.jax import ops
 
 
 class Term:

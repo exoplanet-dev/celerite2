@@ -3,15 +3,15 @@
 import numpy as np
 import pytest
 
-pytest.importorskip("celerite2.pymc3")
+pytest.importorskip("celerite2.pymc4")
 
 try:
-    import theano
-    import theano.tensor as tt
+    import aesara
+    import aesara.tensor as tt
 
     from celerite2 import backprop, driver
-    from celerite2.pymc3 import ops
     from celerite2.testing import get_matrices
+    from celerite2.pymc4 import ops
 except (ImportError, ModuleNotFoundError):
     pass
 
@@ -35,20 +35,20 @@ def convert_values_to_types(values):
 
 def check_shape(op, inputs, outputs, values, result, multi):
     if multi:
-        shapes = theano.function(inputs, [o.shape for o in outputs])(*values)
+        shapes = aesara.function(inputs, [o.shape for o in outputs])(*values)
         assert all(
             np.all(v.shape == s) for v, s in zip(result, shapes)
         ), "Invalid shape inference"
 
     else:
-        shape = theano.function(inputs, outputs.shape)(*values)
+        shape = aesara.function(inputs, outputs.shape)(*values)
         assert result.shape == shape
 
 
 def check_basic(ref_func, op, values):
     inputs = convert_values_to_types(values)
     outputs = op(*inputs)
-    result = theano.function(inputs, outputs)(*values)
+    result = aesara.function(inputs, outputs)(*values)
 
     try:
         result.shape
@@ -70,7 +70,7 @@ def check_basic(ref_func, op, values):
 def check_grad(op, values, num_out, eps=1.234e-8):
     inputs = convert_values_to_types(values)
     outputs = op(*inputs)
-    func = theano.function(inputs, outputs)
+    func = aesara.function(inputs, outputs)
     vals0 = func(*values)
 
     # Compute numerical grad
@@ -90,8 +90,8 @@ def check_grad(op, values, num_out, eps=1.234e-8):
     # Compute the backprop
     for k in range(num_out):
         for i in range(vals0[k].size):
-            res = theano.function(
-                inputs, theano.grad(outputs[k].flatten()[i], inputs)
+            res = aesara.function(
+                inputs, aesara.grad(outputs[k].flatten()[i], inputs)
             )(*values)
 
             for n, b in enumerate(res):

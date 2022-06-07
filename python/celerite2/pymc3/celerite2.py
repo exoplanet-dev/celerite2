@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 
 __all__ = ["GaussianProcess", "ConditionalDistribution"]
-import aesara_theano_fallback.tensor as tt
-import numpy as np
 
-from ..core import BaseConditionalDistribution, BaseGaussianProcess
-from . import ops
-from .distribution import CeleriteNormal
+import numpy as np
+import theano.tensor as tt
+
+from celerite2.core import BaseConditionalDistribution, BaseGaussianProcess
+from celerite2.pymc3 import ops
+from celerite2.pymc3.distribution import CeleriteNormal
 
 try:
     import pymc3 as pm
@@ -107,9 +108,9 @@ class GaussianProcess(BaseGaussianProcess):
         )[0][:, 0]
         return tt.sum(alpha**2 / self._d)
 
-    def _add_citations_to_pymc3_model(self, **kwargs):
+    def _add_citations_to_pymc_model(self, **kwargs):
         if not pm:
-            raise ImportError("pymc3 is required for the 'marginal' method")
+            raise ImportError("PyMC is required for the 'marginal' method")
 
         model = pm.modelcontext(kwargs.get("model", None))
         if not hasattr(model, "__citations__"):
@@ -117,14 +118,14 @@ class GaussianProcess(BaseGaussianProcess):
         model.__citations__["celerite2"] = CITATIONS
 
     def marginal(self, name, **kwargs):
-        """Add the marginal likelihood to a PyMC3 model
+        """Add the marginal likelihood to a PyMC model
 
         Args:
             name (str): The name of the random variable.
             observed (optional): The observed data
 
         Returns:
-            A :class:`celerite2.theano.CeleriteNormal` distribution
+            A :class:`celerite2.pymc3.CeleriteNormal` distribution
             representing the marginal likelihood.
         """
         self._add_citations_to_pymc3_model(**kwargs)
@@ -157,7 +158,7 @@ class GaussianProcess(BaseGaussianProcess):
                 to separate the contributions from different model components.
 
         Returns:
-            A :class:`pymc3.MvNormal` distribution representing the conditional
+            A :class:`pm.MvNormal` distribution representing the conditional
             density.
         """
         self._add_citations_to_pymc3_model(**kwargs)
