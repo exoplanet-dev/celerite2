@@ -4,7 +4,6 @@ from functools import partial
 
 import numpy as np
 import pytest
-
 from celerite2 import backprop, driver
 from celerite2.testing import get_matrices
 
@@ -18,7 +17,6 @@ try:
     from aesara.graph.fg import FunctionGraph
     from aesara.graph.optdb import OptimizationQuery
     from aesara.link.jax import JAXLinker
-
     from celerite2.pymc4 import ops
 except (ImportError, ModuleNotFoundError):
     pass

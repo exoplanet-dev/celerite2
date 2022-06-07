@@ -1,5 +1,4 @@
 from aesara.link.jax.dispatch import jax_funcify
-
 from celerite2.jax import ops as jax_ops
 from celerite2.pymc4 import ops as pymc4_ops
 
@@ -18,4 +17,3 @@ def jax_funcify_Celerite(op, **kwargs):
         return prim.bind(*args)
 
     return impl
-
