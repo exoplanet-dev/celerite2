@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__all__ = ["terms", "GaussianProcess", "CeleriteNormal"]
+__all__ = ["terms", "GaussianProcess"]
 
 
 def __set_compiler_flags():
@@ -23,7 +23,6 @@ __set_compiler_flags()
 
 from celerite2.pymc4 import terms
 from celerite2.pymc4.celerite2 import GaussianProcess
-from celerite2.pymc4.distribution import CeleriteNormal
 
 try:
     from celerite2.pymc4 import jax_support  # noqa

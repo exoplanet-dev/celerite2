@@ -6,15 +6,7 @@ import numpy as np
 import theano.tensor as tt
 from celerite2 import driver
 
-try:
-    import pymc3 as pm
-except ImportError:
-    HAS_PYMC = False
-    pm = None
-    Continuous = object
-else:
-    HAS_PYMC = True
-    Continuous = pm.distributions.distribution.Continuous
+from pymc.distributions.distribution import Continuous
 
 
 class CeleriteNormal(Continuous):
@@ -26,11 +18,6 @@ class CeleriteNormal(Continuous):
     """
 
     def __init__(self, gp, *args, **kwargs):
-        if not HAS_PYMC:
-            raise ImportError(
-                "PyMC is required to use the CeleriteNormal distribution"
-            )
-
         super().__init__(*args, **kwargs)
         self.gp = gp
         self.mean = (

@@ -47,6 +47,13 @@ def full(session):
     _session_run(session, "python/test")
 
 
+@nox.session(python=ALL_PYTHON_VS, venv_backend="mamba")
+def full_mamba(session):
+    session.conda_install("jax", "pymc3", "pymc", channel="conda-forge")
+    session.install(".[test]")
+    _session_run(session, "python/test")
+
+
 @nox.session
 def lint(session):
     session.install("pre-commit")

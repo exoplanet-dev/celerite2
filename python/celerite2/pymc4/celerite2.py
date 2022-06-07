@@ -5,47 +5,10 @@ __all__ = ["GaussianProcess", "ConditionalDistribution"]
 import aesara.tensor as tt
 import numpy as np
 from aesara.raise_op import Assert
+
 from celerite2.core import BaseConditionalDistribution, BaseGaussianProcess
 from celerite2.pymc4 import ops
-from celerite2.pymc4.distribution import CeleriteNormal
-
-try:
-    import pymc as pm
-except ImportError:
-    pm = None
-
-CITATIONS = (
-    ("celerite2:foremanmackey17", "celerite2:foremanmackey18"),
-    r"""
-@article{exoplanet:foremanmackey17,
-   author = {{Foreman-Mackey}, D. and {Agol}, E. and {Ambikasaran}, S. and
-             {Angus}, R.},
-    title = "{Fast and Scalable Gaussian Process Modeling with Applications to
-              Astronomical Time Series}",
-  journal = {\aj},
-     year = 2017,
-    month = dec,
-   volume = 154,
-    pages = {220},
-      doi = {10.3847/1538-3881/aa9332},
-   adsurl = {http://adsabs.harvard.edu/abs/2017AJ....154..220F},
-  adsnote = {Provided by the SAO/NASA Astrophysics Data System}
-}
-@article{exoplanet:foremanmackey18,
-   author = {{Foreman-Mackey}, D.},
-    title = "{Scalable Backpropagation for Gaussian Processes using Celerite}",
-  journal = {Research Notes of the American Astronomical Society},
-     year = 2018,
-    month = feb,
-   volume = 2,
-   number = 1,
-    pages = {31},
-      doi = {10.3847/2515-5172/aaaf6c},
-   adsurl = {http://adsabs.harvard.edu/abs/2018RNAAS...2a..31F},
-  adsnote = {Provided by the SAO/NASA Astrophysics Data System}
-}
-""",
-)
+from celerite2.citation import CITATIONS
 
 
 class ConditionalDistribution(BaseConditionalDistribution):
@@ -109,8 +72,7 @@ class GaussianProcess(BaseGaussianProcess):
         return tt.sum(alpha**2 / self._d)
 
     def _add_citations_to_pymc_model(self, **kwargs):
-        if not pm:
-            raise ImportError("PyMC is required for the 'marginal' method")
+        import pymc as pm
 
         model = pm.modelcontext(kwargs.get("model", None))
         if not hasattr(model, "__citations__"):
@@ -128,8 +90,20 @@ class GaussianProcess(BaseGaussianProcess):
             A :class:`celerite2.pymc3.CeleriteNormal` distribution
             representing the marginal likelihood.
         """
+        from celerite2.pymc4.distribution import CeleriteNormal
+
         self._add_citations_to_pymc_model(**kwargs)
-        return CeleriteNormal(name, self, **kwargs)
+        return CeleriteNormal(
+            name,
+            self._mean_value,
+            self._norm,
+            self._t,
+            self._c,
+            self._U,
+            self._W,
+            self._d,
+            **kwargs
+        )
 
     def conditional(
         self, name, y, t=None, include_mean=True, kernel=None, **kwargs
@@ -161,6 +135,8 @@ class GaussianProcess(BaseGaussianProcess):
             A :class:`pm.MvNormal` distribution representing the conditional
             density.
         """
+        import pymc as pm
+
         self._add_citations_to_pymc_model(**kwargs)
 
         if t is None:
