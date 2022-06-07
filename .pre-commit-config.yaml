@@ -4,17 +4,23 @@ repos:
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
-      - id: debug-statements
-
+        exclude_types: [json, binary]
   - repo: https://github.com/PyCQA/isort
     rev: "5.10.1"
     hooks:
       - id: isort
-        args: []
         additional_dependencies: [toml]
         exclude: docs/tutorials
-
   - repo: https://github.com/psf/black
-    rev: 22.3.0
+    rev: "22.3.0"
     hooks:
-      - id: black
+      - id: black-jupyter
+  - repo: https://github.com/kynan/nbstripout
+    rev: "0.5.0"
+    hooks:
+      - id: nbstripout
+  - repo: https://github.com/hadialqattan/pycln
+    rev: "v1.3.1"
+    hooks:
+      - id: pycln
+        additional_dependencies: ["click<8.1.0"]

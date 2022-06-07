@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import os
 import subprocess
 
 import sphinx_material
@@ -9,7 +8,7 @@ from pkg_resources import DistributionNotFound, get_distribution
 try:
     __version__ = get_distribution("celerite2").version
 except DistributionNotFound:
-    __version__ = "unknown version"
+    __version__ = "dev"
 
 
 subprocess.call("doxygen Doxyfile.in", shell=True)
@@ -19,18 +18,22 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
     "sphinx.ext.mathjax",
+    "sphinx.ext.viewcode",
     "sphinx_copybutton",
-    "nbsphinx",
+    "myst_nb",
     "breathe",
 ]
 
-autodoc_mock_imports = [
-    "numpy",
-    "theano",
-    "pymc3",
-    "celerite2.driver",
-    "celerite2.backprop",
-]
+# autodoc_mock_imports = [
+#     "numpy",
+#     "theano",
+#     "aesara",
+#     "jax",
+#     "pymc3",
+#     "pymc",
+#     "celerite2.driver",
+#     "celerite2.backprop",
+# ]
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
@@ -48,18 +51,18 @@ master_doc = "index"
 # General information about the project.
 project = "celerite2"
 author = "Dan Foreman-Mackey"
-copyright = "2020, " + author
+copyright = "2020-2022" + author
 version = __version__
 release = __version__
 
-# RTDs-action
-if "GITHUB_TOKEN" in os.environ:
-    extensions.append("rtds_action")
+# # RTDs-action
+# if "GITHUB_TOKEN" in os.environ:
+#     extensions.append("rtds_action")
 
-    rtds_action_github_repo = "exoplanet-dev/celerite2"
-    rtds_action_path = "tutorials"
-    rtds_action_artifact_prefix = "notebooks-for-"
-    rtds_action_github_token = os.environ["GITHUB_TOKEN"]
+#     rtds_action_github_repo = "exoplanet-dev/celerite2"
+#     rtds_action_path = "tutorials"
+#     rtds_action_artifact_prefix = "notebooks-for-"
+#     rtds_action_github_token = os.environ["GITHUB_TOKEN"]
 
 # HTML theme
 html_show_sourcelink = False

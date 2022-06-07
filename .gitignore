@@ -34,7 +34,7 @@ build
 dist
 .envrc
 .coverage
-*.ipynb
+/*.ipynb
 .coverage*
 .eggs
 .tox

@@ -5,7 +5,6 @@
 import codecs
 import os
 import re
-import sys
 
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 from setuptools import find_packages, setup
@@ -43,7 +42,6 @@ EXTRA_REQUIRE = {
     "pymc3": ["pymc3>=3.9", "numpy<1.22"],
     "pymc4": ["pymc"],
     "jax": ["jax", "jaxlib"],
-    "release": ["pep517", "twine"],
     "docs": [
         "sphinx",
         "sphinx-material",
@@ -52,6 +50,7 @@ EXTRA_REQUIRE = {
         "nbsphinx",
         "breathe",
         "ipython",
+        "myst-nb",
     ],
     "tutorials": [
         "jupytext",
@@ -65,11 +64,11 @@ EXTRA_REQUIRE = {
         "numpyro",
     ],
 }
+EXTRA_REQUIRE["docs"] += EXTRA_REQUIRE["tutorials"]
 EXTRA_REQUIRE["theano"] = EXTRA_REQUIRE["pymc3"]
 EXTRA_REQUIRE["dev"] = (
     EXTRA_REQUIRE["style"]
     + EXTRA_REQUIRE["test"]
-    + EXTRA_REQUIRE["release"]
     + ["pre-commit", "nbstripout", "flake8"]
 )
 
