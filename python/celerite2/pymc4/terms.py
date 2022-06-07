@@ -15,10 +15,9 @@ __all__ = [
 
 import aesara
 import aesara.tensor as tt
+import celerite2.terms as base_terms
 import numpy as np
 from aesara.ifelse import ifelse
-
-import celerite2.terms as base_terms
 from celerite2.pymc4 import ops
 
 

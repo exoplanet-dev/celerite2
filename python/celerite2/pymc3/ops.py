@@ -14,14 +14,13 @@ __all__ = [
 import json
 from itertools import chain
 
+import celerite2.backprop as backprob
+import celerite2.driver as driver
 import numpy as np
 import pkg_resources
 import theano
 import theano.tensor as tt
 from theano.graph import basic, op
-
-import celerite2.backprop as backprob
-import celerite2.driver as driver
 
 
 def _resize_or_set(outputs, n, shape):
