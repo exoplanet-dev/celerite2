@@ -8,7 +8,6 @@ pytest.importorskip("celerite2.pymc3")
 try:
     import theano
     import theano.tensor as tt
-
     from celerite2 import backprop, driver
     from celerite2.pymc3 import ops
     from celerite2.testing import get_matrices

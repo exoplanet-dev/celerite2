@@ -9,8 +9,8 @@ pytest.importorskip("celerite2.pymc4")
 
 try:
     from celerite2 import terms as pyterms
-    from celerite2.testing import check_tensor_term
     from celerite2.pymc4 import terms
+    from celerite2.testing import check_tensor_term
 except (ImportError, ModuleNotFoundError):
     pass
 else:

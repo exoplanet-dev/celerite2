@@ -3,9 +3,8 @@
 __all__ = ["CeleriteNormal"]
 
 import numpy as np
-
-from celerite2 import driver
 import theano.tensor as tt
+from celerite2 import driver
 
 try:
     import pymc3 as pm

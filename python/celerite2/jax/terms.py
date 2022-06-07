@@ -17,10 +17,9 @@ __all__ = [
 
 from itertools import chain, product
 
-from jax import numpy as np
-
 from celerite2 import terms as base_terms
 from celerite2.jax import ops
+from jax import numpy as np
 
 
 class Term:

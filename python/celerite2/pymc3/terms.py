@@ -14,12 +14,11 @@ __all__ = [
 ]
 
 import numpy as np
-import theano.tensor as tt
 import theano
-from theano.ifelse import ifelse
-
+import theano.tensor as tt
 from celerite2 import terms as base_terms
 from celerite2.pymc3 import ops
+from theano.ifelse import ifelse
 
 
 class Term(base_terms.Term):

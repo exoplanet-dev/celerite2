@@ -2,10 +2,9 @@
 
 __all__ = ["GaussianProcess", "ConditionalDistribution"]
 
-import numpy as np
 import aesara.tensor as tt
+import numpy as np
 from aesara.raise_op import Assert
-
 from celerite2.core import BaseConditionalDistribution, BaseGaussianProcess
 from celerite2.pymc4 import ops
 from celerite2.pymc4.distribution import CeleriteNormal

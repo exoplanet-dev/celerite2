@@ -8,10 +8,9 @@ pytest.importorskip("celerite2.pymc4")
 try:
     import aesara
     import aesara.tensor as tt
-
     from celerite2 import backprop, driver
-    from celerite2.testing import get_matrices
     from celerite2.pymc4 import ops
+    from celerite2.testing import get_matrices
 except (ImportError, ModuleNotFoundError):
     pass
 

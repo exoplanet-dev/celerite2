@@ -2,10 +2,9 @@
 
 __all__ = ["CeleriteNormal"]
 
-import numpy as np
-
-from celerite2 import driver
 import aesara.tensor as tt
+import numpy as np
+from celerite2 import driver
 
 try:
     import pymc as pm

@@ -14,12 +14,11 @@ __all__ = [
 import json
 from itertools import chain
 
-import numpy as np
-import pkg_resources
 import aesara
 import aesara.tensor as tt
+import numpy as np
+import pkg_resources
 from aesara.graph import basic, op
-
 from celerite2 import backprop, driver
 
 
