@@ -4,34 +4,47 @@ ALL_PYTHON_VS = ["3.8", "3.9", "3.10"]
 TEST_CMD = ["coverage", "run", "-m", "pytest", "-v"]
 
 
+def _session_run(session, path):
+    if len(session.posargs):
+        session.run(*TEST_CMD, *session.posargs)
+    else:
+        session.run(*TEST_CMD, path, *session.posargs)
+
+
 @nox.session(python=ALL_PYTHON_VS)
 def core(session):
     session.install(".[test]")
-    session.run(*TEST_CMD, "python/test", *session.posargs)
+    _session_run(session, "python/test")
 
 
 @nox.session(python=ALL_PYTHON_VS)
 def jax(session):
     session.install(".[test,jax]")
-    session.run(*TEST_CMD, "python/test/jax", *session.posargs)
+    _session_run(session, "python/test/jax")
 
 
 @nox.session(python=ALL_PYTHON_VS)
 def pymc3(session):
     session.install(".[test,pymc3]")
-    session.run(*TEST_CMD, "python/test/pymc3", *session.posargs)
+    _session_run(session, "python/test/pymc3")
 
 
 @nox.session(python=ALL_PYTHON_VS)
 def pymc4(session):
     session.install(".[test,pymc4]")
-    session.run(*TEST_CMD, "python/test/pymc4", *session.posargs)
+    _session_run(session, "python/test/pymc4")
+
+
+@nox.session(python=ALL_PYTHON_VS)
+def pymc4_jax(session):
+    session.install(".[test,jax,pymc4]")
+    _session_run(session, "python/test/pymc4/test_pymc4_ops.py")
 
 
 @nox.session(python=ALL_PYTHON_VS)
 def full(session):
     session.install(".[test,jax,pymc3,pymc4]")
-    session.run(*TEST_CMD, "python/test", *session.posargs)
+    _session_run(session, "python/test")
 
 
 @nox.session

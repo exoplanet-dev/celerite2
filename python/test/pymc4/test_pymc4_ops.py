@@ -1,18 +1,38 @@
 # -*- coding: utf-8 -*-
 
+from functools import partial
+
 import numpy as np
 import pytest
+
+from celerite2 import backprop, driver
+from celerite2.testing import get_matrices
 
 pytest.importorskip("celerite2.pymc4")
 
 try:
     import aesara
     import aesara.tensor as tt
-    from celerite2 import backprop, driver
+    from aesara.compile.mode import Mode
+    from aesara.compile.sharedvalue import SharedVariable
+    from aesara.graph.fg import FunctionGraph
+    from aesara.graph.optdb import OptimizationQuery
+    from aesara.link.jax import JAXLinker
+
     from celerite2.pymc4 import ops
-    from celerite2.testing import get_matrices
 except (ImportError, ModuleNotFoundError):
     pass
+
+try:
+    import jax
+
+except (ImportError, ModuleNotFoundError):
+    jax = None
+
+else:
+    opts = OptimizationQuery(include=[None], exclude=["cxx_only", "BlasOpt"])
+    jax_mode = Mode(JAXLinker(), opts)
+    py_mode = Mode("py", opts)
 
 
 def convert_values_to_types(values):
@@ -65,6 +85,10 @@ def check_basic(ref_func, op, values):
     for a, b in zip(result, expected):
         assert np.allclose(a, b)
 
+    if jax is not None:
+        fg = FunctionGraph(inputs, outputs)
+        compare_jax_and_py(fg, values)
+
 
 def check_grad(op, values, num_out, eps=1.234e-8):
     inputs = convert_values_to_types(values)
@@ -97,6 +121,12 @@ def check_grad(op, values, num_out, eps=1.234e-8):
                 assert np.allclose(
                     b.flatten(), grads[n][k][:, i], atol=1e-3
                 ), (k, i, n)
+
+    if jax is not None:
+        for k in range(num_out):
+            out_grad = aesara.grad(tt.sum(outputs[k]), inputs)
+            fg = FunctionGraph(inputs, out_grad)
+            compare_jax_and_py(fg, values)
 
 
 def test_factor_fwd():
@@ -209,3 +239,37 @@ def test_general_matmul_upper_fwd():
         ops.general_matmul_upper,
         [t, x, c, U2, V, Y],
     )
+
+
+def compare_jax_and_py(
+    fgraph, test_inputs, assert_fn=None, must_be_device_array=True
+):
+    if assert_fn is None:
+        assert_fn = partial(np.testing.assert_allclose, rtol=1e-4)
+
+    fn_inputs = [i for i in fgraph.inputs if not isinstance(i, SharedVariable)]
+    aesara_jax_fn = aesara.function(fn_inputs, fgraph.outputs, mode=jax_mode)
+    jax_res = aesara_jax_fn(*test_inputs)
+
+    if must_be_device_array:
+        if isinstance(jax_res, list):
+            assert all(
+                isinstance(res, jax.interpreters.xla.DeviceArray)
+                for res in jax_res
+            )
+        else:
+            assert isinstance(jax_res, jax.interpreters.xla.DeviceArray)
+
+    aesara_py_fn = aesara.function(fn_inputs, fgraph.outputs, mode=py_mode)
+    py_res = aesara_py_fn(*test_inputs)
+
+    if len(fgraph.outputs) > 1:
+        for j, p in zip(jax_res, py_res):
+            print(np.min(j), np.max(j), np.any(np.isnan(j)))
+            print(np.min(p), np.max(p), np.any(np.isnan(p)))
+
+            assert_fn(j, p)
+    else:
+        assert_fn(jax_res, py_res)
+
+    return jax_res

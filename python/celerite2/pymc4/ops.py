@@ -24,7 +24,7 @@ from celerite2 import backprop, driver
 
 def _resize_or_set(outputs, n, shape):
     if outputs[n][0] is None:
-        outputs[n][0] = np.empty(shape)
+        outputs[n][0] = np.zeros(shape)
     else:
         outputs[n][0] = np.ascontiguousarray(
             np.resize(outputs[n][0], shape), dtype=np.float64

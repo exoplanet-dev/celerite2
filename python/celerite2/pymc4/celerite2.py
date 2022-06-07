@@ -128,7 +128,7 @@ class GaussianProcess(BaseGaussianProcess):
             A :class:`celerite2.pymc3.CeleriteNormal` distribution
             representing the marginal likelihood.
         """
-        self._add_citations_to_pymc3_model(**kwargs)
+        self._add_citations_to_pymc_model(**kwargs)
         return CeleriteNormal(name, self, **kwargs)
 
     def conditional(
@@ -161,7 +161,7 @@ class GaussianProcess(BaseGaussianProcess):
             A :class:`pm.MvNormal` distribution representing the conditional
             density.
         """
-        self._add_citations_to_pymc3_model(**kwargs)
+        self._add_citations_to_pymc_model(**kwargs)
 
         if t is None:
             shape = kwargs.pop("shape", len(y))
