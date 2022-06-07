@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 import celerite as original_celerite
+import celerite2
 import numpy as np
 import pytest
 from celerite import terms as cterms
-
-import celerite2
 from celerite2 import terms
 
 
