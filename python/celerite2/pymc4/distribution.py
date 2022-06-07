@@ -6,12 +6,11 @@ import aesara.tensor as tt
 import numpy as np
 from aesara.tensor.random.op import RandomVariable
 from aesara.tensor.random.utils import broadcast_params
+from celerite2 import driver
+from celerite2.pymc4 import ops
 from pymc.distributions.dist_math import check_parameters
 from pymc.distributions.distribution import Continuous
 from pymc.distributions.shape_utils import rv_size_is_none
-
-from celerite2 import driver
-from celerite2.pymc4 import ops
 
 
 def safe_celerite_normal(rng, mean, norm, t, c, U, W, d, size=None):

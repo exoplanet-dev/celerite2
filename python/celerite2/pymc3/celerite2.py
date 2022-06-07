@@ -4,7 +4,6 @@ __all__ = ["GaussianProcess", "ConditionalDistribution"]
 
 import numpy as np
 import theano.tensor as tt
-
 from celerite2.citation import CITATIONS
 from celerite2.core import BaseConditionalDistribution, BaseGaussianProcess
 from celerite2.pymc3 import ops
