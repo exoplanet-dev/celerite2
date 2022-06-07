@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 
 __all__ = ["GaussianProcess", "ConditionalDistribution"]
-from jax import numpy as np
-
 from celerite2.core import BaseConditionalDistribution, BaseGaussianProcess
 from celerite2.jax import distribution, ops
+from jax import numpy as np
 
 
 class ConditionalDistribution(BaseConditionalDistribution):

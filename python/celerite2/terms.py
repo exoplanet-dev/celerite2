@@ -17,9 +17,8 @@ __all__ = [
 from functools import wraps
 from itertools import chain, product
 
-import numpy as np
-
 import celerite2.driver as driver
+import numpy as np
 
 
 class Term:
