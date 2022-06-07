@@ -6,7 +6,8 @@ import warnings
 from functools import wraps
 
 import numpy as np
-from celerite2 import driver
+
+import celerite2.driver as driver
 from celerite2.driver import LinAlgError
 
 
