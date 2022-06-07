@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 import celerite as original_celerite
-import celerite2
 import numpy as np
 import pytest
 from celerite import terms as cterms
+
+import celerite2
 from celerite2 import terms
 
 
@@ -83,7 +84,7 @@ def test_consistency(oterm, mean, data):
     mu, cov = original_gp.predict(y, return_cov=True)
     np.testing.assert_allclose(conditional.mean, mu)
     np.testing.assert_allclose(conditional.variance, np.diag(cov))
-    np.testing.assert_allclose(conditional.covariance, cov)
+    np.testing.assert_allclose(conditional.covariance, cov, atol=1e-8)
 
     # "sample" method
     seed = 5938
