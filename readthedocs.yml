@@ -4,16 +4,14 @@ submodules:
   include: all
 
 build:
+  os: ubuntu-20.04
   tools:
-    python: mambaforge-4.10
+    python: "mambaforge-4.10"
 
 python:
-  # version: 3.8
   install:
     - method: pip
       path: .
-      extra_requirements:
-        - docs
 
 conda:
   environment: docs/environment.yml
