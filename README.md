@@ -3,10 +3,11 @@
 _celerite_ is an algorithm for fast and scalable Gaussian Process (GP)
 Regression in one dimension and this library, _celerite2_ is a re-write of the
 original [celerite project](https://celerite.readthedocs.io) to improve
-numerical stability and integration with various machine learning frameworks.  Documentation
-for this version can be found [here](https://celerite2.readthedocs.io/en/latest/).
-This new implementation includes interfaces in Python and C++, with full support for
-Theano/PyMC3 and JAX.
+numerical stability and integration with various machine learning frameworks.
+Documentation for this version can be found
+[here](https://celerite2.readthedocs.io/en/latest/). This new implementation
+includes interfaces in Python and C++, with full support for PyMC (v3 and v4)
+and JAX.
 
 This documentation won't teach you the fundamentals of GP modeling but the best
 resource for learning about this is available for free online: [Rasmussen &
