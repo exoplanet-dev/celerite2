@@ -3,13 +3,17 @@ version: 2
 submodules:
   include: all
 
-# python:
-#   version: 3.8
-#   install:
-#     - method: pip
-#       path: .
-#       extra_requirements:
-#         - docs
+build:
+  tools:
+    python: mambaforge-4.10
+
+python:
+  # version: 3.8
+  install:
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs
 
 conda:
   environment: docs/environment.yml

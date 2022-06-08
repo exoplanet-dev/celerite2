@@ -45,28 +45,43 @@ class Term(base_terms.Term):
         raise NotImplementedError("subclasses must implement this method")
 
     def get_value(self, tau):
-        return self._get_value(self.coefficients, tau)
+        r = self._get_value_real(self.coefficients[:2], tau)
+        c = self._get_value_complex(self.coefficients[2:], tau)
+        return r + c
 
-    def _get_value(self, coefficients, tau):
-        ar, cr, ac, bc, cc, dc = coefficients
+    def _get_value_real(self, coefficients, tau):
+        ar, cr = coefficients
         tau = tt.abs_(tau)
         tau = tt.shape_padright(tau)
-        K = tt.sum(ar * tt.exp(-cr * tau), axis=-1)
+        return tt.sum(ar * tt.exp(-cr * tau), axis=-1)
+
+    def _get_value_complex(self, coefficients, tau):
+        ac, bc, cc, dc = coefficients
+        tau = tt.abs_(tau)
+        tau = tt.shape_padright(tau)
         factor = tt.exp(-cc * tau)
-        K += tt.sum(ac * factor * tt.cos(dc * tau), axis=-1)
+        K = tt.sum(ac * factor * tt.cos(dc * tau), axis=-1)
         K += tt.sum(bc * factor * tt.sin(dc * tau), axis=-1)
         return K
 
     def get_psd(self, omega):
-        return self._get_psd(self.coefficients, omega)
+        r = self._get_psd_real(self.coefficients[:2], omega)
+        c = self._get_psd_complex(self.coefficients[2:], omega)
+        return r + c
 
-    def _get_psd(self, coefficients, omega):
-        ar, cr, ac, bc, cc, dc = coefficients
+    def _get_psd_real(self, coefficients, omega):
+        ar, cr = coefficients
+        omega = tt.shape_padright(omega)
+        w2 = omega**2
+        power = tt.sum(ar * cr / (cr**2 + w2), axis=-1)
+        return np.sqrt(2.0 / np.pi) * power
+
+    def _get_psd_complex(self, coefficients, omega):
+        ac, bc, cc, dc = coefficients
         omega = tt.shape_padright(omega)
         w2 = omega**2
         w02 = cc**2 + dc**2
-        power = tt.sum(ar * cr / (cr**2 + w2), axis=-1)
-        power += tt.sum(
+        power = tt.sum(
             ((ac * cc + bc * dc) * w02 + (ac * cc - bc * dc) * w2)
             / (w2 * w2 + 2.0 * (cc**2 - dc**2) * w2 + w02 * w02),
             axis=-1,
@@ -79,38 +94,47 @@ class Term(base_terms.Term):
         return K
 
     def get_celerite_matrices(self, x, diag, **kwargs):
-        return self._get_celerite_matrices(
-            self.coefficients, x, diag, **kwargs
-        )
-
-    def _get_celerite_matrices(self, coefficients, x, diag, **kwargs):
         x = tt.as_tensor_variable(x)
         diag = tt.as_tensor_variable(diag)
-        ar, cr, ac, bc, cc, dc = coefficients
-        a = diag + tt.sum(ar) + tt.sum(ac)
+        cr, ar, Ur, Vr = self._get_celerite_matrices_real(
+            self.coefficients[:2], x, **kwargs
+        )
+        cc, ac, Uc, Vc = self._get_celerite_matrices_real(
+            self.coefficients[2:], x, **kwargs
+        )
+        c = tt.concatenate((cr, cc))
+        a = diag + ar + ac
+        U = tt.concatenate((Ur, Uc), axis=1)
+        V = tt.concatenate((Vr, Vc), axis=1)
+        return c, a, U, V
+
+    def _get_celerite_matrices_real(self, coefficients, x, **kwargs):
+        ar, cr = coefficients
+        z = tt.zeros_like(x)
+        return (
+            cr,
+            tt.sum(ar),
+            ar[None, :] + z[:, None],
+            tt.ones_like(ar)[None, :] + z[:, None],
+        )
+
+    def _get_celerite_matrices_complex(self, coefficients, x, **kwargs):
+        ac, bc, cc, dc = coefficients
 
         arg = dc[None, :] * x[:, None]
         cos = tt.cos(arg)
         sin = tt.sin(arg)
-        z = tt.zeros_like(x)
-
         U = tt.concatenate(
             (
-                ar[None, :] + z[:, None],
                 ac[None, :] * cos + bc[None, :] * sin,
                 ac[None, :] * sin - bc[None, :] * cos,
             ),
             axis=1,
         )
+        V = tt.concatenate((cos, sin), axis=1)
+        c = tt.concatenate((cc, cc))
 
-        V = tt.concatenate(
-            (tt.ones_like(ar)[None, :] + z[:, None], cos, sin),
-            axis=1,
-        )
-
-        c = tt.concatenate((cr, cc, cc))
-
-        return c, a, U, V
+        return c, tt.sum(ac), U, V
 
     def dot(self, x, diag, y):
         x = tt.as_tensor_variable(x)
@@ -428,34 +452,37 @@ class SHOTerm(Term):
     def get_value(self, tau):
         return ifelse(
             self.cond,
-            super()._get_value(self.overdamped, tau),
-            super()._get_value(self.underdamped, tau),
+            super()._get_value_real(self.overdamped, tau),
+            super()._get_value_complex(self.underdamped, tau),
         )
 
     def get_psd(self, omega):
         return ifelse(
             self.cond,
-            super()._get_psd(self.overdamped, omega),
-            super()._get_psd(self.underdamped, omega),
+            super()._get_psd_real(self.overdamped, omega),
+            super()._get_psd_complex(self.underdamped, omega),
         )
 
     def get_celerite_matrices(self, x, diag, **kwargs):
+        x = tt.as_tensor_variable(x)
+        diag = tt.as_tensor_variable(diag)
+        cr, ar, Ur, Vr = super()._get_celerite_matrices_real(
+            self.overdamped, x, **kwargs
+        )
+        cc, ac, Uc, Vc = super()._get_celerite_matrices_complex(
+            self.underdamped, x, **kwargs
+        )
+        ar = ar + diag
+        ac = ac + diag
+
         return [
             ifelse(self.cond, a, b)
-            for a, b in zip(
-                super()._get_celerite_matrices(
-                    self.overdamped, x, diag, **kwargs
-                ),
-                super()._get_celerite_matrices(
-                    self.underdamped, x, diag, **kwargs
-                ),
-            )
+            for a, b in zip((cr, ar, Ur, Vr), (cc, ac, Uc, Vc))
         ]
 
     def get_overdamped_coefficients(self):
         Q = self.Q
         f = tt.sqrt(tt.maximum(1.0 - 4.0 * Q**2, self.eps))
-        empty = tt.zeros(0, dtype=self.dtype)
         return (
             0.5
             * self.S0
@@ -463,10 +490,6 @@ class SHOTerm(Term):
             * Q
             * tt.stack([1.0 + 1.0 / f, 1.0 - 1.0 / f]),
             0.5 * self.w0 / Q * tt.stack([1.0 - f, 1.0 + f]),
-            empty,
-            empty,
-            empty,
-            empty,
         )
 
     def get_underdamped_coefficients(self):
@@ -474,10 +497,7 @@ class SHOTerm(Term):
         f = tt.sqrt(tt.maximum(4.0 * Q**2 - 1.0, self.eps))
         a = self.S0 * self.w0 * Q
         c = 0.5 * self.w0 / Q
-        empty = tt.zeros(0, dtype=self.dtype)
         return (
-            empty,
-            empty,
             tt.stack([a]),
             tt.stack([a / f]),
             tt.stack([c]),
