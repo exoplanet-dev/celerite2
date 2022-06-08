@@ -6,15 +6,14 @@ submodules:
 build:
   os: ubuntu-20.04
   tools:
-    python: "mambaforge-4.10"
+    python: "3.10"
 
 python:
   install:
     - method: pip
       path: .
-
-conda:
-  environment: docs/environment.yml
+      extra_requirements:
+        - docs
 
 sphinx:
   builder: dirhtml
