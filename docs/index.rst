@@ -42,7 +42,9 @@ be a good choice.
    :caption: API Details
 
    api/python
-   api/theano
+   api/pymc3
+   api/pymc4
+   api/jax
    api/c++
 
 License & attribution

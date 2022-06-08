@@ -24,6 +24,8 @@ extensions = [
     "breathe",
 ]
 
+autodoc_mock_imports = ["theano", "pymc3"]
+
 exclude_patterns = ["_build"]
 templates_path = ["_templates"]
 source_suffix = ".rst"

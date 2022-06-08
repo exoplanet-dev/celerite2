@@ -23,4 +23,3 @@ __all__ = ["terms", "GaussianProcess", "CeleriteNormal"]
 
 from celerite2.jax import terms  # noqa isort:skip
 from celerite2.jax.celerite2 import GaussianProcess  # noqa isort:skip
-from celerite2.jax.distribution import CeleriteNormal  # noqa isort:skip

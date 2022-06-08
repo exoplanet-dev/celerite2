@@ -73,7 +73,7 @@ def test_base_terms(name, args):
 
 def test_opt_error():
     import aesara.tensor as at
-    from aesara import config, function, grad, ifelse
+    from aesara import config, function, grad
 
     x = np.linspace(0, 5, 10)
     diag = np.full_like(x, 0.2)
