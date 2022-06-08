@@ -60,9 +60,24 @@ def lint(session):
     session.run("pre-commit", "run", "--all-files", *session.posargs)
 
 
-@nox.session
+@nox.session(venv_backend="mamba")
 def docs(session):
-    session.install(".[docs]")
+    import yaml
+
+    with open("docs/environment.yml", "r") as f:
+        env = yaml.safe_load(f)
+
+    conda_deps = list(
+        filter(lambda s: isinstance(s, str), env["dependencies"])
+    )
+    pip_deps = next(
+        filter(lambda s: not isinstance(s, str), env["dependencies"])
+    )["pip"]
+
+    session.conda_install(*conda_deps, channel="conda-forge")
+    session.install(*pip_deps)
+    session.install(".")
+
     with session.chdir("docs"):
         session.run(
             *"python -m sphinx -T -E -b dirhtml -d _build/doctrees -D language=en . _build/html".split()
