@@ -7,7 +7,7 @@ Regression in one dimension and this library, *celerite2* is a re-write of the
 original `celerite project <https://celerite.readthedocs.io>`_ to improve
 numerical stability and integration with various machine learning frameworks.
 This implementation includes interfaces in Python and C++, with full support for
-Theano/PyMC3 and JAX.
+PyMC (v3 and v4) and JAX.
 
 This documentation won't teach you the fundamentals of GP modeling but the best
 resource for learning about this is available for free online: `Rasmussen &
@@ -16,12 +16,12 @@ Williams (2006) <http://www.gaussianprocess.org/gpml/>`_. Similarly, the
 (see `the original paper <https://arxiv.org/abs/1703.09710>`_ for more
 information and `a recent generalization <https://arxiv.org/abs/2007.05799>`_
 for extensions to structured two-dimensional data). If you need scalable GPs
-with more general covariance functions, `GPyTorch <https://gpytorch.ai/>`_ might
-be a good choice.
+with more general covariance functions, `GPyTorch <https://gpytorch.ai/>`_ or
+`tinygp <https://tinygp.readthedocs.io>`_ might be good choices.
 
 *celerite2* is being actively developed in `a public repository on GitHub
-<https://github.com/exoplanet-dev/celerite2>`_ so if you have any trouble, `open an issue
-<https://github.com/exoplanet-dev/celerite2/issues>`_ there.
+<https://github.com/exoplanet-dev/celerite2>`_ so if you have any trouble, `open
+an issue <https://github.com/exoplanet-dev/celerite2/issues>`_ there.
 
 .. toctree::
    :maxdepth: 2
@@ -50,7 +50,7 @@ be a good choice.
 License & attribution
 ---------------------
 
-Copyright 2020 Daniel Foreman-Mackey.
+Copyright 2020-2022 Daniel Foreman-Mackey.
 
 The source code is made available under the terms of the MIT license.
 

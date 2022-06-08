@@ -34,7 +34,7 @@ master_doc = "index"
 # General information about the project.
 project = "celerite2"
 author = "Dan Foreman-Mackey"
-copyright = "2020-2022" + author
+copyright = "2020-2022 " + author
 version = __version__
 release = __version__
 
