@@ -5,11 +5,11 @@ from functools import partial
 import numpy as np
 import pytest
 
-pytest.importorskip("celerite2.pymc3")
+pytest.importorskip("celerite2.pymc4")
 
 try:
     from celerite2 import terms as pyterms
-    from celerite2.pymc3 import terms
+    from celerite2.pymc4 import terms
     from celerite2.testing import check_tensor_term
 except (ImportError, ModuleNotFoundError):
     pass
@@ -53,10 +53,12 @@ def test_base_terms(name, args):
     pyterm = getattr(pyterms, name)(**args)
     compare_terms(term, pyterm)
 
-    compare_terms(terms.TermDiff(term), pyterms.TermDiff(pyterm))
-    compare_terms(
-        terms.TermConvolution(term, 0.5), pyterms.TermConvolution(pyterm, 0.5)
-    )
+    if hasattr(term, "coefficients"):
+        compare_terms(terms.TermDiff(term), pyterms.TermDiff(pyterm))
+        compare_terms(
+            terms.TermConvolution(term, 0.5),
+            pyterms.TermConvolution(pyterm, 0.5),
+        )
 
     term0 = terms.SHOTerm(S0=1.0, w0=0.5, Q=1.5)
     pyterm0 = pyterms.SHOTerm(S0=1.0, w0=0.5, Q=1.5)
@@ -67,3 +69,19 @@ def test_base_terms(name, args):
     pyterm0 = pyterms.SHOTerm(S0=1.0, w0=0.5, Q=0.2)
     compare_terms(term + term0, pyterm + pyterm0)
     compare_terms(term * term0, pyterm * pyterm0)
+
+
+def test_opt_error():
+    import aesara.tensor as at
+    from aesara import config, function, grad
+
+    x = np.linspace(0, 5, 10)
+    diag = np.full_like(x, 0.2)
+
+    with config.change_flags(on_opt_error="raise"):
+        arg = at.scalar()
+        arg.tag.test_value = 0.5
+        matrices = terms.SHOTerm(S0=1.0, w0=0.5, Q=arg).get_celerite_matrices(
+            x, diag
+        )
+        function([arg], grad(sum(at.sum(m) for m in matrices), [arg]))(0.5)

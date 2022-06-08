@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
 __all__ = ["get_matrices"]
+
 import numpy as np
 
-from . import terms
+import celerite2.terms as terms
 
 
 def get_matrices(
@@ -14,8 +15,8 @@ def get_matrices(
     include_dense=False,
     no_diag=False,
 ):
-    np.random.seed(721)
-    x = np.sort(np.random.uniform(0, 10, size))
+    random = np.random.default_rng(721)
+    x = np.sort(random.uniform(0, 10, size))
     if vector:
         Y = np.sin(x)
     else:
@@ -25,7 +26,7 @@ def get_matrices(
     if no_diag:
         diag = np.zeros_like(x)
     else:
-        diag = np.random.uniform(0.1, 0.3, len(x))
+        diag = random.uniform(0.1, 0.3, len(x))
     kernel = kernel if kernel else terms.SHOTerm(S0=5.0, w0=0.1, Q=3.45)
     c, a, U, V = kernel.get_celerite_matrices(x, diag)
 
@@ -38,7 +39,7 @@ def get_matrices(
             return x, c, a, U, V, K, Y
         return x, c, a, U, V, Y
 
-    t = np.sort(np.random.uniform(-1, 12, 200))
+    t = np.sort(random.uniform(-1, 12, 200))
     _, _, U2, V2 = kernel.get_celerite_matrices(t, np.zeros_like(t))
 
     if include_dense:
@@ -59,72 +60,83 @@ def _compare_tensor(eval_func, tensor, array, text, atol=1e-8):
         return
     resid = np.abs(array - value)
     coords = np.unravel_index(np.argmax(resid), array.shape)
-    assert allclose(
-        value, array, atol=atol
-    ), f"resid: {resid.max()}; coords: {coords}; message: {text}"
+    np.testing.assert_allclose(
+        value,
+        array,
+        atol=atol,
+        err_msg=f"resid: {resid.max()}; coords: {coords}; message: {text}",
+    )
 
 
 def check_tensor_term(eval_func, term, pyterm, atol=1e-8):
-    tensors = term.get_coefficients()
-    arrays = pyterm.get_coefficients()
-    inds = np.argsort(eval_func(tensors[0]))
-    pyinds = np.argsort(arrays[0])
-    for n, (tensor, array) in enumerate(zip(tensors[:2], arrays[:2])):
-        _compare_tensor(
-            eval_func,
-            tensor[inds],
-            array[pyinds],
-            f"real coefficients {n}",
-            atol=atol,
-        )
-
-    inds = np.argsort(eval_func(tensors[2]))
-    pyinds = np.argsort(arrays[2])
-    for n, (tensor, array) in enumerate(zip(tensors[2:], arrays[2:])):
-        _compare_tensor(
-            eval_func,
-            tensor[inds],
-            array[pyinds],
-            f"complex coefficients {n}",
-            atol=atol,
-        )
-
-    np.random.seed(40582)
-    x = np.sort(np.random.uniform(0, 10, 50))
-    t = np.random.uniform(-1, 11, 75)
-    diag = np.random.uniform(0.1, 0.3, len(x))
-
-    # This is a hack to deal with the fact that the interfaces don't
-    # always propduce matrices with the same column order
-    tensors = term.get_celerite_matrices(x, diag)
-    arrays = pyterm.get_celerite_matrices(x, diag)
-    inds = np.argsort(eval_func(tensors[2])[0])
-    pyinds = np.argsort(arrays[2][0])
-    for n, (tensor, array) in enumerate(zip(tensors, arrays)):
-        if n == 0:
+    try:
+        tensors = term.get_coefficients()
+    except NotImplementedError:
+        # Some terms don't implement coefficients
+        pass
+    else:
+        arrays = pyterm.get_coefficients()
+        inds = np.argsort(eval_func(tensors[0]))
+        pyinds = np.argsort(arrays[0])
+        for n, (tensor, array) in enumerate(zip(tensors[:2], arrays[:2])):
             _compare_tensor(
                 eval_func,
                 tensor[inds],
                 array[pyinds],
-                f"matrix {n}",
+                f"real coefficients {n}",
                 atol=atol,
             )
-        elif n == 1:
+
+        inds = np.argsort(eval_func(tensors[2]))
+        pyinds = np.argsort(arrays[2])
+        for n, (tensor, array) in enumerate(zip(tensors[2:], arrays[2:])):
             _compare_tensor(
                 eval_func,
-                tensor,
-                array,
-                f"matrix {n}",
+                tensor[inds],
+                array[pyinds],
+                f"complex coefficients {n}",
                 atol=atol,
             )
-        else:
-            _compare_tensor(
-                eval_func,
-                tensor[:, inds],
-                array[:, pyinds],
-                f"matrix {n}",
-                atol=atol,
-            )
+
+    random = np.random.default_rng(40582)
+    x = np.sort(random.uniform(0, 10, 50))
+    diag = random.uniform(0.1, 0.3, len(x))
+
+    # FIXME: Do we want to compare the actual celerite matrices that are
+    # produced? This has always been horrible, and probably doesn't really
+    # matter.
+
+    # # This is a hack to deal with the fact that the interfaces don't
+    # # always propduce matrices with the same column order
+    # tensors = term.get_celerite_matrices(x, diag)
+    # arrays = pyterm.get_celerite_matrices(x, diag)
+    # inds = np.argsort(eval_func(tensors[2][1]))
+    # pyinds = np.argsort(arrays[2][1])
+    # for n, (tensor, array) in enumerate(zip(tensors, arrays)):
+    #     if n == 0:
+    #         _compare_tensor(
+    #             eval_func,
+    #             tensor[inds],
+    #             array[pyinds],
+    #             f"matrix {n}",
+    #             atol=atol,
+    #         )
+    #     elif n == 1:
+    #         _compare_tensor(
+    #             eval_func,
+    #             tensor,
+    #             array,
+    #             f"matrix {n}",
+    #             atol=atol,
+    #         )
+    #     else:
+    #         _compare_tensor(
+    #             eval_func,
+    #             tensor[:, inds],
+    #             array[:, pyinds],
+    #             f"matrix {n}",
+    #             atol=atol,
+    #         )
 
     _compare_tensor(
         eval_func,
@@ -144,13 +156,19 @@ def check_tensor_term(eval_func, term, pyterm, atol=1e-8):
     )
 
     omega = np.linspace(-10, 10, 500)
-    _compare_tensor(
-        eval_func,
-        term.get_psd(omega),
-        pyterm.get_psd(omega),
-        "get_psd",
-        atol=atol,
-    )
+    try:
+        psd = term.get_psd(omega)
+    except NotImplementedError:
+        # Some terms don't implement the `get_psd` function
+        pass
+    else:
+        _compare_tensor(
+            eval_func,
+            psd,
+            pyterm.get_psd(omega),
+            "get_psd",
+            atol=atol,
+        )
 
     y = np.reshape(np.sin(x), (len(x), 1))
     _compare_tensor(

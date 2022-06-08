@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import pytest
+
 from celerite2 import backprop, driver
 from celerite2.testing import get_matrices
 
@@ -36,7 +37,7 @@ def check_grad(fwd, rev, in_args, out_args, extra_args, eps=1.234e-8):
             b_out[k].flat[i] = 0.0
 
             for n, b in enumerate(res):
-                assert np.allclose(
+                np.testing.assert_allclose(
                     b.flatten(), grads[n][k][:, i], atol=1e-3
                 ), (k, i, n)
 
@@ -51,8 +52,8 @@ def test_factor_fwd():
     d0, W0 = driver.factor(x, c, a, U, V, np.copy(a), np.copy(V))
     d, W, S = backprop.factor_fwd(x, c, a, U, V, d, W, S)
 
-    assert np.allclose(d, d0)
-    assert np.allclose(W, W0)
+    np.testing.assert_allclose(d, d0)
+    np.testing.assert_allclose(W, W0)
 
 
 def test_factor_rev():
@@ -80,7 +81,7 @@ def test_solve_lower_fwd(vector):
     Z = np.empty_like(Y)
     F = np.empty((U.shape[0], U.shape[1], Y.shape[1]))
     Z, F = backprop.solve_lower_fwd(x, c, U, W, Y, Z, F)
-    assert np.allclose(Z0, Z)
+    np.testing.assert_allclose(Z0, Z)
 
 
 @pytest.mark.parametrize("vector", [True, False])
@@ -116,7 +117,7 @@ def test_solve_upper_fwd(vector):
     Z = np.empty_like(Y)
     F = np.empty((U.shape[0], U.shape[1], Y.shape[1]))
     Z, F = backprop.solve_upper_fwd(x, c, U, W, Y, Z, F)
-    assert np.allclose(Z0, Z)
+    np.testing.assert_allclose(Z0, Z)
 
 
 @pytest.mark.parametrize("vector", [True, False])
@@ -151,7 +152,7 @@ def test_matmul_lower_fwd(vector):
     Z = np.empty_like(Y)
     F = np.empty((U.shape[0], U.shape[1], Y.shape[1]))
     Z, F = backprop.matmul_lower_fwd(x, c, U, V, Y, Z, F)
-    assert np.allclose(Z0, Z)
+    np.testing.assert_allclose(Z0, Z)
 
 
 @pytest.mark.parametrize("vector", [True, False])

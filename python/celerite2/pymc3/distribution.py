@@ -1,20 +1,13 @@
 # -*- coding: utf-8 -*-
 
 __all__ = ["CeleriteNormal"]
-import aesara_theano_fallback.tensor as tt
+
 import numpy as np
+import pymc3 as pm
+import theano.tensor as tt
+from pymc3.distributions.distribution import Continuous
 
-try:
-    import pymc3  # noqa
-except ImportError:
-    Continuous = object
-    HAS_PYMC3 = False
-else:
-    from pymc3.distributions.distribution import Continuous, draw_values
-
-    HAS_PYMC3 = True
-
-from .. import driver
+import celerite2.driver
 
 
 class CeleriteNormal(Continuous):
@@ -26,11 +19,6 @@ class CeleriteNormal(Continuous):
     """
 
     def __init__(self, gp, *args, **kwargs):
-        if not HAS_PYMC3:
-            raise ImportError(
-                "pymc3 is required to use the CeleriteNormal distribution"
-            )
-
         super().__init__(*args, **kwargs)
         self.gp = gp
         self.mean = (
@@ -47,7 +35,7 @@ class CeleriteNormal(Continuous):
                 except TypeError:
                     size = (size,)
 
-        mu, U, P, d, W = draw_values(
+        mu, U, P, d, W = pm.distributions.distribution.draw_values(
             [self.mean, self.gp._U, self.gp._P, self.gp._d, self.gp._W],
             point=point,
             size=size,
@@ -55,7 +43,8 @@ class CeleriteNormal(Continuous):
         n = np.random.randn(*(size + tuple([d.shape[-1]])))
 
         func = np.vectorize(
-            driver.dot_tril, signature="(n,j),(m,j),(n),(n,j),(n)->(n)"
+            celerite2.driver.dot_tril,
+            signature="(n,j),(m,j),(n),(n,j),(n)->(n)",
         )
         return func(U, P, d, W, n) + mu
 

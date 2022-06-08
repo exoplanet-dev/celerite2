@@ -3,8 +3,8 @@
 __all__ = ["GaussianProcess", "ConditionalDistribution"]
 from jax import numpy as np
 
-from ..core import BaseConditionalDistribution, BaseGaussianProcess
-from . import distribution, ops
+from celerite2.core import BaseConditionalDistribution, BaseGaussianProcess
+from celerite2.jax import ops
 
 
 class ConditionalDistribution(BaseConditionalDistribution):
@@ -58,4 +58,6 @@ class GaussianProcess(BaseGaussianProcess):
         return np.sum(alpha**2 / self._d)
 
     def numpyro_dist(self):
-        return distribution.CeleriteNormal(self)
+        from celerite2.jax.distribution import CeleriteNormal
+
+        return CeleriteNormal(self)

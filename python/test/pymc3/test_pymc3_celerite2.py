@@ -1,16 +1,19 @@
 # -*- coding: utf-8 -*-
 
-import celerite2
 import numpy as np
 import pytest
 
+import celerite2
+
+pytest.importorskip("celerite2.pymc3")
+
 try:
     from celerite2 import terms as pyterms
+    from celerite2.pymc3 import GaussianProcess, terms
+    from celerite2.pymc3.celerite2 import CITATIONS
     from celerite2.testing import check_gp_models
-    from celerite2.theano import GaussianProcess, terms
-    from celerite2.theano.celerite2 import CITATIONS
 except (ImportError, ModuleNotFoundError):
-    pytestmark = pytest.mark.skip("aesara_theano_fallback not installed")
+    pass
 
 term_mark = pytest.mark.parametrize(
     "name,args",
@@ -111,7 +114,7 @@ def test_marginal(data):
         gp = GaussianProcess(term, t=x, diag=diag)
         gp.marginal("obs", observed=y)
 
-        assert np.allclose(
+        np.testing.assert_allclose(
             model.fastfn(model.logpt)(model.test_point),
             model.fastfn(gp.log_likelihood(y))(model.test_point),
         )

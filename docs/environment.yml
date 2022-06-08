@@ -1,0 +1,22 @@
+name: docs
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - doxygen
+  - jupyter
+  - numpy
+  - scipy<1.8
+  - matplotlib
+  - corner
+  - arviz
+  - emcee
+  - pymc
+  - jax
+  - numpyro
+  - pip
+  - pip:
+      - sphinx-material
+      - sphinx_copybutton
+      - breathe
+      - myst-nb

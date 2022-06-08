@@ -5,7 +5,6 @@
 import codecs
 import os
 import re
-import sys
 
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 from setuptools import find_packages, setup
@@ -40,39 +39,30 @@ EXTRA_REQUIRE = {
         "scipy",
         "celerite>=0.3.1",
     ],
-    "pymc3": [
-        "pymc3>=3.9, <3.12",
-        "aesara-theano-fallback>=0.0.2",
-    ],
+    "pymc3": ["pymc3>=3.9", "numpy<1.22"],
+    "pymc4": ["pymc"],
     "jax": ["jax", "jaxlib"],
-    "release": ["pep517", "twine"],
     "docs": [
         "sphinx",
         "sphinx-material",
         "sphinx_copybutton",
-        "rtds_action",
-        "nbsphinx",
         "breathe",
-        "ipython",
+        "myst-nb",
     ],
     "tutorials": [
-        "jupytext",
-        "jupyter",
-        "nbconvert",
         "matplotlib",
         "scipy",
         "emcee",
-        "pymc3>=3.9, <3.12",
-        "aesara-theano-fallback>=0.0.2",
+        "pymc",
         "tqdm",
         "numpyro",
     ],
 }
+EXTRA_REQUIRE["docs"] += EXTRA_REQUIRE["tutorials"]
 EXTRA_REQUIRE["theano"] = EXTRA_REQUIRE["pymc3"]
 EXTRA_REQUIRE["dev"] = (
     EXTRA_REQUIRE["style"]
     + EXTRA_REQUIRE["test"]
-    + EXTRA_REQUIRE["release"]
     + ["pre-commit", "nbstripout", "flake8"]
 )
 
@@ -81,29 +71,26 @@ include_dirs = [
     "c++/vendor/eigen",
     "python/celerite2",
 ]
-if "READTHEDOCS" in os.environ:
-    ext_modules = []
-else:
-    ext_modules = [
-        Pybind11Extension(
-            "celerite2.driver",
-            ["python/celerite2/driver.cpp"],
-            include_dirs=include_dirs,
-            language="c++",
-        ),
-        Pybind11Extension(
-            "celerite2.backprop",
-            ["python/celerite2/backprop.cpp"],
-            include_dirs=include_dirs,
-            language="c++",
-        ),
-        Pybind11Extension(
-            "celerite2.jax.xla_ops",
-            ["python/celerite2/jax/xla_ops.cpp"],
-            include_dirs=include_dirs,
-            language="c++",
-        ),
-    ]
+ext_modules = [
+    Pybind11Extension(
+        "celerite2.driver",
+        ["python/celerite2/driver.cpp"],
+        include_dirs=include_dirs,
+        language="c++",
+    ),
+    Pybind11Extension(
+        "celerite2.backprop",
+        ["python/celerite2/backprop.cpp"],
+        include_dirs=include_dirs,
+        language="c++",
+    ),
+    Pybind11Extension(
+        "celerite2.jax.xla_ops",
+        ["python/celerite2/jax/xla_ops.cpp"],
+        include_dirs=include_dirs,
+        language="c++",
+    ),
+]
 
 # END PROJECT SPECIFIC
 

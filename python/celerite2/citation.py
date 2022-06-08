@@ -1,18 +1,9 @@
-# -*- coding: utf-8 -*-
+__all__ = ["CITATIONS"]
 
-__all__ = ["__version__", "terms", "GaussianProcess"]
-
-import celerite2.terms as terms
-from celerite2.celerite2_version import __version__
-from celerite2.numpy import GaussianProcess
-
-__uri__ = "https://celerite2.readthedocs.io"
-__author__ = "Daniel Foreman-Mackey"
-__email__ = "foreman.mackey@gmail.com"
-__license__ = "MIT"
-__description__ = "Fast and scalable Gaussian Processes in 1D"
-__bibtex__ = __citation__ = r"""
-@article{celerite1,
+CITATIONS = (
+    ("celerite2:foremanmackey17", "celerite2:foremanmackey18"),
+    r"""
+@article{exoplanet:foremanmackey17,
    author = {{Foreman-Mackey}, D. and {Agol}, E. and {Ambikasaran}, S. and
              {Angus}, R.},
     title = "{Fast and Scalable Gaussian Process Modeling with Applications to
@@ -26,7 +17,7 @@ __bibtex__ = __citation__ = r"""
    adsurl = {http://adsabs.harvard.edu/abs/2017AJ....154..220F},
   adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
-@article{celerite2,
+@article{exoplanet:foremanmackey18,
    author = {{Foreman-Mackey}, D.},
     title = "{Scalable Backpropagation for Gaussian Processes using Celerite}",
   journal = {Research Notes of the American Astronomical Society},
@@ -39,4 +30,5 @@ __bibtex__ = __citation__ = r"""
    adsurl = {http://adsabs.harvard.edu/abs/2018RNAAS...2a..31F},
   adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
-"""
+""",
+)

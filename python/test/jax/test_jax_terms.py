@@ -4,13 +4,16 @@ from functools import partial
 import numpy as np
 import pytest
 
+pytest.importorskip("celerite2.jax")
+
 try:
+    from jax.config import config
+
     from celerite2 import terms as pyterms
     from celerite2.jax import terms
     from celerite2.testing import check_tensor_term
-    from jax.config import config
 except (ImportError, ModuleNotFoundError):
-    pytestmark = pytest.mark.skip("jax not installed")
+    pass
 else:
     config.update("jax_enable_x64", True)
 

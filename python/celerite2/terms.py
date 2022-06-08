@@ -19,7 +19,7 @@ from itertools import chain, product
 
 import numpy as np
 
-from . import driver
+import celerite2.driver as driver
 
 
 class Term:

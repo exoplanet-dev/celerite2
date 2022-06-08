@@ -29,7 +29,7 @@ from jax.abstract_arrays import ShapedArray
 from jax.interpreters import ad, xla
 from jax.lib import xla_client
 
-from . import xla_ops
+from celerite2.jax import xla_ops
 
 xops = xla_client.ops
 
@@ -214,7 +214,7 @@ def _build_op(name, spec):
     )
 
     if not spec["has_rev"]:
-        return prim
+        return prim, None
 
     xla_client.register_cpu_custom_call_target(
         name + b"_rev", getattr(xla_ops, f"{spec['name']}_rev")()
@@ -237,7 +237,7 @@ def _build_op(name, spec):
         _rev_translation_rule, name + b"_rev", spec
     )
 
-    return prim
+    return prim, rev_prim
 
 
 with open(
@@ -246,18 +246,22 @@ with open(
     definitions = {spec["name"]: spec for spec in json.load(f)}
 
 
-factor_p = _build_op(b"celerite2_factor", definitions["factor"])
-solve_lower_p = _build_op(b"celerite2_solve_lower", definitions["solve_lower"])
-solve_upper_p = _build_op(b"celerite2_solve_upper", definitions["solve_upper"])
-matmul_lower_p = _build_op(
+factor_p, factor_rev_p = _build_op(b"celerite2_factor", definitions["factor"])
+solve_lower_p, solve_lower_rev_p = _build_op(
+    b"celerite2_solve_lower", definitions["solve_lower"]
+)
+solve_upper_p, solve_upper_rev_p = _build_op(
+    b"celerite2_solve_upper", definitions["solve_upper"]
+)
+matmul_lower_p, matmul_lower_rev_p = _build_op(
     b"celerite2_matmul_lower", definitions["matmul_lower"]
 )
-matmul_upper_p = _build_op(
+matmul_upper_p, matmul_upper_rev_p = _build_op(
     b"celerite2_matmul_upper", definitions["matmul_upper"]
 )
-general_matmul_lower_p = _build_op(
+general_matmul_lower_p, _ = _build_op(
     b"celerite2_general_matmul_lower", definitions["general_matmul_lower"]
 )
-general_matmul_upper_p = _build_op(
+general_matmul_upper_p, _ = _build_op(
     b"celerite2_general_matmul_upper", definitions["general_matmul_upper"]
 )
