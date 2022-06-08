@@ -71,9 +71,6 @@ include_dirs = [
     "c++/vendor/eigen",
     "python/celerite2",
 ]
-# if "READTHEDOCS" in os.environ:
-#     ext_modules = []
-# else:
 ext_modules = [
     Pybind11Extension(
         "celerite2.driver",

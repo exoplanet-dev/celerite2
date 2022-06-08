@@ -99,7 +99,7 @@ class Term(base_terms.Term):
         cr, ar, Ur, Vr = self._get_celerite_matrices_real(
             self.coefficients[:2], x, **kwargs
         )
-        cc, ac, Uc, Vc = self._get_celerite_matrices_real(
+        cc, ac, Uc, Vc = self._get_celerite_matrices_complex(
             self.coefficients[2:], x, **kwargs
         )
         c = tt.concatenate((cr, cc))
@@ -475,8 +475,13 @@ class SHOTerm(Term):
         ar = ar + diag
         ac = ac + diag
 
+        cr, cc = tt.broadcast_arrays(cr, cc)
+        ar, ac = tt.broadcast_arrays(ar, ac)
+        Ur, Uc = tt.broadcast_arrays(Ur, Uc)
+        Vr, Vc = tt.broadcast_arrays(Vr, Vc)
+
         return [
-            ifelse(self.cond, a, b)
+            tt.switch(self.cond, a, b)
             for a, b in zip((cr, ar, Ur, Vr), (cc, ac, Uc, Vc))
         ]
 

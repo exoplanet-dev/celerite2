@@ -69,3 +69,19 @@ def test_base_terms(name, args):
     pyterm0 = pyterms.SHOTerm(S0=1.0, w0=0.5, Q=0.2)
     compare_terms(term + term0, pyterm + pyterm0)
     compare_terms(term * term0, pyterm * pyterm0)
+
+
+def test_opt_error():
+    import aesara.tensor as at
+    from aesara import config, function, grad, ifelse
+
+    x = np.linspace(0, 5, 10)
+    diag = np.full_like(x, 0.2)
+
+    with config.change_flags(on_opt_error="raise"):
+        arg = at.scalar()
+        arg.tag.test_value = 0.5
+        matrices = terms.SHOTerm(S0=1.0, w0=0.5, Q=arg).get_celerite_matrices(
+            x, diag
+        )
+        function([arg], grad(sum(at.sum(m) for m in matrices), [arg]))(0.5)
