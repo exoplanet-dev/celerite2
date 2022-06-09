@@ -7,6 +7,7 @@ import pytest
 pytest.importorskip("celerite2.jax")
 
 try:
+    import jax
     from jax.config import config
 
     from celerite2 import terms as pyterms
@@ -19,9 +20,9 @@ else:
 
     def evaluate(x):
         assert x.dtype == np.float64 or x.dtype == np.int64
-        return np.asarray(x)
+        return x
 
-    compare_terms = partial(check_tensor_term, evaluate)
+    compare_terms = partial(check_tensor_term, jax.jit(evaluate))
 
 
 @pytest.mark.parametrize(
@@ -46,12 +47,16 @@ def test_base_terms(name, args):
     pyterm = getattr(pyterms, name)(**args)
     compare_terms(term, pyterm)
 
-    compare_terms(terms.TermDiff(term), pyterms.TermDiff(pyterm))
-    compare_terms(
-        terms.TermConvolution(term, 0.5),
-        pyterms.TermConvolution(pyterm, 0.5),
-        atol=5e-6,
-    )
+    try:
+        compare_terms(terms.TermDiff(term), pyterms.TermDiff(pyterm))
+    except TypeError:
+        pass
+    else:
+        compare_terms(
+            terms.TermConvolution(term, 0.5),
+            pyterms.TermConvolution(pyterm, 0.5),
+            atol=5e-6,
+        )
 
     term0 = terms.SHOTerm(S0=1.0, w0=0.5, Q=1.5)
     pyterm0 = pyterms.SHOTerm(S0=1.0, w0=0.5, Q=1.5)

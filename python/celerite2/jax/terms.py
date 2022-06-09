@@ -15,8 +15,6 @@ __all__ = [
     "RotationTerm",
 ]
 
-from itertools import chain, product
-
 from jax import numpy as np
 
 import celerite2.terms as base_terms
@@ -38,40 +36,50 @@ class Term:
         raise NotImplementedError("subclasses must implement this method")
 
     def get_value(self, tau):
+        coeff = self.get_coefficients()
+        r = self._get_value_real(coeff[:2], tau)
+        c = self._get_value_complex(coeff[2:], tau)
+        return r + c
+
+    def _get_value_real(self, coefficients, tau):
+        ar, cr = coefficients
         tau = np.abs(np.atleast_1d(tau))
-        ar, cr, ac, bc, cc, dc = self.get_coefficients()
-        k = np.zeros_like(tau)
         tau = tau[..., None]
+        return np.sum(ar * np.exp(-cr * tau), axis=-1)
 
-        if len(ar):
-            k += np.sum(ar * np.exp(-cr * tau), axis=-1)
-
-        if len(ac):
-            arg = dc * tau
-            k += np.sum(
-                np.exp(-cc * tau) * (ac * np.cos(arg) + bc * np.sin(arg)),
-                axis=-1,
-            )
-
-        return k
+    def _get_value_complex(self, coefficients, tau):
+        ac, bc, cc, dc = coefficients
+        tau = np.abs(np.atleast_1d(tau))
+        tau = tau[..., None]
+        arg = dc * tau
+        return np.sum(
+            np.exp(-cc * tau) * (ac * np.cos(arg) + bc * np.sin(arg)),
+            axis=-1,
+        )
 
     def get_psd(self, omega):
+        coeff = self.get_coefficients()
+        r = self._get_psd_real(coeff[:2], omega)
+        c = self._get_psd_complex(coeff[2:], omega)
+        return r + c
+
+    def _get_psd_real(self, coefficients, omega):
+        ar, cr = coefficients
         w2 = np.atleast_1d(omega) ** 2
-        ar, cr, ac, bc, cc, dc = self.get_coefficients()
-        psd = np.zeros_like(w2)
         w2 = w2[..., None]
+        psd = np.sum(ar * cr / (cr**2 + w2), axis=-1)
+        return np.sqrt(2 / np.pi) * psd
 
-        if len(ar):
-            psd += np.sum(ar * cr / (cr**2 + w2), axis=-1)
-
-        if len(ac):
-            w02 = cc**2 + dc**2
-            psd += np.sum(
-                ((ac * cc + bc * dc) * w02 + (ac * cc - bc * dc) * w2)
-                / (w2**2 + 2.0 * (cc * cc - dc * dc) * w2 + w02 * w02),
-                axis=-1,
-            )
-
+    def _get_psd_complex(self, coefficients, omega):
+        ac, bc, cc, dc = coefficients
+        w2 = np.atleast_1d(omega) ** 2
+        w2 = w2[..., None]
+        w02 = cc**2 + dc**2
+        psd = np.sum(
+            ((ac * cc + bc * dc) * w02 + (ac * cc - bc * dc) * w2)
+            / (w2**2 + 2.0 * (cc * cc - dc * dc) * w2 + w02 * w02),
+            axis=-1,
+        )
         return np.sqrt(2 / np.pi) * psd
 
     def to_dense(self, x, diag):
@@ -81,37 +89,50 @@ class Term:
     def get_celerite_matrices(self, x, diag, **kwargs):
         x = np.atleast_1d(x)
         diag = np.atleast_1d(diag)
-        if len(x.shape) != 1:
-            raise ValueError("'x' must be one-dimensional")
         if x.shape != diag.shape:
             raise ValueError("dimension mismatch")
+        coeff = self.get_coefficients()
+        cr, ar, Ur, Vr = self._get_celerite_matrices_real(
+            coeff[:2], x, **kwargs
+        )
+        cc, ac, Uc, Vc = self._get_celerite_matrices_complex(
+            coeff[2:], x, **kwargs
+        )
+        c = np.concatenate((cr, cc))
+        a = diag + ar + ac
+        U = np.concatenate((Ur, Uc), axis=1)
+        V = np.concatenate((Vr, Vc), axis=1)
+        return c, a, U, V
 
-        ar, cr, ac, bc, cc, dc = self.get_coefficients()
+    def _get_celerite_matrices_real(self, coefficients, x, **kwargs):
+        if len(x.shape) != 1:
+            raise ValueError("'x' must be one-dimensional")
+        ar, cr = coefficients
+        z = np.zeros_like(x)
+        return (
+            cr,
+            np.sum(ar),
+            ar[None, :] + z[:, None],
+            np.ones_like(ar)[None, :] + z[:, None],
+        )
 
-        a = diag + np.sum(ar) + np.sum(ac)
-
+    def _get_celerite_matrices_complex(self, coefficients, x, **kwargs):
+        if len(x.shape) != 1:
+            raise ValueError("'x' must be one-dimensional")
+        ac, bc, cc, dc = coefficients
         arg = dc[None, :] * x[:, None]
         cos = np.cos(arg)
         sin = np.sin(arg)
-        z = np.zeros_like(x)
-
         U = np.concatenate(
             (
-                ar[None, :] + z[:, None],
                 ac[None, :] * cos + bc[None, :] * sin,
                 ac[None, :] * sin - bc[None, :] * cos,
             ),
             axis=1,
         )
-
-        V = np.concatenate(
-            (np.ones_like(ar)[None, :] + z[:, None], cos, sin),
-            axis=1,
-        )
-
-        c = np.concatenate((cr, cc, cc))
-
-        return c, a, U, V
+        V = np.concatenate((cos, sin), axis=1)
+        c = np.concatenate((cc, cc))
+        return c, np.sum(ac), U, V
 
     def dot(self, x, diag, y):
         y = np.atleast_1d(y)
@@ -135,88 +156,136 @@ class Term:
 
 class TermSum(Term):
     def __init__(self, *terms):
-        if any(isinstance(term, TermConvolution) for term in terms):
-            raise TypeError(
-                "You cannot perform operations on an TermConvolution, it must "
-                "be the outer term in the kernel"
-            )
+        # if any(isinstance(term, TermConvolution) for term in terms):
+        #     raise TypeError(
+        #         "You cannot perform operations on an TermConvolution, it must "
+        #         "be the outer term in the kernel"
+        #     )
         self._terms = terms
 
     @property
     def terms(self):
         return self._terms
 
-    def get_coefficients(self):
-        coeffs = (t.get_coefficients() for t in self.terms)
-        return tuple(np.concatenate(c) for c in zip(*coeffs))
+    # def get_coefficients(self):
+    #     coeffs = (t.get_coefficients() for t in self.terms)
+    #     return tuple(np.concatenate(c) for c in zip(*coeffs))
+
+    def get_value(self, tau):
+        tau = np.atleast_1d(tau)
+        return sum(term.get_value(tau) for term in self._terms)
+
+    def get_psd(self, omega):
+        omega = np.atleast_1d(omega)
+        return sum(term.get_psd(omega) for term in self._terms)
+
+    def get_celerite_matrices(self, x, diag, **kwargs):
+        diag = np.atleast_1d(diag)
+        matrices = (
+            term.get_celerite_matrices(x, np.zeros_like(diag), **kwargs)
+            for term in self._terms
+        )
+        c, a, U, V = zip(*matrices)
+        return (
+            np.concatenate(c, axis=-1),
+            sum(a) + diag,
+            np.concatenate(U, axis=-1),
+            np.concatenate(V, axis=-1),
+        )
 
 
 class TermProduct(Term):
     def __init__(self, term1, term2):
-        int1 = isinstance(term1, TermConvolution)
-        int2 = isinstance(term2, TermConvolution)
-        if int1 or int2:
-            raise TypeError(
-                "You cannot perform operations on an TermConvolution, it must "
-                "be the outer term in the kernel"
-            )
+        # int1 = isinstance(term1, TermConvolution)
+        # int2 = isinstance(term2, TermConvolution)
+        # if int1 or int2:
+        #     raise TypeError(
+        #         "You cannot perform operations on an TermConvolution, it must "
+        #         "be the outer term in the kernel"
+        #     )
         self.term1 = term1
         self.term2 = term2
 
-    def get_coefficients(self):
-        c1 = self.term1.get_coefficients()
-        c2 = self.term2.get_coefficients()
+    def get_value(self, tau):
+        tau = np.atleast_1d(tau)
+        return self.term1.get_value(tau) * self.term2.get_value(tau)
 
-        # First compute real terms
-        ar = []
-        cr = []
-        gen = product(zip(c1[0], c1[1]), zip(c2[0], c2[1]))
-        for i, ((aj, cj), (ak, ck)) in enumerate(gen):
-            ar.append(aj * ak)
-            cr.append(cj + ck)
+    def get_psd(self, omega):
+        raise NotImplementedError(
+            "The PSD function is not implemented for general Term products"
+        )
 
-        # Then the complex terms
-        ac = []
-        bc = []
-        cc = []
-        dc = []
+    def get_celerite_matrices(self, x, diag, **kwargs):
+        diag = np.atleast_1d(diag)
+        z = np.zeros_like(diag)
+        c1, a1, U1, V1 = self.term1.get_celerite_matrices(x, z, **kwargs)
+        c2, a2, U2, V2 = self.term2.get_celerite_matrices(x, z, **kwargs)
 
-        # real * complex
-        gen = product(zip(c1[0], c1[1]), zip(*(c2[2:])))
-        gen = chain(gen, product(zip(c2[0], c2[1]), zip(*(c1[2:]))))
-        for i, ((aj, cj), (ak, bk, ck, dk)) in enumerate(gen):
-            ac.append(aj * ak)
-            bc.append(aj * bk)
-            cc.append(cj + ck)
-            dc.append(dk)
+        mg = np.meshgrid(np.arange(c1.shape[0]), np.arange(c2.shape[0]))
+        i = mg[0].flatten()
+        j = mg[1].flatten()
 
-        # complex * complex
-        gen = product(zip(*(c1[2:])), zip(*(c2[2:])))
-        for i, ((aj, bj, cj, dj), (ak, bk, ck, dk)) in enumerate(gen):
-            ac.append(0.5 * (aj * ak + bj * bk))
-            bc.append(0.5 * (bj * ak - aj * bk))
-            cc.append(cj + ck)
-            dc.append(dj - dk)
+        c = c1[i] + c2[j]
+        a = a1 * a2 + diag
+        U = U1[:, i] * U2[:, j]
+        V = V1[:, i] * V2[:, j]
+        return c, a, U, V
 
-            ac.append(0.5 * (aj * ak - bj * bk))
-            bc.append(0.5 * (bj * ak + aj * bk))
-            cc.append(cj + ck)
-            dc.append(dj + dk)
+    # def get_coefficients(self):
+    #     c1 = self.term1.get_coefficients()
+    #     c2 = self.term2.get_coefficients()
 
-        return list(map(np.array, (ar, cr, ac, bc, cc, dc)))
+    #     # First compute real terms
+    #     ar = []
+    #     cr = []
+    #     gen = product(zip(c1[0], c1[1]), zip(c2[0], c2[1]))
+    #     for i, ((aj, cj), (ak, ck)) in enumerate(gen):
+    #         ar.append(aj * ak)
+    #         cr.append(cj + ck)
+
+    #     # Then the complex terms
+    #     ac = []
+    #     bc = []
+    #     cc = []
+    #     dc = []
+
+    #     # real * complex
+    #     gen = product(zip(c1[0], c1[1]), zip(*(c2[2:])))
+    #     gen = chain(gen, product(zip(c2[0], c2[1]), zip(*(c1[2:]))))
+    #     for i, ((aj, cj), (ak, bk, ck, dk)) in enumerate(gen):
+    #         ac.append(aj * ak)
+    #         bc.append(aj * bk)
+    #         cc.append(cj + ck)
+    #         dc.append(dk)
+
+    #     # complex * complex
+    #     gen = product(zip(*(c1[2:])), zip(*(c2[2:])))
+    #     for i, ((aj, bj, cj, dj), (ak, bk, ck, dk)) in enumerate(gen):
+    #         ac.append(0.5 * (aj * ak + bj * bk))
+    #         bc.append(0.5 * (bj * ak - aj * bk))
+    #         cc.append(cj + ck)
+    #         dc.append(dj - dk)
+
+    #         ac.append(0.5 * (aj * ak - bj * bk))
+    #         bc.append(0.5 * (bj * ak + aj * bk))
+    #         cc.append(cj + ck)
+    #         dc.append(dj + dk)
+
+    #     return list(map(np.array, (ar, cr, ac, bc, cc, dc)))
 
 
 class TermDiff(Term):
     def __init__(self, term):
-        if isinstance(term, TermConvolution):
+        try:
+            self.coefficients = term.get_coefficients()
+        except NotImplementedError:
             raise TypeError(
-                "You cannot perform operations on an TermConvolution, it must "
-                "be the outer term in the kernel"
+                "Term operations can only be performed on terms that provide "
+                "coefficients"
             )
-        self.term = term
 
     def get_coefficients(self):
-        coeffs = self.term.get_coefficients()
+        coeffs = self.coefficients
         a, b, c, d = coeffs[2:]
         final_coeffs = [
             -coeffs[0] * coeffs[1] ** 2,
@@ -231,12 +300,18 @@ class TermDiff(Term):
 
 class TermConvolution(Term):
     def __init__(self, term, delta):
-        self.term = term
         self.delta = np.float64(delta)
+        try:
+            self.coefficients = term.get_coefficients()
+        except NotImplementedError:
+            raise TypeError(
+                "Term operations can only be performed on terms that provide "
+                "coefficients"
+            )
 
     def get_celerite_matrices(self, x, diag, **kwargs):
         dt = self.delta
-        ar, cr, a, b, c, d = self.term.get_coefficients()
+        ar, cr, a, b, c, d = self.coefficients
 
         # Real part
         cd = cr * dt
@@ -267,7 +342,7 @@ class TermConvolution(Term):
         return super().get_celerite_matrices(x, new_diag)
 
     def get_coefficients(self):
-        ar, cr, a, b, c, d = self.term.get_coefficients()
+        ar, cr, a, b, c, d = self.coefficients
 
         # Real componenets
         crd = cr * self.delta
@@ -296,7 +371,8 @@ class TermConvolution(Term):
 
     def get_psd(self, omega):
         omega = np.atleast_1d(omega)
-        psd0 = self.term.get_psd(omega)
+        psd0 = super()._get_psd_real(self.coefficients[:2], omega)
+        psd0 += super()._get_psd_complex(self.coefficients[2:], omega)
         arg = 0.5 * self.delta * omega
         arg += 1e-8 * (np.abs(arg) < 1e-8) * np.sign(arg)
         sinc = np.sin(arg) / arg
@@ -304,7 +380,7 @@ class TermConvolution(Term):
 
     def get_value(self, tau0):
         dt = self.delta
-        ar, cr, a, b, c, d = self.term.get_coefficients()
+        ar, cr, a, b, c, d = self.coefficients
 
         # Format the lags correctly
         tau0 = np.abs(np.atleast_1d(tau0))
@@ -402,17 +478,16 @@ def SHOTerm(*args, **kwargs):
     return under
 
 
-class OverdampedSHOTerm(Term):
+class SHOTerm(Term):
     __parameter_spec__ = base_terms.SHOTerm.__parameter_spec__
 
     @base_terms.handle_parameter_spec(np.float64)
     def __init__(self, *, eps=1e-5, **kwargs):
         self.eps = np.float64(eps)
 
-    def get_coefficients(self):
+    def get_overdamped_coefficients(self):
         Q = self.Q
         f = np.sqrt(np.maximum(1.0 - 4.0 * Q**2, self.eps))
-        e = np.empty(0)
         return (
             0.5
             * self.S0
@@ -420,34 +495,60 @@ class OverdampedSHOTerm(Term):
             * Q
             * np.array([1.0 + 1.0 / f, 1.0 - 1.0 / f]),
             0.5 * self.w0 / Q * np.array([1.0 - f, 1.0 + f]),
-            e,
-            e,
-            e,
-            e,
         )
 
-
-class UnderdampedSHOTerm(Term):
-    __parameter_spec__ = base_terms.SHOTerm.__parameter_spec__
-
-    @base_terms.handle_parameter_spec(np.float64)
-    def __init__(self, *, eps=1e-5, **kwargs):
-        self.eps = np.float64(eps)
-
-    def get_coefficients(self):
+    def get_underdamped_coefficients(self):
         Q = self.Q
         f = np.sqrt(np.maximum(4.0 * Q**2 - 1.0, self.eps))
         a = self.S0 * self.w0 * Q
         c = 0.5 * self.w0 / Q
-        e = np.empty(0)
         return (
-            e,
-            e,
             np.array([a]),
             np.array([a / f]),
             np.array([c]),
             np.array([c * f]),
         )
+
+    def get_value(self, tau):
+        return np.where(
+            np.less(self.Q, 0.5),
+            super()._get_value_real(self.get_overdamped_coefficients(), tau),
+            super()._get_value_complex(
+                self.get_underdamped_coefficients(), tau
+            ),
+        )
+
+    def get_psd(self, omega):
+        return np.where(
+            np.less(self.Q, 0.5),
+            super()._get_psd_real(self.get_overdamped_coefficients(), omega),
+            super()._get_psd_complex(
+                self.get_underdamped_coefficients(), omega
+            ),
+        )
+
+    def get_celerite_matrices(self, x, diag, **kwargs):
+        x = np.atleast_1d(x)
+        diag = np.atleast_1d(diag)
+        if x.shape != diag.shape:
+            raise ValueError("dimension mismatch")
+        cr, ar, Ur, Vr = super()._get_celerite_matrices_real(
+            self.get_overdamped_coefficients(), x, **kwargs
+        )
+        cc, ac, Uc, Vc = super()._get_celerite_matrices_complex(
+            self.get_underdamped_coefficients(), x, **kwargs
+        )
+        ar = ar + diag
+        ac = ac + diag
+        cond = np.less(self.Q, 0.5)
+        return [
+            np.where(cond, a, b)
+            for a, b in zip((cr, ar, Ur, Vr), (cc, ac, Uc, Vc))
+        ]
+
+
+OverdampedSHOTerm = SHOTerm
+UnderdampedSHOTerm = SHOTerm
 
 
 class Matern32Term(Term):
