@@ -51,13 +51,13 @@ class Term(base_terms.Term):
 
     def _get_value_real(self, coefficients, tau):
         ar, cr = coefficients
-        tau = tt.abs_(tau)
+        tau = tt.abs(tau)
         tau = tt.shape_padright(tau)
         return tt.sum(ar * tt.exp(-cr * tau), axis=-1)
 
     def _get_value_complex(self, coefficients, tau):
         ac, bc, cc, dc = coefficients
-        tau = tt.abs_(tau)
+        tau = tt.abs(tau)
         tau = tt.shape_padright(tau)
         factor = tt.exp(-cc * tau)
         K = tt.sum(ac * factor * tt.cos(dc * tau), axis=-1)
@@ -332,7 +332,7 @@ class TermConvolution(Term):
         ar, cr, a, b, c, d = self.term.coefficients
 
         # Format the lags correctly
-        tau0 = tt.abs_(tau0)
+        tau0 = tt.abs(tau0)
         tau = tau0[..., None]
 
         # Precompute some factors
