@@ -27,16 +27,6 @@ jobs:
           - "pymc3"
           - "pymc4"
           - "pymc4_jax"
-        include:
-          - os: "ubuntu-latest"
-            python-version: "3.9"
-            session: "full"
-          - os: "macos-latest"
-            python-version: "3.9"
-            session: "full"
-          - os: "macos-latest"
-            python-version: "3.10"
-            session: "full"
 
     steps:
       - name: Checkout
