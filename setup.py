@@ -40,7 +40,7 @@ EXTRA_REQUIRE = {
         "celerite>=0.3.1",
     ],
     "pymc3": ["pymc3>=3.9", "numpy<1.22"],
-    "pymc4": ["pymc"],
+    "pymc4": ["pymc>=4,<5"],
     "jax": ["jax", "jaxlib"],
     "docs": [
         "sphinx",
@@ -53,7 +53,7 @@ EXTRA_REQUIRE = {
         "matplotlib",
         "scipy",
         "emcee",
-        "pymc",
+        "pymc>=4,<5",
         "tqdm",
         "numpyro",
     ],
