@@ -612,6 +612,9 @@ class SHOTerm(Term):
         {(\omega^2-{\omega_0}^2)^2 + {\omega_0}^2\,\omega^2/Q^2}
 
     with the parameters ``S0``, ``Q``, and ``w0``.
+    Consult the `Celerite paper <https://doi.org/10.3847/1538-3881/aa9332>`_ or
+    `its preprint on arXiv <https://arxiv.org/abs/1703.09710>`_ for a more
+    detailed mathematical description.
 
     This implementation also supports the following reparameterizations that
     can be easier to use and reason about:
@@ -628,7 +631,8 @@ class SHOTerm(Term):
         rho: Alternative parameterization for ``w0`` as described above.
         Q: The quality factor, :math:`Q` above.
         tau: Alternative parameterization for ``Q`` as described above.
-        S0: The power at :math:`\omega = 0`, :math:`S_0` above.
+        S0: :math:`S_0` in the PSD above. The power at :math:`\omega = 0` is
+            :math:`S_0\sqrt{2/\pi}`.
         sigma: Alternative parameterization for ``S0`` as described above.
         eps (optional): A regularization parameter used for numerical stability
             when computing :math:`\sqrt{1-4\,Q^2}` or :math:`\sqrt{4\,Q^2-1}`.
