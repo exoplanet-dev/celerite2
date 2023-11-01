@@ -1,13 +1,13 @@
 def pytest_configure(config):
     try:
-        import aesara
+        import pytensor
     except ImportError:
         return
 
     import platform
 
-    aesara.config.floatX = "float64"
-    aesara.config.compute_test_value = "raise"
+    pytensor.config.floatX = "float64"
+    pytensor.config.compute_test_value = "raise"
     if platform.system() == "Darwin":
-        aesara.config.gcc.cxxflags = "-Wno-c++11-narrowing"
+        pytensor.config.gcc.cxxflags = "-Wno-c++11-narrowing"
     config.addinivalue_line("filterwarnings", "ignore")

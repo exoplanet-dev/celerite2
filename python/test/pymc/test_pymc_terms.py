@@ -5,11 +5,11 @@ from functools import partial
 import numpy as np
 import pytest
 
-pytest.importorskip("celerite2.pymc4")
+pytest.importorskip("celerite2.pymc")
 
 try:
     from celerite2 import terms as pyterms
-    from celerite2.pymc4 import terms
+    from celerite2.pymc import terms
     from celerite2.testing import check_tensor_term
 except (ImportError, ModuleNotFoundError):
     pass
@@ -72,16 +72,16 @@ def test_base_terms(name, args):
 
 
 def test_opt_error():
-    import aesara.tensor as at
-    from aesara import config, function, grad
+    import pytensor.tensor as pt
+    from pytensor import config, function, grad
 
     x = np.linspace(0, 5, 10)
     diag = np.full_like(x, 0.2)
 
     with config.change_flags(on_opt_error="raise"):
-        arg = at.scalar()
+        arg = pt.scalar()
         arg.tag.test_value = 0.5
         matrices = terms.SHOTerm(S0=1.0, w0=0.5, Q=arg).get_celerite_matrices(
             x, diag
         )
-        function([arg], grad(sum(at.sum(m) for m in matrices), [arg]))(0.5)
+        function([arg], grad(sum(pt.sum(m) for m in matrices), [arg]))(0.5)

@@ -8,18 +8,19 @@ import pytest
 from celerite2 import backprop, driver
 from celerite2.testing import get_matrices
 
-pytest.importorskip("celerite2.pymc4")
+pytest.importorskip("celerite2.pymc")
 
 try:
-    import aesara
-    import aesara.tensor as tt
-    from aesara.compile.mode import Mode
-    from aesara.compile.sharedvalue import SharedVariable
-    from aesara.graph.fg import FunctionGraph
-    from aesara.graph.optdb import OptimizationQuery
-    from aesara.link.jax import JAXLinker
+    import pytensor
+    import pytensor.tensor as tt
+    from pytensor.compile.mode import Mode
+    from pytensor.compile.sharedvalue import SharedVariable
+    from pytensor.graph.fg import FunctionGraph
+    # TODO: pytensor.graph.rewriting.db.RewriteDatabaseQuery?
+    from pytensor.graph.rewriting.db import RewriteDatabaseQuery
+    from pytensor.link.jax import JAXLinker
 
-    from celerite2.pymc4 import ops
+    from celerite2.pymc import ops
 except (ImportError, ModuleNotFoundError):
     pass
 
@@ -30,7 +31,7 @@ except (ImportError, ModuleNotFoundError):
     jax = None
 
 else:
-    opts = OptimizationQuery(include=[None], exclude=["cxx_only", "BlasOpt"])
+    opts = RewriteDatabaseQuery(include=[None], exclude=["cxx_only", "BlasOpt"])
     jax_mode = Mode(JAXLinker(), opts)
     py_mode = Mode("py", opts)
 
@@ -54,20 +55,20 @@ def convert_values_to_types(values):
 
 def check_shape(op, inputs, outputs, values, result, multi):
     if multi:
-        shapes = aesara.function(inputs, [o.shape for o in outputs])(*values)
+        shapes = pytensor.function(inputs, [o.shape for o in outputs])(*values)
         assert all(
             np.all(v.shape == s) for v, s in zip(result, shapes)
         ), "Invalid shape inference"
 
     else:
-        shape = aesara.function(inputs, outputs.shape)(*values)
+        shape = pytensor.function(inputs, outputs.shape)(*values)
         assert result.shape == shape
 
 
 def check_basic(ref_func, op, values):
     inputs = convert_values_to_types(values)
     outputs = op(*inputs)
-    result = aesara.function(inputs, outputs)(*values)
+    result = pytensor.function(inputs, outputs)(*values)
 
     try:
         result.shape
@@ -93,7 +94,7 @@ def check_basic(ref_func, op, values):
 def check_grad(op, values, num_out, eps=1.234e-8):
     inputs = convert_values_to_types(values)
     outputs = op(*inputs)
-    func = aesara.function(inputs, outputs)
+    func = pytensor.function(inputs, outputs)
     vals0 = func(*values)
 
     # Compute numerical grad
@@ -113,8 +114,8 @@ def check_grad(op, values, num_out, eps=1.234e-8):
     # Compute the backprop
     for k in range(num_out):
         for i in range(vals0[k].size):
-            res = aesara.function(
-                inputs, aesara.grad(outputs[k].flatten()[i], inputs)
+            res = pytensor.function(
+                inputs, pytensor.grad(outputs[k].flatten()[i], inputs)
             )(*values)
 
             for n, b in enumerate(res):
@@ -124,7 +125,7 @@ def check_grad(op, values, num_out, eps=1.234e-8):
 
     if jax is not None:
         for k in range(num_out):
-            out_grad = aesara.grad(tt.sum(outputs[k]), inputs)
+            out_grad = pytensor.grad(tt.sum(outputs[k]), inputs)
             fg = FunctionGraph(inputs, out_grad)
             compare_jax_and_py(fg, values)
 
@@ -248,7 +249,7 @@ def compare_jax_and_py(
         assert_fn = partial(np.testing.assert_allclose, rtol=1e-4)
 
     fn_inputs = [i for i in fgraph.inputs if not isinstance(i, SharedVariable)]
-    aesara_jax_fn = aesara.function(fn_inputs, fgraph.outputs, mode=jax_mode)
+    aesara_jax_fn = pytensor.function(fn_inputs, fgraph.outputs, mode=jax_mode)
     jax_res = aesara_jax_fn(*test_inputs)
 
     if must_be_device_array:
@@ -260,7 +261,7 @@ def compare_jax_and_py(
         else:
             assert isinstance(jax_res, jax.interpreters.xla.DeviceArray)
 
-    aesara_py_fn = aesara.function(fn_inputs, fgraph.outputs, mode=py_mode)
+    aesara_py_fn = pytensor.function(fn_inputs, fgraph.outputs, mode=py_mode)
     py_res = aesara_py_fn(*test_inputs)
 
     if len(fgraph.outputs) > 1:
