@@ -115,8 +115,8 @@ def test_marginal(data):
         gp.marginal("obs", observed=y)
 
         np.testing.assert_allclose(
-            model.compile_logp()(model.test_point),
-            model.compile_fn(gp.log_likelihood(y))(model.test_point),
+            model.compile_logp()(model.initial_point()),
+            model.compile_fn(gp.log_likelihood(y))(model.initial_point()),
         )
 
 
