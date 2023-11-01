@@ -14,10 +14,10 @@ __all__ = [
 import json
 from itertools import chain
 
-import pytensor
-import pytensor.tensor as pt
 import numpy as np
 import pkg_resources
+import pytensor
+import pytensor.tensor as pt
 from pytensor.graph import basic, op
 
 import celerite2.backprop as backprop

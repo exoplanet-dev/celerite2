@@ -2,8 +2,8 @@
 
 __all__ = ["GaussianProcess", "ConditionalDistribution"]
 
-import pytensor.tensor as pt
 import numpy as np
+import pytensor.tensor as pt
 from pytensor.raise_op import Assert
 
 from celerite2.citation import CITATIONS

@@ -2,13 +2,16 @@
 
 __all__ = ["CeleriteNormal"]
 
-import pytensor.tensor as pt
 import numpy as np
-from pytensor.tensor.random.op import RandomVariable
-from pytensor.tensor.random.utils import broadcast_params, supp_shape_from_ref_param_shape
+import pytensor.tensor as pt
 from pymc.distributions.dist_math import check_parameters
 from pymc.distributions.distribution import Continuous
 from pymc.distributions.shape_utils import rv_size_is_none
+from pytensor.tensor.random.op import RandomVariable
+from pytensor.tensor.random.utils import (
+    broadcast_params,
+    supp_shape_from_ref_param_shape,
+)
 
 import celerite2.driver as driver
 from celerite2.pymc import ops

@@ -16,6 +16,7 @@ try:
     from pytensor.compile.mode import Mode
     from pytensor.compile.sharedvalue import SharedVariable
     from pytensor.graph.fg import FunctionGraph
+
     # TODO: pytensor.graph.rewriting.db.RewriteDatabaseQuery?
     from pytensor.graph.rewriting.db import RewriteDatabaseQuery
     from pytensor.link.jax import JAXLinker
@@ -31,7 +32,9 @@ except (ImportError, ModuleNotFoundError):
     jax = None
 
 else:
-    opts = RewriteDatabaseQuery(include=[None], exclude=["cxx_only", "BlasOpt"])
+    opts = RewriteDatabaseQuery(
+        include=[None], exclude=["cxx_only", "BlasOpt"]
+    )
     jax_mode = Mode(JAXLinker(), opts)
     py_mode = Mode("py", opts)
 
@@ -254,10 +257,7 @@ def compare_jax_and_py(
 
     if must_be_device_array:
         if isinstance(jax_res, list):
-            assert all(
-                isinstance(res, jax.Array)
-                for res in jax_res
-            )
+            assert all(isinstance(res, jax.Array) for res in jax_res)
         else:
             assert isinstance(jax_res, jax.Array)
 

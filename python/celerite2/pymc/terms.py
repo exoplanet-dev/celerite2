@@ -13,9 +13,9 @@ __all__ = [
     "RotationTerm",
 ]
 
+import numpy as np
 import pytensor
 import pytensor.tensor as pt
-import numpy as np
 from pytensor.ifelse import ifelse
 
 import celerite2.terms as base_terms
