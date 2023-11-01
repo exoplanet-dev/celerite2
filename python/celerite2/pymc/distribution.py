@@ -5,7 +5,7 @@ __all__ = ["CeleriteNormal"]
 import pytensor.tensor as pt
 import numpy as np
 from pytensor.tensor.random.op import RandomVariable
-from pytensor.tensor.random.utils import broadcast_params
+from pytensor.tensor.random.utils import broadcast_params, supp_shape_from_ref_param_shape
 from pymc.distributions.dist_math import check_parameters
 from pymc.distributions.distribution import Continuous
 from pymc.distributions.shape_utils import rv_size_is_none
@@ -32,6 +32,14 @@ class CeleriteNormalRV(RandomVariable):
     ndims_params = [1, 0, 1, 1, 2, 2, 1]
     dtype = "floatX"
     _print_name = ("CeleriteNormal", "\\operatorname{CeleriteNormal}")
+
+    def _supp_shape_from_params(self, dist_params, param_shapes=None):
+        return supp_shape_from_ref_param_shape(
+            ndim_supp=self.ndim_supp,
+            dist_params=dist_params,
+            param_shapes=param_shapes,
+            ref_param_idx=0,
+        )
 
     @classmethod
     def rng_fn(cls, rng, mean, norm, t, c, U, W, d, size):
