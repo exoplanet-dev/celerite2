@@ -1,12 +1,16 @@
 .. _pymc4-api:
 
-PyMC4 interface
+PyMC (v5+) interface
 ===============
 
-This ``celerite2.pymc4`` submodule provides access to the *celerite2* models
-within the `Aesara <https://aesara.readthedocs.io>`_ framework. Of special
+This ``celerite2.pymc`` submodule provides access to the *celerite2* models
+within the `PyTensor <https://pytensor.readthedocs.io/>`_ framework. Of special
 interest, this adds support for probabilistic model building using `PyMC
-<https://docs.pymc.io/>`_ v4 or later.
+<https://docs.pymc.io/>`_ v5 or later.
+
+*Note: PyMC v4 was a short-lived version of PyMC with the aesara backend.
+Upgrading to PyMC 5 or above is the recommended way forward, but past releases of
+celerite2 might work with aesara.*
 
 The :ref:`first` tutorial demonstrates the use of this interface, while this
 page provides the details for the :class:`celerite2.pymc4.GaussianProcess` class
