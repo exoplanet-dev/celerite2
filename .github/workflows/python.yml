@@ -25,8 +25,8 @@ jobs:
           - "core"
           - "jax"
           - "pymc3"
-          # - "pymc4"
-          # - "pymc4_jax"
+          # - "pymc"
+          # - "pymc_jax"
 
     steps:
       - name: Checkout
