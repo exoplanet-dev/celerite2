@@ -25,7 +25,7 @@ import numpy as np
 import pkg_resources
 from jax import core, lax
 from jax import numpy as jnp
-from jax.abstract_arrays import ShapedArray
+from jax.core import ShapedArray
 from jax.interpreters import ad, xla
 from jax.lib import xla_client
 
