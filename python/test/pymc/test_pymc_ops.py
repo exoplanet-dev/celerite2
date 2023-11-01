@@ -16,8 +16,6 @@ try:
     from pytensor.compile.mode import Mode
     from pytensor.compile.sharedvalue import SharedVariable
     from pytensor.graph.fg import FunctionGraph
-
-    # TODO: pytensor.graph.rewriting.db.RewriteDatabaseQuery?
     from pytensor.graph.rewriting.db import RewriteDatabaseQuery
     from pytensor.link.jax import JAXLinker
 
@@ -252,8 +250,10 @@ def compare_jax_and_py(
         assert_fn = partial(np.testing.assert_allclose, rtol=1e-4)
 
     fn_inputs = [i for i in fgraph.inputs if not isinstance(i, SharedVariable)]
-    aesara_jax_fn = pytensor.function(fn_inputs, fgraph.outputs, mode=jax_mode)
-    jax_res = aesara_jax_fn(*test_inputs)
+    pytensor_jax_fn = pytensor.function(
+        fn_inputs, fgraph.outputs, mode=jax_mode
+    )
+    jax_res = pytensor_jax_fn(*test_inputs)
 
     if must_be_device_array:
         if isinstance(jax_res, list):
@@ -261,8 +261,8 @@ def compare_jax_and_py(
         else:
             assert isinstance(jax_res, jax.Array)
 
-    aesara_py_fn = pytensor.function(fn_inputs, fgraph.outputs, mode=py_mode)
-    py_res = aesara_py_fn(*test_inputs)
+    pytensor_py_fn = pytensor.function(fn_inputs, fgraph.outputs, mode=py_mode)
+    py_res = pytensor_py_fn(*test_inputs)
 
     if len(fgraph.outputs) > 1:
         for j, p in zip(jax_res, py_res):
