@@ -38,7 +38,7 @@ class CeleriteNormalRV(RandomVariable):
             ndim_supp=self.ndim_supp,
             dist_params=dist_params,
             param_shapes=param_shapes,
-            ref_param_idx=0,
+            ref_param_idx=2,
         )
 
     @classmethod
