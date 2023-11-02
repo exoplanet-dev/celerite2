@@ -7,7 +7,8 @@ def pytest_configure(config):
     import platform
 
     pytensor.config.floatX = "float64"
-    pytensor.config.compute_test_value = "raise"
+    # TODO: Uncomment when PyMC commit 714b4a0 makes it into a release (probably 5.9.2)
+    # pytensor.config.compute_test_value = "raise"
     if platform.system() == "Darwin":
         pytensor.config.gcc.cxxflags = "-Wno-c++11-narrowing"
     config.addinivalue_line("filterwarnings", "ignore")
