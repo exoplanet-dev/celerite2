@@ -29,6 +29,13 @@ term_mark = pytest.mark.parametrize(
 )
 
 
+def test_theano_import_warns():
+    with pytest.deprecated_call():
+        import celerite2.theano
+
+        del celerite2.theano
+
+
 @pytest.fixture
 def data():
     np.random.seed(40582)
