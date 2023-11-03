@@ -30,20 +30,20 @@ def pymc3(session):
 
 
 @nox.session(python=ALL_PYTHON_VS)
-def pymc4(session):
-    session.install(".[test,pymc4]")
-    _session_run(session, "python/test/pymc4")
+def pymc(session):
+    session.install(".[test,pymc]")
+    _session_run(session, "python/test/pymc")
 
 
 @nox.session(python=ALL_PYTHON_VS)
-def pymc4_jax(session):
-    session.install(".[test,jax,pymc4]")
-    _session_run(session, "python/test/pymc4/test_pymc4_ops.py")
+def pymc_jax(session):
+    session.install(".[test,jax,pymc]")
+    _session_run(session, "python/test/pymc/test_pymc_ops.py")
 
 
 @nox.session(python=ALL_PYTHON_VS)
 def full(session):
-    session.install(".[test,jax,pymc3,pymc4]")
+    session.install(".[test,jax,pymc3,pymc]")
     _session_run(session, "python/test")
 
 

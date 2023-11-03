@@ -5,12 +5,12 @@ import pytest
 
 import celerite2
 
-pytest.importorskip("celerite2.pymc4")
+pytest.importorskip("celerite2.pymc")
 
 try:
     from celerite2 import terms as pyterms
-    from celerite2.pymc4 import GaussianProcess, terms
-    from celerite2.pymc4.celerite2 import CITATIONS
+    from celerite2.pymc import GaussianProcess, terms
+    from celerite2.pymc.celerite2 import CITATIONS
     from celerite2.testing import check_gp_models
 except (ImportError, ModuleNotFoundError):
     pass
@@ -115,8 +115,8 @@ def test_marginal(data):
         gp.marginal("obs", observed=y)
 
         np.testing.assert_allclose(
-            model.compile_logp()(model.test_point),
-            model.compile_fn(gp.log_likelihood(y))(model.test_point),
+            model.compile_logp()(model.initial_point()),
+            model.compile_fn(gp.log_likelihood(y))(model.initial_point()),
         )
 
 

@@ -14,11 +14,11 @@ __all__ = [
 import json
 from itertools import chain
 
-import aesara
-import aesara.tensor as tt
 import numpy as np
 import pkg_resources
-from aesara.graph import basic, op
+import pytensor
+import pytensor.tensor as pt
+from pytensor.graph import basic, op
 
 import celerite2.backprop as backprop
 import celerite2.driver as driver
@@ -82,7 +82,7 @@ class _CeleriteOp(op.Op):
             for spec in self.spec["dimensions"]
         }
         otypes = [
-            tt.TensorType(
+            pt.TensorType(
                 "float64", [broadcastable[k] for k in spec["shape"]]
             )()
             for spec in self.spec["outputs"] + self.spec["extra_outputs"]
@@ -130,8 +130,8 @@ class _CeleriteOp(op.Op):
     def grad(self, inputs, gradients):
         outputs = self(*inputs)
         grads = (
-            tt.zeros_like(outputs[n])
-            if isinstance(b.type, aesara.gradient.DisconnectedType)
+            pt.zeros_like(outputs[n])
+            if isinstance(b.type, pytensor.gradient.DisconnectedType)
             else b
             for n, b in enumerate(gradients[: len(self.spec["outputs"])])
         )

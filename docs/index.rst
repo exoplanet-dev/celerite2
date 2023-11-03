@@ -7,7 +7,7 @@ Regression in one dimension and this library, *celerite2* is a re-write of the
 original `celerite project <https://celerite.readthedocs.io>`_ to improve
 numerical stability and integration with various machine learning frameworks.
 This implementation includes interfaces in Python and C++, with full support for
-PyMC (v3 and v4) and JAX.
+PyMC (v3 and v5+) and JAX.
 
 This documentation won't teach you the fundamentals of GP modeling but the best
 resource for learning about this is available for free online: `Rasmussen &
@@ -43,7 +43,7 @@ an issue <https://github.com/exoplanet-dev/celerite2/issues>`_ there.
 
    api/python
    api/pymc3
-   api/pymc4
+   api/pymc
    api/jax
    api/c++
 

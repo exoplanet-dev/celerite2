@@ -25,7 +25,7 @@ import numpy as np
 import pkg_resources
 from jax import core, lax
 from jax import numpy as jnp
-from jax.abstract_arrays import ShapedArray
+from jax.core import ShapedArray
 from jax.interpreters import ad, xla
 from jax.lib import xla_client
 
@@ -201,8 +201,8 @@ def _rev_translation_rule(name, spec, c, *args):
 
 
 def _build_op(name, spec):
-    xla_client.register_cpu_custom_call_target(
-        name, getattr(xla_ops, spec["name"])()
+    xla_client.register_custom_call_target(
+        name, getattr(xla_ops, spec["name"])(), platform="cpu"
     )
 
     prim = core.Primitive(f"celerite2_{spec['name']}")
@@ -216,8 +216,10 @@ def _build_op(name, spec):
     if not spec["has_rev"]:
         return prim, None
 
-    xla_client.register_cpu_custom_call_target(
-        name + b"_rev", getattr(xla_ops, f"{spec['name']}_rev")()
+    xla_client.register_custom_call_target(
+        name + b"_rev",
+        getattr(xla_ops, f"{spec['name']}_rev")(),
+        platform="cpu",
     )
 
     jvp_prim = core.Primitive(f"celerite2_{spec['name']}_jvp")
