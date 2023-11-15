@@ -26,7 +26,6 @@ jobs:
           - "jax"
           - "pymc3"
           - "pymc"
-          - "pymc_mamba"
           - "pymc_jax"
 
     steps:
