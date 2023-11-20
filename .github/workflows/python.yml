@@ -78,7 +78,7 @@ jobs:
         with:
           environment-name: test-env
           create-args: >-
-            conda
+            mamba
             python=3.10
 
       - name: Install nox
