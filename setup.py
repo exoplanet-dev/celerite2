@@ -40,7 +40,7 @@ EXTRA_REQUIRE = {
         "celerite>=0.3.1",
     ],
     "pymc3": ["pymc3>=3.9", "numpy<1.22", "xarray<2023.10.0"],
-    "pymc": ["pymc>=5"],
+    "pymc": ["pymc>=5.9.2"],
     "jax": ["jax", "jaxlib"],
     "docs": [
         "sphinx",
