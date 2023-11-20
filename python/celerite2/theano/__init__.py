@@ -4,7 +4,7 @@ import warnings
 
 warnings.warn(
     "The `celerite2.theano` submodule is deprecated; "
-    "use `celerite2.theano` instead",
+    "use `celerite2.pymc3` instead",
     DeprecationWarning,
 )
 
