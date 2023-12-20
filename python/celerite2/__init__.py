@@ -11,7 +11,9 @@ __author__ = "Daniel Foreman-Mackey"
 __email__ = "foreman.mackey@gmail.com"
 __license__ = "MIT"
 __description__ = "Fast and scalable Gaussian Processes in 1D"
-__bibtex__ = __citation__ = r"""
+__bibtex__ = (
+    __citation__
+) = r"""
 @article{celerite1,
    author = {{Foreman-Mackey}, D. and {Agol}, E. and {Ambikasaran}, S. and
              {Angus}, R.},
