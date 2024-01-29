@@ -218,9 +218,11 @@ class TermProduct(Term):
         dc.append(tt.flatten(dj[:, None] + dk[None, :]))
 
         return [
-            tt.concatenate(vals, axis=0)
-            if len(vals)
-            else tt.zeros(0, dtype=self.dtype)
+            (
+                tt.concatenate(vals, axis=0)
+                if len(vals)
+                else tt.zeros(0, dtype=self.dtype)
+            )
             for vals in (ar, cr, ac, bc, cc, dc)
         ]
 

@@ -130,9 +130,11 @@ class _CeleriteOp(op.Op):
     def grad(self, inputs, gradients):
         outputs = self(*inputs)
         grads = (
-            tt.zeros_like(outputs[n])
-            if isinstance(b.type, theano.gradient.DisconnectedType)
-            else b
+            (
+                tt.zeros_like(outputs[n])
+                if isinstance(b.type, theano.gradient.DisconnectedType)
+                else b
+            )
             for n, b in enumerate(gradients[: len(self.spec["outputs"])])
         )
         return self.rev_op(*chain(inputs, outputs, grads))
