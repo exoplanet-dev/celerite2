@@ -21,8 +21,9 @@ jobs:
           CIBW_ARCHS_MACOS: "x86_64 universal2 arm64"
       - uses: actions/upload-artifact@v4
         with:
+          name: binary-${{ matrix.os }}
           path: ./wheelhouse/*.whl
-
+  
   build_sdist:
     runs-on: ubuntu-latest
     steps:
@@ -41,6 +42,7 @@ jobs:
           python -m build --sdist .
       - uses: actions/upload-artifact@v4
         with:
+          name: sdist
           path: dist/*.tar.gz
 
   upload_pypi:
@@ -50,8 +52,8 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: artifact
           path: dist
+          merge-multiple: true
 
       - uses: pypa/gh-action-pypi-publish@v1.8.12
         with:
