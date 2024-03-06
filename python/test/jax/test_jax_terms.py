@@ -8,7 +8,7 @@ pytest.importorskip("celerite2.jax")
 
 try:
     import jax
-    from jax.config import config
+    from jax import config
 
     from celerite2 import terms as pyterms
     from celerite2.jax import terms
