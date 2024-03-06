@@ -4,7 +4,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from jax.config import config  # noqa isort:skip
+from jax import config  # noqa isort:skip
 
 if not config.read("jax_enable_x64"):
     logger.warning(
@@ -13,7 +13,7 @@ if not config.read("jax_enable_x64"):
         "already run some jax code.\n"
         "You can squash this warning by setting the environment variable "
         "'JAX_ENABLE_X64=True' or by running:\n"
-        ">>> from jax.config import config\n"
+        ">>> from jax import config\n"
         ">>> config.update('jax_enable_x64', True)"
     )
     config.update("jax_enable_x64", True)
