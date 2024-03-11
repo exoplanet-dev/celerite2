@@ -23,7 +23,7 @@ jobs:
         with:
           name: binary-${{ matrix.os }}
           path: ./wheelhouse/*.whl
-  
+
   build_sdist:
     runs-on: ubuntu-latest
     steps:
