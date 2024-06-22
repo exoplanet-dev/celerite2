@@ -4,8 +4,8 @@ import copy
 import json
 import os
 from pathlib import Path
-import pkg_resources
 
+import pkg_resources
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 base = Path(os.path.dirname(os.path.abspath(__file__)))

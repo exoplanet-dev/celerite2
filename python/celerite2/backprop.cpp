@@ -28,7 +28,7 @@ auto factor_fwd (
     py::buffer_info dbuf = d.request();
     py::buffer_info Wbuf = W.request();
     py::buffer_info Sbuf = S.request();
-    
+
     // Parse dimensions
     if (tbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t");
@@ -36,7 +36,7 @@ auto factor_fwd (
     if (cbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: c");
     py::ssize_t J = cbuf.shape[0];
-    
+
     // Check shapes
     if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
     if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
@@ -46,7 +46,7 @@ auto factor_fwd (
     if (dbuf.ndim != 1 || dbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: d");
     if (Wbuf.ndim != 2 || Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
     if (Sbuf.ndim != 3 || Sbuf.shape[0] != N || Sbuf.shape[1] != J || Sbuf.shape[2] != J) throw std::invalid_argument("Invalid shape: S");
-    
+
     Eigen::Index flag = 0;
 #define FIXED_SIZE_MAP(SIZE) \
     { \
@@ -98,7 +98,7 @@ auto factor_rev (
     py::buffer_info babuf = ba.request();
     py::buffer_info bUbuf = bU.request();
     py::buffer_info bVbuf = bV.request();
-    
+
     // Parse dimensions
     if (tbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t");
@@ -106,7 +106,7 @@ auto factor_rev (
     if (cbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: c");
     py::ssize_t J = cbuf.shape[0];
-    
+
     // Check shapes
     if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
     if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
@@ -123,7 +123,7 @@ auto factor_rev (
     if (babuf.ndim != 1 || babuf.shape[0] != N) throw std::invalid_argument("Invalid shape: ba");
     if (bUbuf.ndim != 2 || bUbuf.shape[0] != N || bUbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bU");
     if (bVbuf.ndim != 2 || bVbuf.shape[0] != N || bVbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bV");
-    
+
 #define FIXED_SIZE_MAP(SIZE) \
     { \
     Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
@@ -145,7 +145,7 @@ auto factor_rev (
     }
     UNWRAP_CASES_FEW
 #undef FIXED_SIZE_MAP
-    
+
     return std::make_tuple(bt, bc, ba, bU, bV);
 }
 
@@ -167,7 +167,7 @@ auto solve_lower_fwd (
     py::buffer_info Ybuf = Y.request();
     py::buffer_info Zbuf = Z.request();
     py::buffer_info Fbuf = F.request();
-    
+
     // Parse dimensions
     if (tbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t");
@@ -178,7 +178,7 @@ auto solve_lower_fwd (
     if (Ybuf.ndim <= 1)
         throw std::invalid_argument("Invalid number of dimensions: Y");
     py::ssize_t nrhs = Ybuf.shape[1];
-    
+
     // Check shapes
     if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
     if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
@@ -187,7 +187,7 @@ auto solve_lower_fwd (
     if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
     if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
     if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
-    
+
 #define FIXED_SIZE_MAP(SIZE) \
     { \
     Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
@@ -210,7 +210,7 @@ auto solve_lower_fwd (
     }
     UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
-    
+
     return std::make_tuple(Z, F);
 }
 auto solve_lower_rev (
@@ -242,7 +242,7 @@ auto solve_lower_rev (
     py::buffer_info bUbuf = bU.request();
     py::buffer_info bWbuf = bW.request();
     py::buffer_info bYbuf = bY.request();
-    
+
     // Parse dimensions
     if (tbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t");
@@ -253,7 +253,7 @@ auto solve_lower_rev (
     if (Ybuf.ndim <= 1)
         throw std::invalid_argument("Invalid number of dimensions: Y");
     py::ssize_t nrhs = Ybuf.shape[1];
-    
+
     // Check shapes
     if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
     if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
@@ -268,7 +268,7 @@ auto solve_lower_rev (
     if (bUbuf.ndim != 2 || bUbuf.shape[0] != N || bUbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bU");
     if (bWbuf.ndim != 2 || bWbuf.shape[0] != N || bWbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bW");
     if (bYbuf.ndim != 2 || bYbuf.shape[0] != N || bYbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bY");
-    
+
 #define FIXED_SIZE_MAP(SIZE) \
     { \
     Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
@@ -297,7 +297,7 @@ auto solve_lower_rev (
     }
     UNWRAP_CASES_FEW
 #undef FIXED_SIZE_MAP
-    
+
     return std::make_tuple(bt, bc, bU, bW, bY);
 }
 
@@ -319,7 +319,7 @@ auto solve_upper_fwd (
     py::buffer_info Ybuf = Y.request();
     py::buffer_info Zbuf = Z.request();
     py::buffer_info Fbuf = F.request();
-    
+
     // Parse dimensions
     if (tbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t");
@@ -330,7 +330,7 @@ auto solve_upper_fwd (
     if (Ybuf.ndim <= 1)
         throw std::invalid_argument("Invalid number of dimensions: Y");
     py::ssize_t nrhs = Ybuf.shape[1];
-    
+
     // Check shapes
     if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
     if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
@@ -339,7 +339,7 @@ auto solve_upper_fwd (
     if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
     if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
     if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
-    
+
 #define FIXED_SIZE_MAP(SIZE) \
     { \
     Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
@@ -362,7 +362,7 @@ auto solve_upper_fwd (
     }
     UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
-    
+
     return std::make_tuple(Z, F);
 }
 auto solve_upper_rev (
@@ -394,7 +394,7 @@ auto solve_upper_rev (
     py::buffer_info bUbuf = bU.request();
     py::buffer_info bWbuf = bW.request();
     py::buffer_info bYbuf = bY.request();
-    
+
     // Parse dimensions
     if (tbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t");
@@ -405,7 +405,7 @@ auto solve_upper_rev (
     if (Ybuf.ndim <= 1)
         throw std::invalid_argument("Invalid number of dimensions: Y");
     py::ssize_t nrhs = Ybuf.shape[1];
-    
+
     // Check shapes
     if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
     if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
@@ -420,7 +420,7 @@ auto solve_upper_rev (
     if (bUbuf.ndim != 2 || bUbuf.shape[0] != N || bUbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bU");
     if (bWbuf.ndim != 2 || bWbuf.shape[0] != N || bWbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bW");
     if (bYbuf.ndim != 2 || bYbuf.shape[0] != N || bYbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bY");
-    
+
 #define FIXED_SIZE_MAP(SIZE) \
     { \
     Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
@@ -449,7 +449,7 @@ auto solve_upper_rev (
     }
     UNWRAP_CASES_FEW
 #undef FIXED_SIZE_MAP
-    
+
     return std::make_tuple(bt, bc, bU, bW, bY);
 }
 
@@ -471,7 +471,7 @@ auto matmul_lower_fwd (
     py::buffer_info Ybuf = Y.request();
     py::buffer_info Zbuf = Z.request();
     py::buffer_info Fbuf = F.request();
-    
+
     // Parse dimensions
     if (tbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t");
@@ -482,7 +482,7 @@ auto matmul_lower_fwd (
     if (Ybuf.ndim <= 1)
         throw std::invalid_argument("Invalid number of dimensions: Y");
     py::ssize_t nrhs = Ybuf.shape[1];
-    
+
     // Check shapes
     if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
     if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
@@ -491,7 +491,7 @@ auto matmul_lower_fwd (
     if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
     if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
     if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
-    
+
 #define FIXED_SIZE_MAP(SIZE) \
     { \
     Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
@@ -514,7 +514,7 @@ auto matmul_lower_fwd (
     }
     UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
-    
+
     return std::make_tuple(Z, F);
 }
 auto matmul_lower_rev (
@@ -546,7 +546,7 @@ auto matmul_lower_rev (
     py::buffer_info bUbuf = bU.request();
     py::buffer_info bVbuf = bV.request();
     py::buffer_info bYbuf = bY.request();
-    
+
     // Parse dimensions
     if (tbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t");
@@ -557,7 +557,7 @@ auto matmul_lower_rev (
     if (Ybuf.ndim <= 1)
         throw std::invalid_argument("Invalid number of dimensions: Y");
     py::ssize_t nrhs = Ybuf.shape[1];
-    
+
     // Check shapes
     if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
     if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
@@ -572,7 +572,7 @@ auto matmul_lower_rev (
     if (bUbuf.ndim != 2 || bUbuf.shape[0] != N || bUbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bU");
     if (bVbuf.ndim != 2 || bVbuf.shape[0] != N || bVbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bV");
     if (bYbuf.ndim != 2 || bYbuf.shape[0] != N || bYbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bY");
-    
+
 #define FIXED_SIZE_MAP(SIZE) \
     { \
     Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
@@ -601,7 +601,7 @@ auto matmul_lower_rev (
     }
     UNWRAP_CASES_FEW
 #undef FIXED_SIZE_MAP
-    
+
     return std::make_tuple(bt, bc, bU, bV, bY);
 }
 
@@ -623,7 +623,7 @@ auto matmul_upper_fwd (
     py::buffer_info Ybuf = Y.request();
     py::buffer_info Zbuf = Z.request();
     py::buffer_info Fbuf = F.request();
-    
+
     // Parse dimensions
     if (tbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t");
@@ -634,7 +634,7 @@ auto matmul_upper_fwd (
     if (Ybuf.ndim <= 1)
         throw std::invalid_argument("Invalid number of dimensions: Y");
     py::ssize_t nrhs = Ybuf.shape[1];
-    
+
     // Check shapes
     if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
     if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
@@ -643,7 +643,7 @@ auto matmul_upper_fwd (
     if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
     if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
     if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
-    
+
 #define FIXED_SIZE_MAP(SIZE) \
     { \
     Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
@@ -666,7 +666,7 @@ auto matmul_upper_fwd (
     }
     UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
-    
+
     return std::make_tuple(Z, F);
 }
 auto matmul_upper_rev (
@@ -698,7 +698,7 @@ auto matmul_upper_rev (
     py::buffer_info bUbuf = bU.request();
     py::buffer_info bVbuf = bV.request();
     py::buffer_info bYbuf = bY.request();
-    
+
     // Parse dimensions
     if (tbuf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t");
@@ -709,7 +709,7 @@ auto matmul_upper_rev (
     if (Ybuf.ndim <= 1)
         throw std::invalid_argument("Invalid number of dimensions: Y");
     py::ssize_t nrhs = Ybuf.shape[1];
-    
+
     // Check shapes
     if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
     if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
@@ -724,7 +724,7 @@ auto matmul_upper_rev (
     if (bUbuf.ndim != 2 || bUbuf.shape[0] != N || bUbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bU");
     if (bVbuf.ndim != 2 || bVbuf.shape[0] != N || bVbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bV");
     if (bYbuf.ndim != 2 || bYbuf.shape[0] != N || bYbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bY");
-    
+
 #define FIXED_SIZE_MAP(SIZE) \
     { \
     Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
@@ -753,7 +753,7 @@ auto matmul_upper_rev (
     }
     UNWRAP_CASES_FEW
 #undef FIXED_SIZE_MAP
-    
+
     return std::make_tuple(bt, bc, bU, bV, bY);
 }
 
@@ -777,7 +777,7 @@ auto general_matmul_lower_fwd (
     py::buffer_info Ybuf = Y.request();
     py::buffer_info Zbuf = Z.request();
     py::buffer_info Fbuf = F.request();
-    
+
     // Parse dimensions
     if (t1buf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t1");
@@ -791,7 +791,7 @@ auto general_matmul_lower_fwd (
     if (Ybuf.ndim <= 1)
         throw std::invalid_argument("Invalid number of dimensions: Y");
     py::ssize_t nrhs = Ybuf.shape[1];
-    
+
     // Check shapes
     if (t1buf.ndim != 1 || t1buf.shape[0] != N) throw std::invalid_argument("Invalid shape: t1");
     if (t2buf.ndim != 1 || t2buf.shape[0] != M) throw std::invalid_argument("Invalid shape: t2");
@@ -801,7 +801,7 @@ auto general_matmul_lower_fwd (
     if (Ybuf.ndim != 2 || Ybuf.shape[0] != M || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
     if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
     if (Fbuf.ndim != 3 || Fbuf.shape[0] != M || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
-    
+
 #define FIXED_SIZE_MAP(SIZE) \
     { \
     Eigen::Map<const Eigen::VectorXd> t1_((const double *)t1buf.ptr, N, 1); \
@@ -825,7 +825,7 @@ auto general_matmul_lower_fwd (
     }
     UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
-    
+
     return std::make_tuple(Z, F);
 }
 
@@ -848,7 +848,7 @@ auto general_matmul_upper_fwd (
     py::buffer_info Ybuf = Y.request();
     py::buffer_info Zbuf = Z.request();
     py::buffer_info Fbuf = F.request();
-    
+
     // Parse dimensions
     if (t1buf.ndim <= 0)
         throw std::invalid_argument("Invalid number of dimensions: t1");
@@ -862,7 +862,7 @@ auto general_matmul_upper_fwd (
     if (Ybuf.ndim <= 1)
         throw std::invalid_argument("Invalid number of dimensions: Y");
     py::ssize_t nrhs = Ybuf.shape[1];
-    
+
     // Check shapes
     if (t1buf.ndim != 1 || t1buf.shape[0] != N) throw std::invalid_argument("Invalid shape: t1");
     if (t2buf.ndim != 1 || t2buf.shape[0] != M) throw std::invalid_argument("Invalid shape: t2");
@@ -872,7 +872,7 @@ auto general_matmul_upper_fwd (
     if (Ybuf.ndim != 2 || Ybuf.shape[0] != M || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
     if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
     if (Fbuf.ndim != 3 || Fbuf.shape[0] != M || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
-    
+
 #define FIXED_SIZE_MAP(SIZE) \
     { \
     Eigen::Map<const Eigen::VectorXd> t1_((const double *)t1buf.ptr, N, 1); \
@@ -896,7 +896,7 @@ auto general_matmul_upper_fwd (
     }
     UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
-    
+
     return std::make_tuple(Z, F);
 }
 

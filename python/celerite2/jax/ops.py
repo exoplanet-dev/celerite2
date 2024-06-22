@@ -219,7 +219,9 @@ def _build_op(name, spec):
     rev_prim.def_impl(partial(xla.apply_primitive, rev_prim))
     rev_prim.def_abstract_eval(partial(_rev_abstract_eval, spec))
     mlir.register_lowering(
-        rev_prim, partial(_rev_lowering_rule, name + "_rev", spec), platform="cpu"
+        rev_prim,
+        partial(_rev_lowering_rule, name + "_rev", spec),
+        platform="cpu",
     )
 
     return prim, rev_prim

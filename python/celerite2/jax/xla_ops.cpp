@@ -16,7 +16,7 @@ auto factor (void *out_tuple, const void **in) {
     void **out = reinterpret_cast<void **>(out_tuple);
     const int N = *reinterpret_cast<const int *>(in[0]);
     const int J = *reinterpret_cast<const int *>(in[1]);
-    
+
     const double *t = reinterpret_cast<const double *>(in[2]);
     const double *c = reinterpret_cast<const double *>(in[3]);
     const double *a = reinterpret_cast<const double *>(in[4]);
@@ -46,7 +46,7 @@ auto factor_rev (void *out_tuple, const void **in) {
     void **out = reinterpret_cast<void **>(out_tuple);
     const int N = *reinterpret_cast<const int *>(in[0]);
     const int J = *reinterpret_cast<const int *>(in[1]);
-    
+
     const double *t = reinterpret_cast<const double *>(in[2]);
     const double *c = reinterpret_cast<const double *>(in[3]);
     const double *a = reinterpret_cast<const double *>(in[4]);
@@ -92,7 +92,7 @@ auto solve_lower (void *out_tuple, const void **in) {
     const int N = *reinterpret_cast<const int *>(in[0]);
     const int J = *reinterpret_cast<const int *>(in[1]);
     const int nrhs = *reinterpret_cast<const int *>(in[2]);
-    
+
     const double *t = reinterpret_cast<const double *>(in[3]);
     const double *c = reinterpret_cast<const double *>(in[4]);
     const double *U = reinterpret_cast<const double *>(in[5]);
@@ -129,7 +129,7 @@ auto solve_lower_rev (void *out_tuple, const void **in) {
     const int N = *reinterpret_cast<const int *>(in[0]);
     const int J = *reinterpret_cast<const int *>(in[1]);
     const int nrhs = *reinterpret_cast<const int *>(in[2]);
-    
+
     const double *t = reinterpret_cast<const double *>(in[3]);
     const double *c = reinterpret_cast<const double *>(in[4]);
     const double *U = reinterpret_cast<const double *>(in[5]);
@@ -180,7 +180,7 @@ auto solve_upper (void *out_tuple, const void **in) {
     const int N = *reinterpret_cast<const int *>(in[0]);
     const int J = *reinterpret_cast<const int *>(in[1]);
     const int nrhs = *reinterpret_cast<const int *>(in[2]);
-    
+
     const double *t = reinterpret_cast<const double *>(in[3]);
     const double *c = reinterpret_cast<const double *>(in[4]);
     const double *U = reinterpret_cast<const double *>(in[5]);
@@ -217,7 +217,7 @@ auto solve_upper_rev (void *out_tuple, const void **in) {
     const int N = *reinterpret_cast<const int *>(in[0]);
     const int J = *reinterpret_cast<const int *>(in[1]);
     const int nrhs = *reinterpret_cast<const int *>(in[2]);
-    
+
     const double *t = reinterpret_cast<const double *>(in[3]);
     const double *c = reinterpret_cast<const double *>(in[4]);
     const double *U = reinterpret_cast<const double *>(in[5]);
@@ -268,7 +268,7 @@ auto matmul_lower (void *out_tuple, const void **in) {
     const int N = *reinterpret_cast<const int *>(in[0]);
     const int J = *reinterpret_cast<const int *>(in[1]);
     const int nrhs = *reinterpret_cast<const int *>(in[2]);
-    
+
     const double *t = reinterpret_cast<const double *>(in[3]);
     const double *c = reinterpret_cast<const double *>(in[4]);
     const double *U = reinterpret_cast<const double *>(in[5]);
@@ -305,7 +305,7 @@ auto matmul_lower_rev (void *out_tuple, const void **in) {
     const int N = *reinterpret_cast<const int *>(in[0]);
     const int J = *reinterpret_cast<const int *>(in[1]);
     const int nrhs = *reinterpret_cast<const int *>(in[2]);
-    
+
     const double *t = reinterpret_cast<const double *>(in[3]);
     const double *c = reinterpret_cast<const double *>(in[4]);
     const double *U = reinterpret_cast<const double *>(in[5]);
@@ -356,7 +356,7 @@ auto matmul_upper (void *out_tuple, const void **in) {
     const int N = *reinterpret_cast<const int *>(in[0]);
     const int J = *reinterpret_cast<const int *>(in[1]);
     const int nrhs = *reinterpret_cast<const int *>(in[2]);
-    
+
     const double *t = reinterpret_cast<const double *>(in[3]);
     const double *c = reinterpret_cast<const double *>(in[4]);
     const double *U = reinterpret_cast<const double *>(in[5]);
@@ -393,7 +393,7 @@ auto matmul_upper_rev (void *out_tuple, const void **in) {
     const int N = *reinterpret_cast<const int *>(in[0]);
     const int J = *reinterpret_cast<const int *>(in[1]);
     const int nrhs = *reinterpret_cast<const int *>(in[2]);
-    
+
     const double *t = reinterpret_cast<const double *>(in[3]);
     const double *c = reinterpret_cast<const double *>(in[4]);
     const double *U = reinterpret_cast<const double *>(in[5]);
@@ -445,7 +445,7 @@ auto general_matmul_lower (void *out_tuple, const void **in) {
     const int M = *reinterpret_cast<const int *>(in[1]);
     const int J = *reinterpret_cast<const int *>(in[2]);
     const int nrhs = *reinterpret_cast<const int *>(in[3]);
-    
+
     const double *t1 = reinterpret_cast<const double *>(in[4]);
     const double *t2 = reinterpret_cast<const double *>(in[5]);
     const double *c = reinterpret_cast<const double *>(in[6]);
@@ -486,7 +486,7 @@ auto general_matmul_upper (void *out_tuple, const void **in) {
     const int M = *reinterpret_cast<const int *>(in[1]);
     const int J = *reinterpret_cast<const int *>(in[2]);
     const int nrhs = *reinterpret_cast<const int *>(in[3]);
-    
+
     const double *t1 = reinterpret_cast<const double *>(in[4]);
     const double *t2 = reinterpret_cast<const double *>(in[5]);
     const double *c = reinterpret_cast<const double *>(in[6]);
