@@ -117,6 +117,6 @@ struct order<1> {
   const static int value = Eigen::ColMajor;
 };
 
-};     // namespace driver
-};     // namespace celerite2
+}; // namespace driver
+}; // namespace celerite2
 #endif // _CELERITE2_PYTHON_DRIVER_HPP_DEFINED_

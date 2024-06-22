@@ -20,13 +20,14 @@ __all__ = [
 import json
 from collections import OrderedDict
 from functools import partial
+from itertools import chain
 
 import numpy as np
 import pkg_resources
 from jax import core, lax
 from jax import numpy as jnp
 from jax.core import ShapedArray
-from jax.interpreters import ad, xla
+from jax.interpreters import ad, mlir, xla
 from jax.lib import xla_client
 
 from celerite2.jax import xla_ops
@@ -99,45 +100,27 @@ def _abstract_eval(spec, *args):
     )
 
 
-def _translation_rule(name, spec, c, *args):
-    shapes = tuple(c.get_shape(arg) for arg in args)
+def _lowering_rule(name, spec, ctx: mlir.LoweringRuleContext, *args):
+    if any(a.dtype != np.float64 for a in chain(ctx.avals_in, ctx.avals_out)):
+        raise ValueError(f"{spec['name']} requires float64 precision")
+    shapes = [a.shape for a in ctx.avals_in]
     dims = OrderedDict(
-        (s["name"], shapes[s["coords"][0]].dimensions()[s["coords"][1]])
+        (s["name"], shapes[s["coords"][0]][s["coords"][1]])
         for s in spec["dimensions"]
     )
-    if any(shape.element_type() != np.float64 for shape in shapes):
-        raise ValueError(f"{spec['name']} requires float64 precision")
-
-    return xops.CustomCallWithLayout(
-        c,
+    return mlir.custom_call(
         name,
-        operands=tuple(
-            xops.ConstantLiteral(c, np.int32(v)) for v in dims.values()
-        )
+        operands=tuple(mlir.ir_constant(np.int32(v)) for v in dims.values())
         + args,
-        shape_with_layout=xla_client.Shape.tuple_shape(
-            tuple(
-                xla_client.Shape.array_shape(
-                    jnp.dtype(np.float64),
-                    tuple(dims[k] for k in s["shape"]),
-                    tuple(range(len(s["shape"]) - 1, -1, -1)),
-                )
-                for s in spec["outputs"] + spec["extra_outputs"]
-            )
-        ),
-        operand_shapes_with_layout=tuple(
-            xla_client.Shape.array_shape(jnp.dtype(jnp.int32), (), ())
-            for _ in range(len(dims))
-        )
-        + tuple(
-            xla_client.Shape.array_shape(
-                jnp.dtype(np.float64),
-                tuple(dims[k] for k in s["shape"]),
-                tuple(range(len(s["shape"]) - 1, -1, -1)),
-            )
-            for s in spec["inputs"]
-        ),
-    )
+        operand_layouts=[()] * len(dims)
+        + _default_layouts(aval.shape for aval in ctx.avals_in),
+        result_types=[mlir.aval_to_ir_type(aval) for aval in ctx.avals_out],
+        result_layouts=_default_layouts(aval.shape for aval in ctx.avals_out),
+    ).results
+
+
+def _default_layouts(shapes):
+    return [range(len(shape) - 1, -1, -1) for shape in shapes]
 
 
 def _jvp(prim, jvp_prim, spec, arg_values, arg_tangents):
@@ -186,7 +169,7 @@ def _rev_abstract_eval(spec, *args):
     )
 
 
-def _rev_translation_rule(name, spec, c, *args):
+def _rev_lowering_rule(name, spec, ctx, *args):
     rev_spec = dict(
         name=f"{spec['name']}_rev",
         dimensions=spec["dimensions"],
@@ -197,7 +180,7 @@ def _rev_translation_rule(name, spec, c, *args):
         outputs=spec["inputs"],
         extra_outputs=[],
     )
-    return _translation_rule(name, rev_spec, c, *args)
+    return _lowering_rule(name, rev_spec, ctx, *args)
 
 
 def _build_op(name, spec):
@@ -209,15 +192,15 @@ def _build_op(name, spec):
     prim.multiple_results = True
     prim.def_impl(partial(xla.apply_primitive, prim))
     prim.def_abstract_eval(partial(_abstract_eval, spec))
-    xla.backend_specific_translations["cpu"][prim] = partial(
-        _translation_rule, name, spec
+    mlir.register_lowering(
+        prim, partial(_lowering_rule, name, spec), platform="cpu"
     )
 
     if not spec["has_rev"]:
         return prim, None
 
     xla_client.register_custom_call_target(
-        name + b"_rev",
+        name + "_rev",
         getattr(xla_ops, f"{spec['name']}_rev")(),
         platform="cpu",
     )
@@ -235,8 +218,8 @@ def _build_op(name, spec):
     # Handle reverse pass using custom op
     rev_prim.def_impl(partial(xla.apply_primitive, rev_prim))
     rev_prim.def_abstract_eval(partial(_rev_abstract_eval, spec))
-    xla.backend_specific_translations["cpu"][rev_prim] = partial(
-        _rev_translation_rule, name + b"_rev", spec
+    mlir.register_lowering(
+        rev_prim, partial(_rev_lowering_rule, name + "_rev", spec), platform="cpu"
     )
 
     return prim, rev_prim
@@ -248,22 +231,22 @@ with open(
     definitions = {spec["name"]: spec for spec in json.load(f)}
 
 
-factor_p, factor_rev_p = _build_op(b"celerite2_factor", definitions["factor"])
+factor_p, factor_rev_p = _build_op("celerite2_factor", definitions["factor"])
 solve_lower_p, solve_lower_rev_p = _build_op(
-    b"celerite2_solve_lower", definitions["solve_lower"]
+    "celerite2_solve_lower", definitions["solve_lower"]
 )
 solve_upper_p, solve_upper_rev_p = _build_op(
-    b"celerite2_solve_upper", definitions["solve_upper"]
+    "celerite2_solve_upper", definitions["solve_upper"]
 )
 matmul_lower_p, matmul_lower_rev_p = _build_op(
-    b"celerite2_matmul_lower", definitions["matmul_lower"]
+    "celerite2_matmul_lower", definitions["matmul_lower"]
 )
 matmul_upper_p, matmul_upper_rev_p = _build_op(
-    b"celerite2_matmul_upper", definitions["matmul_upper"]
+    "celerite2_matmul_upper", definitions["matmul_upper"]
 )
 general_matmul_lower_p, _ = _build_op(
-    b"celerite2_general_matmul_lower", definitions["general_matmul_lower"]
+    "celerite2_general_matmul_lower", definitions["general_matmul_lower"]
 )
 general_matmul_upper_p, _ = _build_op(
-    b"celerite2_general_matmul_upper", definitions["general_matmul_upper"]
+    "celerite2_general_matmul_upper", definitions["general_matmul_upper"]
 )

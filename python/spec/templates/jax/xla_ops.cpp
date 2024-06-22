@@ -1,4 +1,8 @@
 #include <pybind11/pybind11.h>
+#include <cstdint>
+#include <stdexcept>
+#include <string>
+#include <type_traits>
 #include "../driver.hpp"
 
 namespace py = pybind11;
@@ -133,16 +137,32 @@ auto {{mod.name}}_rev (void *out_tuple, const void **in) {
 }
 {% endif %}
 {% endfor %}
+
+// https://en.cppreference.com/w/cpp/numeric/bit_cast
+template <class To, class From>
+typename std::enable_if<sizeof(To) == sizeof(From) && std::is_trivially_copyable<From>::value && std::is_trivially_copyable<To>::value, To>::type
+bit_cast(const From &src) noexcept {
+  static_assert(std::is_trivially_constructible<To>::value,
+                "This implementation additionally requires destination type to be trivially constructible");
+
+  To dst;
+  memcpy(&dst, &src, sizeof(To));
+  return dst;
+}
+
+template <typename T>
+py::capsule encapsulate_function(T* fn) {
+  return py::capsule(bit_cast<void*>(fn), "xla._CUSTOM_CALL_TARGET");
+}
+
 PYBIND11_MODULE(xla_ops, m) {
     {%- for mod in spec %}
     m.def("{{mod.name}}", []() {
-        const char *name = "xla._CUSTOM_CALL_TARGET";
-        return py::capsule((void *)&{{mod.name}}, name);
+        return encapsulate_function({{mod.name}});
     });
     {%- if mod.has_rev %}
     m.def("{{mod.name}}_rev", []() {
-        const char *name = "xla._CUSTOM_CALL_TARGET";
-        return py::capsule((void *)&{{mod.name}}_rev, name);
+        return encapsulate_function({{mod.name}}_rev);
     });
     {%- endif %}
     {%- endfor %}

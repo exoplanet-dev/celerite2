@@ -9,782 +9,914 @@ namespace py = pybind11;
 namespace celerite2 {
 namespace driver {
 
-auto factor_fwd(py::array_t<double, py::array::c_style> t, py::array_t<double, py::array::c_style> c, py::array_t<double, py::array::c_style> a,
-                py::array_t<double, py::array::c_style> U, py::array_t<double, py::array::c_style> V, py::array_t<double, py::array::c_style> d,
-                py::array_t<double, py::array::c_style> W, py::array_t<double, py::array::c_style> S) {
-  // Request buffers
-  py::buffer_info tbuf = t.request();
-  py::buffer_info cbuf = c.request();
-  py::buffer_info abuf = a.request();
-  py::buffer_info Ubuf = U.request();
-  py::buffer_info Vbuf = V.request();
-  py::buffer_info dbuf = d.request();
-  py::buffer_info Wbuf = W.request();
-  py::buffer_info Sbuf = S.request();
-
-  // Parse dimensions
-  if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  py::ssize_t N = tbuf.shape[0];
-  if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  py::ssize_t J = cbuf.shape[0];
-
-  // Check shapes
-  if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
-  if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
-  if (abuf.ndim != 1 || abuf.shape[0] != N) throw std::invalid_argument("Invalid shape: a");
-  if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
-  if (Vbuf.ndim != 2 || Vbuf.shape[0] != N || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
-  if (dbuf.ndim != 1 || dbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: d");
-  if (Wbuf.ndim != 2 || Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
-  if (Sbuf.ndim != 3 || Sbuf.shape[0] != N || Sbuf.shape[1] != J || Sbuf.shape[2] != J) throw std::invalid_argument("Invalid shape: S");
-
-  Eigen::Index flag = 0;
-#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
-  {                                                                                                                                                  \
-    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1);                                                                            \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1);                                                             \
-    Eigen::Map<const Eigen::VectorXd> a_((const double *)abuf.ptr, N, 1);                                                                            \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J);                            \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, N, J);                            \
-    Eigen::Map<Eigen::VectorXd> d_((double *)dbuf.ptr, N, 1);                                                                                        \
-    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> W_((double *)Wbuf.ptr, N, J);                                        \
-    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, (SIZE * SIZE), order<(SIZE * SIZE)>::value>> S_((double *)Sbuf.ptr, N, J *J);                   \
-    flag = celerite2::core::factor(t_, c_, a_, U_, V_, d_, W_, S_);                                                                                  \
-  }
-  UNWRAP_CASES_MOST
+auto factor_fwd (
+    py::array_t<double, py::array::c_style> t,
+    py::array_t<double, py::array::c_style> c,
+    py::array_t<double, py::array::c_style> a,
+    py::array_t<double, py::array::c_style> U,
+    py::array_t<double, py::array::c_style> V,
+    py::array_t<double, py::array::c_style> d,
+    py::array_t<double, py::array::c_style> W,
+    py::array_t<double, py::array::c_style> S
+) {
+    // Request buffers
+    py::buffer_info tbuf = t.request();
+    py::buffer_info cbuf = c.request();
+    py::buffer_info abuf = a.request();
+    py::buffer_info Ubuf = U.request();
+    py::buffer_info Vbuf = V.request();
+    py::buffer_info dbuf = d.request();
+    py::buffer_info Wbuf = W.request();
+    py::buffer_info Sbuf = S.request();
+    
+    // Parse dimensions
+    if (tbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: t");
+    py::ssize_t N = tbuf.shape[0];
+    if (cbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: c");
+    py::ssize_t J = cbuf.shape[0];
+    
+    // Check shapes
+    if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (abuf.ndim != 1 || abuf.shape[0] != N) throw std::invalid_argument("Invalid shape: a");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Vbuf.ndim != 2 || Vbuf.shape[0] != N || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
+    if (dbuf.ndim != 1 || dbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: d");
+    if (Wbuf.ndim != 2 || Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
+    if (Sbuf.ndim != 3 || Sbuf.shape[0] != N || Sbuf.shape[1] != J || Sbuf.shape[2] != J) throw std::invalid_argument("Invalid shape: S");
+    
+    Eigen::Index flag = 0;
+#define FIXED_SIZE_MAP(SIZE) \
+    { \
+    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::VectorXd> a_((const double *)abuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, N, J); \
+    Eigen::Map<Eigen::VectorXd> d_((double *)dbuf.ptr, N, 1); \
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> W_((double *)Wbuf.ptr, N, J); \
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, (SIZE * SIZE), order<(SIZE * SIZE)>::value>> S_((double *)Sbuf.ptr, N, J * J); \
+    flag = celerite2::core::factor(t_, c_, a_, U_, V_, d_, W_, S_); \
+    }
+    UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
-  if (flag) throw backprop_linalg_exception();
-  return std::make_tuple(d, W, S);
+    if (flag) throw backprop_linalg_exception();
+    return std::make_tuple(d, W, S);
 }
-auto factor_rev(py::array_t<double, py::array::c_style> t, py::array_t<double, py::array::c_style> c, py::array_t<double, py::array::c_style> a,
-                py::array_t<double, py::array::c_style> U, py::array_t<double, py::array::c_style> V, py::array_t<double, py::array::c_style> d,
-                py::array_t<double, py::array::c_style> W, py::array_t<double, py::array::c_style> S, py::array_t<double, py::array::c_style> bd,
-                py::array_t<double, py::array::c_style> bW, py::array_t<double, py::array::c_style> bt, py::array_t<double, py::array::c_style> bc,
-                py::array_t<double, py::array::c_style> ba, py::array_t<double, py::array::c_style> bU, py::array_t<double, py::array::c_style> bV) {
-  // Request buffers
-  py::buffer_info tbuf  = t.request();
-  py::buffer_info cbuf  = c.request();
-  py::buffer_info abuf  = a.request();
-  py::buffer_info Ubuf  = U.request();
-  py::buffer_info Vbuf  = V.request();
-  py::buffer_info dbuf  = d.request();
-  py::buffer_info Wbuf  = W.request();
-  py::buffer_info Sbuf  = S.request();
-  py::buffer_info bdbuf = bd.request();
-  py::buffer_info bWbuf = bW.request();
-  py::buffer_info btbuf = bt.request();
-  py::buffer_info bcbuf = bc.request();
-  py::buffer_info babuf = ba.request();
-  py::buffer_info bUbuf = bU.request();
-  py::buffer_info bVbuf = bV.request();
-
-  // Parse dimensions
-  if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  py::ssize_t N = tbuf.shape[0];
-  if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  py::ssize_t J = cbuf.shape[0];
-
-  // Check shapes
-  if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
-  if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
-  if (abuf.ndim != 1 || abuf.shape[0] != N) throw std::invalid_argument("Invalid shape: a");
-  if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
-  if (Vbuf.ndim != 2 || Vbuf.shape[0] != N || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
-  if (dbuf.ndim != 1 || dbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: d");
-  if (Wbuf.ndim != 2 || Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
-  if (Sbuf.ndim != 3 || Sbuf.shape[0] != N || Sbuf.shape[1] != J || Sbuf.shape[2] != J) throw std::invalid_argument("Invalid shape: S");
-  if (bdbuf.ndim != 1 || bdbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: bd");
-  if (bWbuf.ndim != 2 || bWbuf.shape[0] != N || bWbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bW");
-  if (btbuf.ndim != 1 || btbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: bt");
-  if (bcbuf.ndim != 1 || bcbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: bc");
-  if (babuf.ndim != 1 || babuf.shape[0] != N) throw std::invalid_argument("Invalid shape: ba");
-  if (bUbuf.ndim != 2 || bUbuf.shape[0] != N || bUbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bU");
-  if (bVbuf.ndim != 2 || bVbuf.shape[0] != N || bVbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bV");
-
-#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
-  {                                                                                                                                                  \
-    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1);                                                                            \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1);                                                             \
-    Eigen::Map<const Eigen::VectorXd> a_((const double *)abuf.ptr, N, 1);                                                                            \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J);                            \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, N, J);                            \
-    Eigen::Map<const Eigen::VectorXd> d_((const double *)dbuf.ptr, N, 1);                                                                            \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> W_((const double *)Wbuf.ptr, N, J);                            \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, (SIZE * SIZE), order<(SIZE * SIZE)>::value>> S_((const double *)Sbuf.ptr, N, J *J);       \
-    Eigen::Map<const Eigen::VectorXd> bd_((const double *)bdbuf.ptr, N, 1);                                                                          \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bW_((const double *)bWbuf.ptr, N, J);                          \
-    Eigen::Map<Eigen::VectorXd> bt_((double *)btbuf.ptr, N, 1);                                                                                      \
-    Eigen::Map<Eigen::Matrix<double, SIZE, 1>> bc_((double *)bcbuf.ptr, J, 1);                                                                       \
-    Eigen::Map<Eigen::VectorXd> ba_((double *)babuf.ptr, N, 1);                                                                                      \
-    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bU_((double *)bUbuf.ptr, N, J);                                      \
-    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bV_((double *)bVbuf.ptr, N, J);                                      \
-    celerite2::core::factor_rev(t_, c_, a_, U_, V_, d_, W_, S_, bd_, bW_, bt_, bc_, ba_, bU_, bV_);                                                  \
-  }
-  UNWRAP_CASES_FEW
+auto factor_rev (
+    py::array_t<double, py::array::c_style> t,
+    py::array_t<double, py::array::c_style> c,
+    py::array_t<double, py::array::c_style> a,
+    py::array_t<double, py::array::c_style> U,
+    py::array_t<double, py::array::c_style> V,
+    py::array_t<double, py::array::c_style> d,
+    py::array_t<double, py::array::c_style> W,
+    py::array_t<double, py::array::c_style> S,
+    py::array_t<double, py::array::c_style> bd,
+    py::array_t<double, py::array::c_style> bW,
+    py::array_t<double, py::array::c_style> bt,
+    py::array_t<double, py::array::c_style> bc,
+    py::array_t<double, py::array::c_style> ba,
+    py::array_t<double, py::array::c_style> bU,
+    py::array_t<double, py::array::c_style> bV
+) {
+    // Request buffers
+    py::buffer_info tbuf = t.request();
+    py::buffer_info cbuf = c.request();
+    py::buffer_info abuf = a.request();
+    py::buffer_info Ubuf = U.request();
+    py::buffer_info Vbuf = V.request();
+    py::buffer_info dbuf = d.request();
+    py::buffer_info Wbuf = W.request();
+    py::buffer_info Sbuf = S.request();
+    py::buffer_info bdbuf = bd.request();
+    py::buffer_info bWbuf = bW.request();
+    py::buffer_info btbuf = bt.request();
+    py::buffer_info bcbuf = bc.request();
+    py::buffer_info babuf = ba.request();
+    py::buffer_info bUbuf = bU.request();
+    py::buffer_info bVbuf = bV.request();
+    
+    // Parse dimensions
+    if (tbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: t");
+    py::ssize_t N = tbuf.shape[0];
+    if (cbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: c");
+    py::ssize_t J = cbuf.shape[0];
+    
+    // Check shapes
+    if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (abuf.ndim != 1 || abuf.shape[0] != N) throw std::invalid_argument("Invalid shape: a");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Vbuf.ndim != 2 || Vbuf.shape[0] != N || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
+    if (dbuf.ndim != 1 || dbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: d");
+    if (Wbuf.ndim != 2 || Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
+    if (Sbuf.ndim != 3 || Sbuf.shape[0] != N || Sbuf.shape[1] != J || Sbuf.shape[2] != J) throw std::invalid_argument("Invalid shape: S");
+    if (bdbuf.ndim != 1 || bdbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: bd");
+    if (bWbuf.ndim != 2 || bWbuf.shape[0] != N || bWbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bW");
+    if (btbuf.ndim != 1 || btbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: bt");
+    if (bcbuf.ndim != 1 || bcbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: bc");
+    if (babuf.ndim != 1 || babuf.shape[0] != N) throw std::invalid_argument("Invalid shape: ba");
+    if (bUbuf.ndim != 2 || bUbuf.shape[0] != N || bUbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bU");
+    if (bVbuf.ndim != 2 || bVbuf.shape[0] != N || bVbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bV");
+    
+#define FIXED_SIZE_MAP(SIZE) \
+    { \
+    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::VectorXd> a_((const double *)abuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, N, J); \
+    Eigen::Map<const Eigen::VectorXd> d_((const double *)dbuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> W_((const double *)Wbuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, (SIZE * SIZE), order<(SIZE * SIZE)>::value>> S_((const double *)Sbuf.ptr, N, J * J); \
+    Eigen::Map<const Eigen::VectorXd> bd_((const double *)bdbuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bW_((const double *)bWbuf.ptr, N, J); \
+    Eigen::Map<Eigen::VectorXd> bt_((double *)btbuf.ptr, N, 1); \
+    Eigen::Map<Eigen::Matrix<double, SIZE, 1>> bc_((double *)bcbuf.ptr, J, 1); \
+    Eigen::Map<Eigen::VectorXd> ba_((double *)babuf.ptr, N, 1); \
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bU_((double *)bUbuf.ptr, N, J); \
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bV_((double *)bVbuf.ptr, N, J); \
+    celerite2::core::factor_rev(t_, c_, a_, U_, V_, d_, W_, S_, bd_, bW_, bt_, bc_, ba_, bU_, bV_); \
+    }
+    UNWRAP_CASES_FEW
 #undef FIXED_SIZE_MAP
-
-  return std::make_tuple(bt, bc, ba, bU, bV);
-}
-
-auto solve_lower_fwd(py::array_t<double, py::array::c_style> t, py::array_t<double, py::array::c_style> c, py::array_t<double, py::array::c_style> U,
-                     py::array_t<double, py::array::c_style> W, py::array_t<double, py::array::c_style> Y, py::array_t<double, py::array::c_style> Z,
-                     py::array_t<double, py::array::c_style> F) {
-  // Request buffers
-  py::buffer_info tbuf = t.request();
-  py::buffer_info cbuf = c.request();
-  py::buffer_info Ubuf = U.request();
-  py::buffer_info Wbuf = W.request();
-  py::buffer_info Ybuf = Y.request();
-  py::buffer_info Zbuf = Z.request();
-  py::buffer_info Fbuf = F.request();
-
-  // Parse dimensions
-  if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  py::ssize_t N = tbuf.shape[0];
-  if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  py::ssize_t J = cbuf.shape[0];
-  if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  py::ssize_t nrhs = Ybuf.shape[1];
-
-  // Check shapes
-  if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
-  if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
-  if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
-  if (Wbuf.ndim != 2 || Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
-  if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
-  if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
-  if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
-
-#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
-  {                                                                                                                                                  \
-    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1);                                                                            \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1);                                                             \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J);                            \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> W_((const double *)Wbuf.ptr, N, J);                            \
-    if (nrhs == 1) {                                                                                                                                 \
-      Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1);                                                                          \
-      Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1);                                                                                      \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((double *)Fbuf.ptr, N, J);                                      \
-      Z_.setZero();                                                                                                                                  \
-      celerite2::core::solve_lower(t_, c_, U_, W_, Y_, Z_, F_);                                                                                      \
-    } else {                                                                                                                                         \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs);                \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs);                            \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((double *)Fbuf.ptr, N, J *nrhs);                         \
-      Z_.setZero();                                                                                                                                  \
-      celerite2::core::solve_lower(t_, c_, U_, W_, Y_, Z_, F_);                                                                                      \
-    }                                                                                                                                                \
-  }
-  UNWRAP_CASES_MOST
-#undef FIXED_SIZE_MAP
-
-  return std::make_tuple(Z, F);
-}
-auto solve_lower_rev(py::array_t<double, py::array::c_style> t, py::array_t<double, py::array::c_style> c, py::array_t<double, py::array::c_style> U,
-                     py::array_t<double, py::array::c_style> W, py::array_t<double, py::array::c_style> Y, py::array_t<double, py::array::c_style> Z,
-                     py::array_t<double, py::array::c_style> F, py::array_t<double, py::array::c_style> bZ,
-                     py::array_t<double, py::array::c_style> bt, py::array_t<double, py::array::c_style> bc,
-                     py::array_t<double, py::array::c_style> bU, py::array_t<double, py::array::c_style> bW,
-                     py::array_t<double, py::array::c_style> bY) {
-  // Request buffers
-  py::buffer_info tbuf  = t.request();
-  py::buffer_info cbuf  = c.request();
-  py::buffer_info Ubuf  = U.request();
-  py::buffer_info Wbuf  = W.request();
-  py::buffer_info Ybuf  = Y.request();
-  py::buffer_info Zbuf  = Z.request();
-  py::buffer_info Fbuf  = F.request();
-  py::buffer_info bZbuf = bZ.request();
-  py::buffer_info btbuf = bt.request();
-  py::buffer_info bcbuf = bc.request();
-  py::buffer_info bUbuf = bU.request();
-  py::buffer_info bWbuf = bW.request();
-  py::buffer_info bYbuf = bY.request();
-
-  // Parse dimensions
-  if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  py::ssize_t N = tbuf.shape[0];
-  if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  py::ssize_t J = cbuf.shape[0];
-  if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  py::ssize_t nrhs = Ybuf.shape[1];
-
-  // Check shapes
-  if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
-  if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
-  if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
-  if (Wbuf.ndim != 2 || Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
-  if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
-  if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
-  if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
-  if (bZbuf.ndim != 2 || bZbuf.shape[0] != N || bZbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bZ");
-  if (btbuf.ndim != 1 || btbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: bt");
-  if (bcbuf.ndim != 1 || bcbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: bc");
-  if (bUbuf.ndim != 2 || bUbuf.shape[0] != N || bUbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bU");
-  if (bWbuf.ndim != 2 || bWbuf.shape[0] != N || bWbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bW");
-  if (bYbuf.ndim != 2 || bYbuf.shape[0] != N || bYbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bY");
-
-#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
-  {                                                                                                                                                  \
-    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1);                                                                            \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1);                                                             \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J);                            \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> W_((const double *)Wbuf.ptr, N, J);                            \
-    Eigen::Map<Eigen::VectorXd> bt_((double *)btbuf.ptr, N, 1);                                                                                      \
-    Eigen::Map<Eigen::Matrix<double, SIZE, 1>> bc_((double *)bcbuf.ptr, J, 1);                                                                       \
-    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bU_((double *)bUbuf.ptr, N, J);                                      \
-    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bW_((double *)bWbuf.ptr, N, J);                                      \
-    if (nrhs == 1) {                                                                                                                                 \
-      Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1);                                                                          \
-      Eigen::Map<const Eigen::VectorXd> Z_((const double *)Zbuf.ptr, N, 1);                                                                          \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((const double *)Fbuf.ptr, N, J);                          \
-      Eigen::Map<const Eigen::VectorXd> bZ_((const double *)bZbuf.ptr, N, 1);                                                                        \
-      Eigen::Map<Eigen::VectorXd> bY_((double *)bYbuf.ptr, N, 1);                                                                                    \
-      celerite2::core::solve_lower_rev(t_, c_, U_, W_, Y_, Z_, F_, bZ_, bt_, bc_, bU_, bW_, bY_);                                                    \
-    } else {                                                                                                                                         \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs);                \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((const double *)Zbuf.ptr, N, nrhs);                \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((const double *)Fbuf.ptr, N, J *nrhs);             \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> bZ_((const double *)bZbuf.ptr, N, nrhs);              \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> bY_((double *)bYbuf.ptr, N, nrhs);                          \
-      celerite2::core::solve_lower_rev(t_, c_, U_, W_, Y_, Z_, F_, bZ_, bt_, bc_, bU_, bW_, bY_);                                                    \
-    }                                                                                                                                                \
-  }
-  UNWRAP_CASES_FEW
-#undef FIXED_SIZE_MAP
-
-  return std::make_tuple(bt, bc, bU, bW, bY);
+    
+    return std::make_tuple(bt, bc, ba, bU, bV);
 }
 
-auto solve_upper_fwd(py::array_t<double, py::array::c_style> t, py::array_t<double, py::array::c_style> c, py::array_t<double, py::array::c_style> U,
-                     py::array_t<double, py::array::c_style> W, py::array_t<double, py::array::c_style> Y, py::array_t<double, py::array::c_style> Z,
-                     py::array_t<double, py::array::c_style> F) {
-  // Request buffers
-  py::buffer_info tbuf = t.request();
-  py::buffer_info cbuf = c.request();
-  py::buffer_info Ubuf = U.request();
-  py::buffer_info Wbuf = W.request();
-  py::buffer_info Ybuf = Y.request();
-  py::buffer_info Zbuf = Z.request();
-  py::buffer_info Fbuf = F.request();
 
-  // Parse dimensions
-  if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  py::ssize_t N = tbuf.shape[0];
-  if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  py::ssize_t J = cbuf.shape[0];
-  if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  py::ssize_t nrhs = Ybuf.shape[1];
-
-  // Check shapes
-  if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
-  if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
-  if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
-  if (Wbuf.ndim != 2 || Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
-  if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
-  if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
-  if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
-
-#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
-  {                                                                                                                                                  \
-    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1);                                                                            \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1);                                                             \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J);                            \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> W_((const double *)Wbuf.ptr, N, J);                            \
-    if (nrhs == 1) {                                                                                                                                 \
-      Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1);                                                                          \
-      Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1);                                                                                      \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((double *)Fbuf.ptr, N, J);                                      \
-      Z_.setZero();                                                                                                                                  \
-      celerite2::core::solve_upper(t_, c_, U_, W_, Y_, Z_, F_);                                                                                      \
-    } else {                                                                                                                                         \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs);                \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs);                            \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((double *)Fbuf.ptr, N, J *nrhs);                         \
-      Z_.setZero();                                                                                                                                  \
-      celerite2::core::solve_upper(t_, c_, U_, W_, Y_, Z_, F_);                                                                                      \
-    }                                                                                                                                                \
-  }
-  UNWRAP_CASES_MOST
+auto solve_lower_fwd (
+    py::array_t<double, py::array::c_style> t,
+    py::array_t<double, py::array::c_style> c,
+    py::array_t<double, py::array::c_style> U,
+    py::array_t<double, py::array::c_style> W,
+    py::array_t<double, py::array::c_style> Y,
+    py::array_t<double, py::array::c_style> Z,
+    py::array_t<double, py::array::c_style> F
+) {
+    // Request buffers
+    py::buffer_info tbuf = t.request();
+    py::buffer_info cbuf = c.request();
+    py::buffer_info Ubuf = U.request();
+    py::buffer_info Wbuf = W.request();
+    py::buffer_info Ybuf = Y.request();
+    py::buffer_info Zbuf = Z.request();
+    py::buffer_info Fbuf = F.request();
+    
+    // Parse dimensions
+    if (tbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: t");
+    py::ssize_t N = tbuf.shape[0];
+    if (cbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: c");
+    py::ssize_t J = cbuf.shape[0];
+    if (Ybuf.ndim <= 1)
+        throw std::invalid_argument("Invalid number of dimensions: Y");
+    py::ssize_t nrhs = Ybuf.shape[1];
+    
+    // Check shapes
+    if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Wbuf.ndim != 2 || Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
+    if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
+    if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
+    if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
+    
+#define FIXED_SIZE_MAP(SIZE) \
+    { \
+    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> W_((const double *)Wbuf.ptr, N, J); \
+    if (nrhs == 1) { \
+        Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1); \
+        Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((double *)Fbuf.ptr, N, J); \
+        Z_.setZero(); \
+        celerite2::core::solve_lower(t_, c_, U_, W_, Y_, Z_, F_); \
+    } else { \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((double *)Fbuf.ptr, N, J * nrhs); \
+        Z_.setZero(); \
+        celerite2::core::solve_lower(t_, c_, U_, W_, Y_, Z_, F_); \
+    } \
+    }
+    UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
-
-  return std::make_tuple(Z, F);
+    
+    return std::make_tuple(Z, F);
 }
-auto solve_upper_rev(py::array_t<double, py::array::c_style> t, py::array_t<double, py::array::c_style> c, py::array_t<double, py::array::c_style> U,
-                     py::array_t<double, py::array::c_style> W, py::array_t<double, py::array::c_style> Y, py::array_t<double, py::array::c_style> Z,
-                     py::array_t<double, py::array::c_style> F, py::array_t<double, py::array::c_style> bZ,
-                     py::array_t<double, py::array::c_style> bt, py::array_t<double, py::array::c_style> bc,
-                     py::array_t<double, py::array::c_style> bU, py::array_t<double, py::array::c_style> bW,
-                     py::array_t<double, py::array::c_style> bY) {
-  // Request buffers
-  py::buffer_info tbuf  = t.request();
-  py::buffer_info cbuf  = c.request();
-  py::buffer_info Ubuf  = U.request();
-  py::buffer_info Wbuf  = W.request();
-  py::buffer_info Ybuf  = Y.request();
-  py::buffer_info Zbuf  = Z.request();
-  py::buffer_info Fbuf  = F.request();
-  py::buffer_info bZbuf = bZ.request();
-  py::buffer_info btbuf = bt.request();
-  py::buffer_info bcbuf = bc.request();
-  py::buffer_info bUbuf = bU.request();
-  py::buffer_info bWbuf = bW.request();
-  py::buffer_info bYbuf = bY.request();
-
-  // Parse dimensions
-  if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  py::ssize_t N = tbuf.shape[0];
-  if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  py::ssize_t J = cbuf.shape[0];
-  if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  py::ssize_t nrhs = Ybuf.shape[1];
-
-  // Check shapes
-  if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
-  if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
-  if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
-  if (Wbuf.ndim != 2 || Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
-  if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
-  if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
-  if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
-  if (bZbuf.ndim != 2 || bZbuf.shape[0] != N || bZbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bZ");
-  if (btbuf.ndim != 1 || btbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: bt");
-  if (bcbuf.ndim != 1 || bcbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: bc");
-  if (bUbuf.ndim != 2 || bUbuf.shape[0] != N || bUbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bU");
-  if (bWbuf.ndim != 2 || bWbuf.shape[0] != N || bWbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bW");
-  if (bYbuf.ndim != 2 || bYbuf.shape[0] != N || bYbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bY");
-
-#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
-  {                                                                                                                                                  \
-    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1);                                                                            \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1);                                                             \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J);                            \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> W_((const double *)Wbuf.ptr, N, J);                            \
-    Eigen::Map<Eigen::VectorXd> bt_((double *)btbuf.ptr, N, 1);                                                                                      \
-    Eigen::Map<Eigen::Matrix<double, SIZE, 1>> bc_((double *)bcbuf.ptr, J, 1);                                                                       \
-    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bU_((double *)bUbuf.ptr, N, J);                                      \
-    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bW_((double *)bWbuf.ptr, N, J);                                      \
-    if (nrhs == 1) {                                                                                                                                 \
-      Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1);                                                                          \
-      Eigen::Map<const Eigen::VectorXd> Z_((const double *)Zbuf.ptr, N, 1);                                                                          \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((const double *)Fbuf.ptr, N, J);                          \
-      Eigen::Map<const Eigen::VectorXd> bZ_((const double *)bZbuf.ptr, N, 1);                                                                        \
-      Eigen::Map<Eigen::VectorXd> bY_((double *)bYbuf.ptr, N, 1);                                                                                    \
-      celerite2::core::solve_upper_rev(t_, c_, U_, W_, Y_, Z_, F_, bZ_, bt_, bc_, bU_, bW_, bY_);                                                    \
-    } else {                                                                                                                                         \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs);                \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((const double *)Zbuf.ptr, N, nrhs);                \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((const double *)Fbuf.ptr, N, J *nrhs);             \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> bZ_((const double *)bZbuf.ptr, N, nrhs);              \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> bY_((double *)bYbuf.ptr, N, nrhs);                          \
-      celerite2::core::solve_upper_rev(t_, c_, U_, W_, Y_, Z_, F_, bZ_, bt_, bc_, bU_, bW_, bY_);                                                    \
-    }                                                                                                                                                \
-  }
-  UNWRAP_CASES_FEW
+auto solve_lower_rev (
+    py::array_t<double, py::array::c_style> t,
+    py::array_t<double, py::array::c_style> c,
+    py::array_t<double, py::array::c_style> U,
+    py::array_t<double, py::array::c_style> W,
+    py::array_t<double, py::array::c_style> Y,
+    py::array_t<double, py::array::c_style> Z,
+    py::array_t<double, py::array::c_style> F,
+    py::array_t<double, py::array::c_style> bZ,
+    py::array_t<double, py::array::c_style> bt,
+    py::array_t<double, py::array::c_style> bc,
+    py::array_t<double, py::array::c_style> bU,
+    py::array_t<double, py::array::c_style> bW,
+    py::array_t<double, py::array::c_style> bY
+) {
+    // Request buffers
+    py::buffer_info tbuf = t.request();
+    py::buffer_info cbuf = c.request();
+    py::buffer_info Ubuf = U.request();
+    py::buffer_info Wbuf = W.request();
+    py::buffer_info Ybuf = Y.request();
+    py::buffer_info Zbuf = Z.request();
+    py::buffer_info Fbuf = F.request();
+    py::buffer_info bZbuf = bZ.request();
+    py::buffer_info btbuf = bt.request();
+    py::buffer_info bcbuf = bc.request();
+    py::buffer_info bUbuf = bU.request();
+    py::buffer_info bWbuf = bW.request();
+    py::buffer_info bYbuf = bY.request();
+    
+    // Parse dimensions
+    if (tbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: t");
+    py::ssize_t N = tbuf.shape[0];
+    if (cbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: c");
+    py::ssize_t J = cbuf.shape[0];
+    if (Ybuf.ndim <= 1)
+        throw std::invalid_argument("Invalid number of dimensions: Y");
+    py::ssize_t nrhs = Ybuf.shape[1];
+    
+    // Check shapes
+    if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Wbuf.ndim != 2 || Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
+    if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
+    if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
+    if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
+    if (bZbuf.ndim != 2 || bZbuf.shape[0] != N || bZbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bZ");
+    if (btbuf.ndim != 1 || btbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: bt");
+    if (bcbuf.ndim != 1 || bcbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: bc");
+    if (bUbuf.ndim != 2 || bUbuf.shape[0] != N || bUbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bU");
+    if (bWbuf.ndim != 2 || bWbuf.shape[0] != N || bWbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bW");
+    if (bYbuf.ndim != 2 || bYbuf.shape[0] != N || bYbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bY");
+    
+#define FIXED_SIZE_MAP(SIZE) \
+    { \
+    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> W_((const double *)Wbuf.ptr, N, J); \
+    Eigen::Map<Eigen::VectorXd> bt_((double *)btbuf.ptr, N, 1); \
+    Eigen::Map<Eigen::Matrix<double, SIZE, 1>> bc_((double *)bcbuf.ptr, J, 1); \
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bU_((double *)bUbuf.ptr, N, J); \
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bW_((double *)bWbuf.ptr, N, J); \
+    if (nrhs == 1) { \
+        Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1); \
+        Eigen::Map<const Eigen::VectorXd> Z_((const double *)Zbuf.ptr, N, 1); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((const double *)Fbuf.ptr, N, J); \
+        Eigen::Map<const Eigen::VectorXd> bZ_((const double *)bZbuf.ptr, N, 1); \
+        Eigen::Map<Eigen::VectorXd> bY_((double *)bYbuf.ptr, N, 1); \
+        celerite2::core::solve_lower_rev(t_, c_, U_, W_, Y_, Z_, F_, bZ_, bt_, bc_, bU_, bW_, bY_); \
+    } else { \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((const double *)Zbuf.ptr, N, nrhs); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((const double *)Fbuf.ptr, N, J * nrhs); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> bZ_((const double *)bZbuf.ptr, N, nrhs); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> bY_((double *)bYbuf.ptr, N, nrhs); \
+        celerite2::core::solve_lower_rev(t_, c_, U_, W_, Y_, Z_, F_, bZ_, bt_, bc_, bU_, bW_, bY_); \
+    } \
+    }
+    UNWRAP_CASES_FEW
 #undef FIXED_SIZE_MAP
-
-  return std::make_tuple(bt, bc, bU, bW, bY);
-}
-
-auto matmul_lower_fwd(py::array_t<double, py::array::c_style> t, py::array_t<double, py::array::c_style> c, py::array_t<double, py::array::c_style> U,
-                      py::array_t<double, py::array::c_style> V, py::array_t<double, py::array::c_style> Y, py::array_t<double, py::array::c_style> Z,
-                      py::array_t<double, py::array::c_style> F) {
-  // Request buffers
-  py::buffer_info tbuf = t.request();
-  py::buffer_info cbuf = c.request();
-  py::buffer_info Ubuf = U.request();
-  py::buffer_info Vbuf = V.request();
-  py::buffer_info Ybuf = Y.request();
-  py::buffer_info Zbuf = Z.request();
-  py::buffer_info Fbuf = F.request();
-
-  // Parse dimensions
-  if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  py::ssize_t N = tbuf.shape[0];
-  if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  py::ssize_t J = cbuf.shape[0];
-  if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  py::ssize_t nrhs = Ybuf.shape[1];
-
-  // Check shapes
-  if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
-  if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
-  if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
-  if (Vbuf.ndim != 2 || Vbuf.shape[0] != N || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
-  if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
-  if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
-  if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
-
-#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
-  {                                                                                                                                                  \
-    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1);                                                                            \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1);                                                             \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J);                            \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, N, J);                            \
-    if (nrhs == 1) {                                                                                                                                 \
-      Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1);                                                                          \
-      Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1);                                                                                      \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((double *)Fbuf.ptr, N, J);                                      \
-      Z_.setZero();                                                                                                                                  \
-      celerite2::core::matmul_lower(t_, c_, U_, V_, Y_, Z_, F_);                                                                                     \
-    } else {                                                                                                                                         \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs);                \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs);                            \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((double *)Fbuf.ptr, N, J *nrhs);                         \
-      Z_.setZero();                                                                                                                                  \
-      celerite2::core::matmul_lower(t_, c_, U_, V_, Y_, Z_, F_);                                                                                     \
-    }                                                                                                                                                \
-  }
-  UNWRAP_CASES_MOST
-#undef FIXED_SIZE_MAP
-
-  return std::make_tuple(Z, F);
-}
-auto matmul_lower_rev(py::array_t<double, py::array::c_style> t, py::array_t<double, py::array::c_style> c, py::array_t<double, py::array::c_style> U,
-                      py::array_t<double, py::array::c_style> V, py::array_t<double, py::array::c_style> Y, py::array_t<double, py::array::c_style> Z,
-                      py::array_t<double, py::array::c_style> F, py::array_t<double, py::array::c_style> bZ,
-                      py::array_t<double, py::array::c_style> bt, py::array_t<double, py::array::c_style> bc,
-                      py::array_t<double, py::array::c_style> bU, py::array_t<double, py::array::c_style> bV,
-                      py::array_t<double, py::array::c_style> bY) {
-  // Request buffers
-  py::buffer_info tbuf  = t.request();
-  py::buffer_info cbuf  = c.request();
-  py::buffer_info Ubuf  = U.request();
-  py::buffer_info Vbuf  = V.request();
-  py::buffer_info Ybuf  = Y.request();
-  py::buffer_info Zbuf  = Z.request();
-  py::buffer_info Fbuf  = F.request();
-  py::buffer_info bZbuf = bZ.request();
-  py::buffer_info btbuf = bt.request();
-  py::buffer_info bcbuf = bc.request();
-  py::buffer_info bUbuf = bU.request();
-  py::buffer_info bVbuf = bV.request();
-  py::buffer_info bYbuf = bY.request();
-
-  // Parse dimensions
-  if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  py::ssize_t N = tbuf.shape[0];
-  if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  py::ssize_t J = cbuf.shape[0];
-  if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  py::ssize_t nrhs = Ybuf.shape[1];
-
-  // Check shapes
-  if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
-  if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
-  if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
-  if (Vbuf.ndim != 2 || Vbuf.shape[0] != N || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
-  if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
-  if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
-  if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
-  if (bZbuf.ndim != 2 || bZbuf.shape[0] != N || bZbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bZ");
-  if (btbuf.ndim != 1 || btbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: bt");
-  if (bcbuf.ndim != 1 || bcbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: bc");
-  if (bUbuf.ndim != 2 || bUbuf.shape[0] != N || bUbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bU");
-  if (bVbuf.ndim != 2 || bVbuf.shape[0] != N || bVbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bV");
-  if (bYbuf.ndim != 2 || bYbuf.shape[0] != N || bYbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bY");
-
-#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
-  {                                                                                                                                                  \
-    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1);                                                                            \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1);                                                             \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J);                            \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, N, J);                            \
-    Eigen::Map<Eigen::VectorXd> bt_((double *)btbuf.ptr, N, 1);                                                                                      \
-    Eigen::Map<Eigen::Matrix<double, SIZE, 1>> bc_((double *)bcbuf.ptr, J, 1);                                                                       \
-    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bU_((double *)bUbuf.ptr, N, J);                                      \
-    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bV_((double *)bVbuf.ptr, N, J);                                      \
-    if (nrhs == 1) {                                                                                                                                 \
-      Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1);                                                                          \
-      Eigen::Map<const Eigen::VectorXd> Z_((const double *)Zbuf.ptr, N, 1);                                                                          \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((const double *)Fbuf.ptr, N, J);                          \
-      Eigen::Map<const Eigen::VectorXd> bZ_((const double *)bZbuf.ptr, N, 1);                                                                        \
-      Eigen::Map<Eigen::VectorXd> bY_((double *)bYbuf.ptr, N, 1);                                                                                    \
-      celerite2::core::matmul_lower_rev(t_, c_, U_, V_, Y_, Z_, F_, bZ_, bt_, bc_, bU_, bV_, bY_);                                                   \
-    } else {                                                                                                                                         \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs);                \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((const double *)Zbuf.ptr, N, nrhs);                \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((const double *)Fbuf.ptr, N, J *nrhs);             \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> bZ_((const double *)bZbuf.ptr, N, nrhs);              \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> bY_((double *)bYbuf.ptr, N, nrhs);                          \
-      celerite2::core::matmul_lower_rev(t_, c_, U_, V_, Y_, Z_, F_, bZ_, bt_, bc_, bU_, bV_, bY_);                                                   \
-    }                                                                                                                                                \
-  }
-  UNWRAP_CASES_FEW
-#undef FIXED_SIZE_MAP
-
-  return std::make_tuple(bt, bc, bU, bV, bY);
+    
+    return std::make_tuple(bt, bc, bU, bW, bY);
 }
 
-auto matmul_upper_fwd(py::array_t<double, py::array::c_style> t, py::array_t<double, py::array::c_style> c, py::array_t<double, py::array::c_style> U,
-                      py::array_t<double, py::array::c_style> V, py::array_t<double, py::array::c_style> Y, py::array_t<double, py::array::c_style> Z,
-                      py::array_t<double, py::array::c_style> F) {
-  // Request buffers
-  py::buffer_info tbuf = t.request();
-  py::buffer_info cbuf = c.request();
-  py::buffer_info Ubuf = U.request();
-  py::buffer_info Vbuf = V.request();
-  py::buffer_info Ybuf = Y.request();
-  py::buffer_info Zbuf = Z.request();
-  py::buffer_info Fbuf = F.request();
 
-  // Parse dimensions
-  if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  py::ssize_t N = tbuf.shape[0];
-  if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  py::ssize_t J = cbuf.shape[0];
-  if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  py::ssize_t nrhs = Ybuf.shape[1];
-
-  // Check shapes
-  if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
-  if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
-  if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
-  if (Vbuf.ndim != 2 || Vbuf.shape[0] != N || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
-  if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
-  if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
-  if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
-
-#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
-  {                                                                                                                                                  \
-    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1);                                                                            \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1);                                                             \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J);                            \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, N, J);                            \
-    if (nrhs == 1) {                                                                                                                                 \
-      Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1);                                                                          \
-      Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1);                                                                                      \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((double *)Fbuf.ptr, N, J);                                      \
-      Z_.setZero();                                                                                                                                  \
-      celerite2::core::matmul_upper(t_, c_, U_, V_, Y_, Z_, F_);                                                                                     \
-    } else {                                                                                                                                         \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs);                \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs);                            \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((double *)Fbuf.ptr, N, J *nrhs);                         \
-      Z_.setZero();                                                                                                                                  \
-      celerite2::core::matmul_upper(t_, c_, U_, V_, Y_, Z_, F_);                                                                                     \
-    }                                                                                                                                                \
-  }
-  UNWRAP_CASES_MOST
+auto solve_upper_fwd (
+    py::array_t<double, py::array::c_style> t,
+    py::array_t<double, py::array::c_style> c,
+    py::array_t<double, py::array::c_style> U,
+    py::array_t<double, py::array::c_style> W,
+    py::array_t<double, py::array::c_style> Y,
+    py::array_t<double, py::array::c_style> Z,
+    py::array_t<double, py::array::c_style> F
+) {
+    // Request buffers
+    py::buffer_info tbuf = t.request();
+    py::buffer_info cbuf = c.request();
+    py::buffer_info Ubuf = U.request();
+    py::buffer_info Wbuf = W.request();
+    py::buffer_info Ybuf = Y.request();
+    py::buffer_info Zbuf = Z.request();
+    py::buffer_info Fbuf = F.request();
+    
+    // Parse dimensions
+    if (tbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: t");
+    py::ssize_t N = tbuf.shape[0];
+    if (cbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: c");
+    py::ssize_t J = cbuf.shape[0];
+    if (Ybuf.ndim <= 1)
+        throw std::invalid_argument("Invalid number of dimensions: Y");
+    py::ssize_t nrhs = Ybuf.shape[1];
+    
+    // Check shapes
+    if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Wbuf.ndim != 2 || Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
+    if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
+    if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
+    if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
+    
+#define FIXED_SIZE_MAP(SIZE) \
+    { \
+    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> W_((const double *)Wbuf.ptr, N, J); \
+    if (nrhs == 1) { \
+        Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1); \
+        Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((double *)Fbuf.ptr, N, J); \
+        Z_.setZero(); \
+        celerite2::core::solve_upper(t_, c_, U_, W_, Y_, Z_, F_); \
+    } else { \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((double *)Fbuf.ptr, N, J * nrhs); \
+        Z_.setZero(); \
+        celerite2::core::solve_upper(t_, c_, U_, W_, Y_, Z_, F_); \
+    } \
+    }
+    UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
-
-  return std::make_tuple(Z, F);
+    
+    return std::make_tuple(Z, F);
 }
-auto matmul_upper_rev(py::array_t<double, py::array::c_style> t, py::array_t<double, py::array::c_style> c, py::array_t<double, py::array::c_style> U,
-                      py::array_t<double, py::array::c_style> V, py::array_t<double, py::array::c_style> Y, py::array_t<double, py::array::c_style> Z,
-                      py::array_t<double, py::array::c_style> F, py::array_t<double, py::array::c_style> bZ,
-                      py::array_t<double, py::array::c_style> bt, py::array_t<double, py::array::c_style> bc,
-                      py::array_t<double, py::array::c_style> bU, py::array_t<double, py::array::c_style> bV,
-                      py::array_t<double, py::array::c_style> bY) {
-  // Request buffers
-  py::buffer_info tbuf  = t.request();
-  py::buffer_info cbuf  = c.request();
-  py::buffer_info Ubuf  = U.request();
-  py::buffer_info Vbuf  = V.request();
-  py::buffer_info Ybuf  = Y.request();
-  py::buffer_info Zbuf  = Z.request();
-  py::buffer_info Fbuf  = F.request();
-  py::buffer_info bZbuf = bZ.request();
-  py::buffer_info btbuf = bt.request();
-  py::buffer_info bcbuf = bc.request();
-  py::buffer_info bUbuf = bU.request();
-  py::buffer_info bVbuf = bV.request();
-  py::buffer_info bYbuf = bY.request();
-
-  // Parse dimensions
-  if (tbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t");
-  py::ssize_t N = tbuf.shape[0];
-  if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  py::ssize_t J = cbuf.shape[0];
-  if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  py::ssize_t nrhs = Ybuf.shape[1];
-
-  // Check shapes
-  if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
-  if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
-  if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
-  if (Vbuf.ndim != 2 || Vbuf.shape[0] != N || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
-  if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
-  if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
-  if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
-  if (bZbuf.ndim != 2 || bZbuf.shape[0] != N || bZbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bZ");
-  if (btbuf.ndim != 1 || btbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: bt");
-  if (bcbuf.ndim != 1 || bcbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: bc");
-  if (bUbuf.ndim != 2 || bUbuf.shape[0] != N || bUbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bU");
-  if (bVbuf.ndim != 2 || bVbuf.shape[0] != N || bVbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bV");
-  if (bYbuf.ndim != 2 || bYbuf.shape[0] != N || bYbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bY");
-
-#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
-  {                                                                                                                                                  \
-    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1);                                                                            \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1);                                                             \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J);                            \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, N, J);                            \
-    Eigen::Map<Eigen::VectorXd> bt_((double *)btbuf.ptr, N, 1);                                                                                      \
-    Eigen::Map<Eigen::Matrix<double, SIZE, 1>> bc_((double *)bcbuf.ptr, J, 1);                                                                       \
-    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bU_((double *)bUbuf.ptr, N, J);                                      \
-    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bV_((double *)bVbuf.ptr, N, J);                                      \
-    if (nrhs == 1) {                                                                                                                                 \
-      Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1);                                                                          \
-      Eigen::Map<const Eigen::VectorXd> Z_((const double *)Zbuf.ptr, N, 1);                                                                          \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((const double *)Fbuf.ptr, N, J);                          \
-      Eigen::Map<const Eigen::VectorXd> bZ_((const double *)bZbuf.ptr, N, 1);                                                                        \
-      Eigen::Map<Eigen::VectorXd> bY_((double *)bYbuf.ptr, N, 1);                                                                                    \
-      celerite2::core::matmul_upper_rev(t_, c_, U_, V_, Y_, Z_, F_, bZ_, bt_, bc_, bU_, bV_, bY_);                                                   \
-    } else {                                                                                                                                         \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs);                \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((const double *)Zbuf.ptr, N, nrhs);                \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((const double *)Fbuf.ptr, N, J *nrhs);             \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> bZ_((const double *)bZbuf.ptr, N, nrhs);              \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> bY_((double *)bYbuf.ptr, N, nrhs);                          \
-      celerite2::core::matmul_upper_rev(t_, c_, U_, V_, Y_, Z_, F_, bZ_, bt_, bc_, bU_, bV_, bY_);                                                   \
-    }                                                                                                                                                \
-  }
-  UNWRAP_CASES_FEW
+auto solve_upper_rev (
+    py::array_t<double, py::array::c_style> t,
+    py::array_t<double, py::array::c_style> c,
+    py::array_t<double, py::array::c_style> U,
+    py::array_t<double, py::array::c_style> W,
+    py::array_t<double, py::array::c_style> Y,
+    py::array_t<double, py::array::c_style> Z,
+    py::array_t<double, py::array::c_style> F,
+    py::array_t<double, py::array::c_style> bZ,
+    py::array_t<double, py::array::c_style> bt,
+    py::array_t<double, py::array::c_style> bc,
+    py::array_t<double, py::array::c_style> bU,
+    py::array_t<double, py::array::c_style> bW,
+    py::array_t<double, py::array::c_style> bY
+) {
+    // Request buffers
+    py::buffer_info tbuf = t.request();
+    py::buffer_info cbuf = c.request();
+    py::buffer_info Ubuf = U.request();
+    py::buffer_info Wbuf = W.request();
+    py::buffer_info Ybuf = Y.request();
+    py::buffer_info Zbuf = Z.request();
+    py::buffer_info Fbuf = F.request();
+    py::buffer_info bZbuf = bZ.request();
+    py::buffer_info btbuf = bt.request();
+    py::buffer_info bcbuf = bc.request();
+    py::buffer_info bUbuf = bU.request();
+    py::buffer_info bWbuf = bW.request();
+    py::buffer_info bYbuf = bY.request();
+    
+    // Parse dimensions
+    if (tbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: t");
+    py::ssize_t N = tbuf.shape[0];
+    if (cbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: c");
+    py::ssize_t J = cbuf.shape[0];
+    if (Ybuf.ndim <= 1)
+        throw std::invalid_argument("Invalid number of dimensions: Y");
+    py::ssize_t nrhs = Ybuf.shape[1];
+    
+    // Check shapes
+    if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Wbuf.ndim != 2 || Wbuf.shape[0] != N || Wbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: W");
+    if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
+    if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
+    if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
+    if (bZbuf.ndim != 2 || bZbuf.shape[0] != N || bZbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bZ");
+    if (btbuf.ndim != 1 || btbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: bt");
+    if (bcbuf.ndim != 1 || bcbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: bc");
+    if (bUbuf.ndim != 2 || bUbuf.shape[0] != N || bUbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bU");
+    if (bWbuf.ndim != 2 || bWbuf.shape[0] != N || bWbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bW");
+    if (bYbuf.ndim != 2 || bYbuf.shape[0] != N || bYbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bY");
+    
+#define FIXED_SIZE_MAP(SIZE) \
+    { \
+    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> W_((const double *)Wbuf.ptr, N, J); \
+    Eigen::Map<Eigen::VectorXd> bt_((double *)btbuf.ptr, N, 1); \
+    Eigen::Map<Eigen::Matrix<double, SIZE, 1>> bc_((double *)bcbuf.ptr, J, 1); \
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bU_((double *)bUbuf.ptr, N, J); \
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bW_((double *)bWbuf.ptr, N, J); \
+    if (nrhs == 1) { \
+        Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1); \
+        Eigen::Map<const Eigen::VectorXd> Z_((const double *)Zbuf.ptr, N, 1); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((const double *)Fbuf.ptr, N, J); \
+        Eigen::Map<const Eigen::VectorXd> bZ_((const double *)bZbuf.ptr, N, 1); \
+        Eigen::Map<Eigen::VectorXd> bY_((double *)bYbuf.ptr, N, 1); \
+        celerite2::core::solve_upper_rev(t_, c_, U_, W_, Y_, Z_, F_, bZ_, bt_, bc_, bU_, bW_, bY_); \
+    } else { \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((const double *)Zbuf.ptr, N, nrhs); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((const double *)Fbuf.ptr, N, J * nrhs); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> bZ_((const double *)bZbuf.ptr, N, nrhs); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> bY_((double *)bYbuf.ptr, N, nrhs); \
+        celerite2::core::solve_upper_rev(t_, c_, U_, W_, Y_, Z_, F_, bZ_, bt_, bc_, bU_, bW_, bY_); \
+    } \
+    }
+    UNWRAP_CASES_FEW
 #undef FIXED_SIZE_MAP
-
-  return std::make_tuple(bt, bc, bU, bV, bY);
-}
-
-auto general_matmul_lower_fwd(py::array_t<double, py::array::c_style> t1, py::array_t<double, py::array::c_style> t2,
-                              py::array_t<double, py::array::c_style> c, py::array_t<double, py::array::c_style> U,
-                              py::array_t<double, py::array::c_style> V, py::array_t<double, py::array::c_style> Y,
-                              py::array_t<double, py::array::c_style> Z, py::array_t<double, py::array::c_style> F) {
-  // Request buffers
-  py::buffer_info t1buf = t1.request();
-  py::buffer_info t2buf = t2.request();
-  py::buffer_info cbuf  = c.request();
-  py::buffer_info Ubuf  = U.request();
-  py::buffer_info Vbuf  = V.request();
-  py::buffer_info Ybuf  = Y.request();
-  py::buffer_info Zbuf  = Z.request();
-  py::buffer_info Fbuf  = F.request();
-
-  // Parse dimensions
-  if (t1buf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t1");
-  py::ssize_t N = t1buf.shape[0];
-  if (t2buf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t2");
-  py::ssize_t M = t2buf.shape[0];
-  if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  py::ssize_t J = cbuf.shape[0];
-  if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  py::ssize_t nrhs = Ybuf.shape[1];
-
-  // Check shapes
-  if (t1buf.ndim != 1 || t1buf.shape[0] != N) throw std::invalid_argument("Invalid shape: t1");
-  if (t2buf.ndim != 1 || t2buf.shape[0] != M) throw std::invalid_argument("Invalid shape: t2");
-  if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
-  if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
-  if (Vbuf.ndim != 2 || Vbuf.shape[0] != M || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
-  if (Ybuf.ndim != 2 || Ybuf.shape[0] != M || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
-  if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
-  if (Fbuf.ndim != 3 || Fbuf.shape[0] != M || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
-
-#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
-  {                                                                                                                                                  \
-    Eigen::Map<const Eigen::VectorXd> t1_((const double *)t1buf.ptr, N, 1);                                                                          \
-    Eigen::Map<const Eigen::VectorXd> t2_((const double *)t2buf.ptr, M, 1);                                                                          \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1);                                                             \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J);                            \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, M, J);                            \
-    if (nrhs == 1) {                                                                                                                                 \
-      Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, M, 1);                                                                          \
-      Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1);                                                                                      \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((double *)Fbuf.ptr, M, J);                                      \
-      Z_.setZero();                                                                                                                                  \
-      celerite2::core::general_matmul_lower(t1_, t2_, c_, U_, V_, Y_, Z_, F_);                                                                       \
-    } else {                                                                                                                                         \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, M, nrhs);                \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs);                            \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((double *)Fbuf.ptr, M, J *nrhs);                         \
-      Z_.setZero();                                                                                                                                  \
-      celerite2::core::general_matmul_lower(t1_, t2_, c_, U_, V_, Y_, Z_, F_);                                                                       \
-    }                                                                                                                                                \
-  }
-  UNWRAP_CASES_MOST
-#undef FIXED_SIZE_MAP
-
-  return std::make_tuple(Z, F);
+    
+    return std::make_tuple(bt, bc, bU, bW, bY);
 }
 
-auto general_matmul_upper_fwd(py::array_t<double, py::array::c_style> t1, py::array_t<double, py::array::c_style> t2,
-                              py::array_t<double, py::array::c_style> c, py::array_t<double, py::array::c_style> U,
-                              py::array_t<double, py::array::c_style> V, py::array_t<double, py::array::c_style> Y,
-                              py::array_t<double, py::array::c_style> Z, py::array_t<double, py::array::c_style> F) {
-  // Request buffers
-  py::buffer_info t1buf = t1.request();
-  py::buffer_info t2buf = t2.request();
-  py::buffer_info cbuf  = c.request();
-  py::buffer_info Ubuf  = U.request();
-  py::buffer_info Vbuf  = V.request();
-  py::buffer_info Ybuf  = Y.request();
-  py::buffer_info Zbuf  = Z.request();
-  py::buffer_info Fbuf  = F.request();
 
-  // Parse dimensions
-  if (t1buf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t1");
-  py::ssize_t N = t1buf.shape[0];
-  if (t2buf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: t2");
-  py::ssize_t M = t2buf.shape[0];
-  if (cbuf.ndim <= 0) throw std::invalid_argument("Invalid number of dimensions: c");
-  py::ssize_t J = cbuf.shape[0];
-  if (Ybuf.ndim <= 1) throw std::invalid_argument("Invalid number of dimensions: Y");
-  py::ssize_t nrhs = Ybuf.shape[1];
-
-  // Check shapes
-  if (t1buf.ndim != 1 || t1buf.shape[0] != N) throw std::invalid_argument("Invalid shape: t1");
-  if (t2buf.ndim != 1 || t2buf.shape[0] != M) throw std::invalid_argument("Invalid shape: t2");
-  if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
-  if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
-  if (Vbuf.ndim != 2 || Vbuf.shape[0] != M || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
-  if (Ybuf.ndim != 2 || Ybuf.shape[0] != M || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
-  if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
-  if (Fbuf.ndim != 3 || Fbuf.shape[0] != M || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
-
-#define FIXED_SIZE_MAP(SIZE)                                                                                                                         \
-  {                                                                                                                                                  \
-    Eigen::Map<const Eigen::VectorXd> t1_((const double *)t1buf.ptr, N, 1);                                                                          \
-    Eigen::Map<const Eigen::VectorXd> t2_((const double *)t2buf.ptr, M, 1);                                                                          \
-    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1);                                                             \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J);                            \
-    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, M, J);                            \
-    if (nrhs == 1) {                                                                                                                                 \
-      Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, M, 1);                                                                          \
-      Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1);                                                                                      \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((double *)Fbuf.ptr, M, J);                                      \
-      Z_.setZero();                                                                                                                                  \
-      celerite2::core::general_matmul_upper(t1_, t2_, c_, U_, V_, Y_, Z_, F_);                                                                       \
-    } else {                                                                                                                                         \
-      Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, M, nrhs);                \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs);                            \
-      Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((double *)Fbuf.ptr, M, J *nrhs);                         \
-      Z_.setZero();                                                                                                                                  \
-      celerite2::core::general_matmul_upper(t1_, t2_, c_, U_, V_, Y_, Z_, F_);                                                                       \
-    }                                                                                                                                                \
-  }
-  UNWRAP_CASES_MOST
+auto matmul_lower_fwd (
+    py::array_t<double, py::array::c_style> t,
+    py::array_t<double, py::array::c_style> c,
+    py::array_t<double, py::array::c_style> U,
+    py::array_t<double, py::array::c_style> V,
+    py::array_t<double, py::array::c_style> Y,
+    py::array_t<double, py::array::c_style> Z,
+    py::array_t<double, py::array::c_style> F
+) {
+    // Request buffers
+    py::buffer_info tbuf = t.request();
+    py::buffer_info cbuf = c.request();
+    py::buffer_info Ubuf = U.request();
+    py::buffer_info Vbuf = V.request();
+    py::buffer_info Ybuf = Y.request();
+    py::buffer_info Zbuf = Z.request();
+    py::buffer_info Fbuf = F.request();
+    
+    // Parse dimensions
+    if (tbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: t");
+    py::ssize_t N = tbuf.shape[0];
+    if (cbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: c");
+    py::ssize_t J = cbuf.shape[0];
+    if (Ybuf.ndim <= 1)
+        throw std::invalid_argument("Invalid number of dimensions: Y");
+    py::ssize_t nrhs = Ybuf.shape[1];
+    
+    // Check shapes
+    if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Vbuf.ndim != 2 || Vbuf.shape[0] != N || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
+    if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
+    if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
+    if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
+    
+#define FIXED_SIZE_MAP(SIZE) \
+    { \
+    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, N, J); \
+    if (nrhs == 1) { \
+        Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1); \
+        Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((double *)Fbuf.ptr, N, J); \
+        Z_.setZero(); \
+        celerite2::core::matmul_lower(t_, c_, U_, V_, Y_, Z_, F_); \
+    } else { \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((double *)Fbuf.ptr, N, J * nrhs); \
+        Z_.setZero(); \
+        celerite2::core::matmul_lower(t_, c_, U_, V_, Y_, Z_, F_); \
+    } \
+    }
+    UNWRAP_CASES_MOST
 #undef FIXED_SIZE_MAP
+    
+    return std::make_tuple(Z, F);
+}
+auto matmul_lower_rev (
+    py::array_t<double, py::array::c_style> t,
+    py::array_t<double, py::array::c_style> c,
+    py::array_t<double, py::array::c_style> U,
+    py::array_t<double, py::array::c_style> V,
+    py::array_t<double, py::array::c_style> Y,
+    py::array_t<double, py::array::c_style> Z,
+    py::array_t<double, py::array::c_style> F,
+    py::array_t<double, py::array::c_style> bZ,
+    py::array_t<double, py::array::c_style> bt,
+    py::array_t<double, py::array::c_style> bc,
+    py::array_t<double, py::array::c_style> bU,
+    py::array_t<double, py::array::c_style> bV,
+    py::array_t<double, py::array::c_style> bY
+) {
+    // Request buffers
+    py::buffer_info tbuf = t.request();
+    py::buffer_info cbuf = c.request();
+    py::buffer_info Ubuf = U.request();
+    py::buffer_info Vbuf = V.request();
+    py::buffer_info Ybuf = Y.request();
+    py::buffer_info Zbuf = Z.request();
+    py::buffer_info Fbuf = F.request();
+    py::buffer_info bZbuf = bZ.request();
+    py::buffer_info btbuf = bt.request();
+    py::buffer_info bcbuf = bc.request();
+    py::buffer_info bUbuf = bU.request();
+    py::buffer_info bVbuf = bV.request();
+    py::buffer_info bYbuf = bY.request();
+    
+    // Parse dimensions
+    if (tbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: t");
+    py::ssize_t N = tbuf.shape[0];
+    if (cbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: c");
+    py::ssize_t J = cbuf.shape[0];
+    if (Ybuf.ndim <= 1)
+        throw std::invalid_argument("Invalid number of dimensions: Y");
+    py::ssize_t nrhs = Ybuf.shape[1];
+    
+    // Check shapes
+    if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Vbuf.ndim != 2 || Vbuf.shape[0] != N || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
+    if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
+    if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
+    if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
+    if (bZbuf.ndim != 2 || bZbuf.shape[0] != N || bZbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bZ");
+    if (btbuf.ndim != 1 || btbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: bt");
+    if (bcbuf.ndim != 1 || bcbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: bc");
+    if (bUbuf.ndim != 2 || bUbuf.shape[0] != N || bUbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bU");
+    if (bVbuf.ndim != 2 || bVbuf.shape[0] != N || bVbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bV");
+    if (bYbuf.ndim != 2 || bYbuf.shape[0] != N || bYbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bY");
+    
+#define FIXED_SIZE_MAP(SIZE) \
+    { \
+    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, N, J); \
+    Eigen::Map<Eigen::VectorXd> bt_((double *)btbuf.ptr, N, 1); \
+    Eigen::Map<Eigen::Matrix<double, SIZE, 1>> bc_((double *)bcbuf.ptr, J, 1); \
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bU_((double *)bUbuf.ptr, N, J); \
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bV_((double *)bVbuf.ptr, N, J); \
+    if (nrhs == 1) { \
+        Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1); \
+        Eigen::Map<const Eigen::VectorXd> Z_((const double *)Zbuf.ptr, N, 1); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((const double *)Fbuf.ptr, N, J); \
+        Eigen::Map<const Eigen::VectorXd> bZ_((const double *)bZbuf.ptr, N, 1); \
+        Eigen::Map<Eigen::VectorXd> bY_((double *)bYbuf.ptr, N, 1); \
+        celerite2::core::matmul_lower_rev(t_, c_, U_, V_, Y_, Z_, F_, bZ_, bt_, bc_, bU_, bV_, bY_); \
+    } else { \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((const double *)Zbuf.ptr, N, nrhs); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((const double *)Fbuf.ptr, N, J * nrhs); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> bZ_((const double *)bZbuf.ptr, N, nrhs); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> bY_((double *)bYbuf.ptr, N, nrhs); \
+        celerite2::core::matmul_lower_rev(t_, c_, U_, V_, Y_, Z_, F_, bZ_, bt_, bc_, bU_, bV_, bY_); \
+    } \
+    }
+    UNWRAP_CASES_FEW
+#undef FIXED_SIZE_MAP
+    
+    return std::make_tuple(bt, bc, bU, bV, bY);
+}
 
-  return std::make_tuple(Z, F);
+
+auto matmul_upper_fwd (
+    py::array_t<double, py::array::c_style> t,
+    py::array_t<double, py::array::c_style> c,
+    py::array_t<double, py::array::c_style> U,
+    py::array_t<double, py::array::c_style> V,
+    py::array_t<double, py::array::c_style> Y,
+    py::array_t<double, py::array::c_style> Z,
+    py::array_t<double, py::array::c_style> F
+) {
+    // Request buffers
+    py::buffer_info tbuf = t.request();
+    py::buffer_info cbuf = c.request();
+    py::buffer_info Ubuf = U.request();
+    py::buffer_info Vbuf = V.request();
+    py::buffer_info Ybuf = Y.request();
+    py::buffer_info Zbuf = Z.request();
+    py::buffer_info Fbuf = F.request();
+    
+    // Parse dimensions
+    if (tbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: t");
+    py::ssize_t N = tbuf.shape[0];
+    if (cbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: c");
+    py::ssize_t J = cbuf.shape[0];
+    if (Ybuf.ndim <= 1)
+        throw std::invalid_argument("Invalid number of dimensions: Y");
+    py::ssize_t nrhs = Ybuf.shape[1];
+    
+    // Check shapes
+    if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Vbuf.ndim != 2 || Vbuf.shape[0] != N || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
+    if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
+    if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
+    if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
+    
+#define FIXED_SIZE_MAP(SIZE) \
+    { \
+    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, N, J); \
+    if (nrhs == 1) { \
+        Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1); \
+        Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((double *)Fbuf.ptr, N, J); \
+        Z_.setZero(); \
+        celerite2::core::matmul_upper(t_, c_, U_, V_, Y_, Z_, F_); \
+    } else { \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((double *)Fbuf.ptr, N, J * nrhs); \
+        Z_.setZero(); \
+        celerite2::core::matmul_upper(t_, c_, U_, V_, Y_, Z_, F_); \
+    } \
+    }
+    UNWRAP_CASES_MOST
+#undef FIXED_SIZE_MAP
+    
+    return std::make_tuple(Z, F);
+}
+auto matmul_upper_rev (
+    py::array_t<double, py::array::c_style> t,
+    py::array_t<double, py::array::c_style> c,
+    py::array_t<double, py::array::c_style> U,
+    py::array_t<double, py::array::c_style> V,
+    py::array_t<double, py::array::c_style> Y,
+    py::array_t<double, py::array::c_style> Z,
+    py::array_t<double, py::array::c_style> F,
+    py::array_t<double, py::array::c_style> bZ,
+    py::array_t<double, py::array::c_style> bt,
+    py::array_t<double, py::array::c_style> bc,
+    py::array_t<double, py::array::c_style> bU,
+    py::array_t<double, py::array::c_style> bV,
+    py::array_t<double, py::array::c_style> bY
+) {
+    // Request buffers
+    py::buffer_info tbuf = t.request();
+    py::buffer_info cbuf = c.request();
+    py::buffer_info Ubuf = U.request();
+    py::buffer_info Vbuf = V.request();
+    py::buffer_info Ybuf = Y.request();
+    py::buffer_info Zbuf = Z.request();
+    py::buffer_info Fbuf = F.request();
+    py::buffer_info bZbuf = bZ.request();
+    py::buffer_info btbuf = bt.request();
+    py::buffer_info bcbuf = bc.request();
+    py::buffer_info bUbuf = bU.request();
+    py::buffer_info bVbuf = bV.request();
+    py::buffer_info bYbuf = bY.request();
+    
+    // Parse dimensions
+    if (tbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: t");
+    py::ssize_t N = tbuf.shape[0];
+    if (cbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: c");
+    py::ssize_t J = cbuf.shape[0];
+    if (Ybuf.ndim <= 1)
+        throw std::invalid_argument("Invalid number of dimensions: Y");
+    py::ssize_t nrhs = Ybuf.shape[1];
+    
+    // Check shapes
+    if (tbuf.ndim != 1 || tbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: t");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Vbuf.ndim != 2 || Vbuf.shape[0] != N || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
+    if (Ybuf.ndim != 2 || Ybuf.shape[0] != N || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
+    if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
+    if (Fbuf.ndim != 3 || Fbuf.shape[0] != N || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
+    if (bZbuf.ndim != 2 || bZbuf.shape[0] != N || bZbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bZ");
+    if (btbuf.ndim != 1 || btbuf.shape[0] != N) throw std::invalid_argument("Invalid shape: bt");
+    if (bcbuf.ndim != 1 || bcbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: bc");
+    if (bUbuf.ndim != 2 || bUbuf.shape[0] != N || bUbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bU");
+    if (bVbuf.ndim != 2 || bVbuf.shape[0] != N || bVbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: bV");
+    if (bYbuf.ndim != 2 || bYbuf.shape[0] != N || bYbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: bY");
+    
+#define FIXED_SIZE_MAP(SIZE) \
+    { \
+    Eigen::Map<const Eigen::VectorXd> t_((const double *)tbuf.ptr, N, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, N, J); \
+    Eigen::Map<Eigen::VectorXd> bt_((double *)btbuf.ptr, N, 1); \
+    Eigen::Map<Eigen::Matrix<double, SIZE, 1>> bc_((double *)bcbuf.ptr, J, 1); \
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bU_((double *)bUbuf.ptr, N, J); \
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> bV_((double *)bVbuf.ptr, N, J); \
+    if (nrhs == 1) { \
+        Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, N, 1); \
+        Eigen::Map<const Eigen::VectorXd> Z_((const double *)Zbuf.ptr, N, 1); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((const double *)Fbuf.ptr, N, J); \
+        Eigen::Map<const Eigen::VectorXd> bZ_((const double *)bZbuf.ptr, N, 1); \
+        Eigen::Map<Eigen::VectorXd> bY_((double *)bYbuf.ptr, N, 1); \
+        celerite2::core::matmul_upper_rev(t_, c_, U_, V_, Y_, Z_, F_, bZ_, bt_, bc_, bU_, bV_, bY_); \
+    } else { \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, N, nrhs); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((const double *)Zbuf.ptr, N, nrhs); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((const double *)Fbuf.ptr, N, J * nrhs); \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> bZ_((const double *)bZbuf.ptr, N, nrhs); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> bY_((double *)bYbuf.ptr, N, nrhs); \
+        celerite2::core::matmul_upper_rev(t_, c_, U_, V_, Y_, Z_, F_, bZ_, bt_, bc_, bU_, bV_, bY_); \
+    } \
+    }
+    UNWRAP_CASES_FEW
+#undef FIXED_SIZE_MAP
+    
+    return std::make_tuple(bt, bc, bU, bV, bY);
+}
+
+
+auto general_matmul_lower_fwd (
+    py::array_t<double, py::array::c_style> t1,
+    py::array_t<double, py::array::c_style> t2,
+    py::array_t<double, py::array::c_style> c,
+    py::array_t<double, py::array::c_style> U,
+    py::array_t<double, py::array::c_style> V,
+    py::array_t<double, py::array::c_style> Y,
+    py::array_t<double, py::array::c_style> Z,
+    py::array_t<double, py::array::c_style> F
+) {
+    // Request buffers
+    py::buffer_info t1buf = t1.request();
+    py::buffer_info t2buf = t2.request();
+    py::buffer_info cbuf = c.request();
+    py::buffer_info Ubuf = U.request();
+    py::buffer_info Vbuf = V.request();
+    py::buffer_info Ybuf = Y.request();
+    py::buffer_info Zbuf = Z.request();
+    py::buffer_info Fbuf = F.request();
+    
+    // Parse dimensions
+    if (t1buf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: t1");
+    py::ssize_t N = t1buf.shape[0];
+    if (t2buf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: t2");
+    py::ssize_t M = t2buf.shape[0];
+    if (cbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: c");
+    py::ssize_t J = cbuf.shape[0];
+    if (Ybuf.ndim <= 1)
+        throw std::invalid_argument("Invalid number of dimensions: Y");
+    py::ssize_t nrhs = Ybuf.shape[1];
+    
+    // Check shapes
+    if (t1buf.ndim != 1 || t1buf.shape[0] != N) throw std::invalid_argument("Invalid shape: t1");
+    if (t2buf.ndim != 1 || t2buf.shape[0] != M) throw std::invalid_argument("Invalid shape: t2");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Vbuf.ndim != 2 || Vbuf.shape[0] != M || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
+    if (Ybuf.ndim != 2 || Ybuf.shape[0] != M || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
+    if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
+    if (Fbuf.ndim != 3 || Fbuf.shape[0] != M || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
+    
+#define FIXED_SIZE_MAP(SIZE) \
+    { \
+    Eigen::Map<const Eigen::VectorXd> t1_((const double *)t1buf.ptr, N, 1); \
+    Eigen::Map<const Eigen::VectorXd> t2_((const double *)t2buf.ptr, M, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, M, J); \
+    if (nrhs == 1) { \
+        Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, M, 1); \
+        Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((double *)Fbuf.ptr, M, J); \
+        Z_.setZero(); \
+        celerite2::core::general_matmul_lower(t1_, t2_, c_, U_, V_, Y_, Z_, F_); \
+    } else { \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, M, nrhs); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((double *)Fbuf.ptr, M, J * nrhs); \
+        Z_.setZero(); \
+        celerite2::core::general_matmul_lower(t1_, t2_, c_, U_, V_, Y_, Z_, F_); \
+    } \
+    }
+    UNWRAP_CASES_MOST
+#undef FIXED_SIZE_MAP
+    
+    return std::make_tuple(Z, F);
+}
+
+auto general_matmul_upper_fwd (
+    py::array_t<double, py::array::c_style> t1,
+    py::array_t<double, py::array::c_style> t2,
+    py::array_t<double, py::array::c_style> c,
+    py::array_t<double, py::array::c_style> U,
+    py::array_t<double, py::array::c_style> V,
+    py::array_t<double, py::array::c_style> Y,
+    py::array_t<double, py::array::c_style> Z,
+    py::array_t<double, py::array::c_style> F
+) {
+    // Request buffers
+    py::buffer_info t1buf = t1.request();
+    py::buffer_info t2buf = t2.request();
+    py::buffer_info cbuf = c.request();
+    py::buffer_info Ubuf = U.request();
+    py::buffer_info Vbuf = V.request();
+    py::buffer_info Ybuf = Y.request();
+    py::buffer_info Zbuf = Z.request();
+    py::buffer_info Fbuf = F.request();
+    
+    // Parse dimensions
+    if (t1buf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: t1");
+    py::ssize_t N = t1buf.shape[0];
+    if (t2buf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: t2");
+    py::ssize_t M = t2buf.shape[0];
+    if (cbuf.ndim <= 0)
+        throw std::invalid_argument("Invalid number of dimensions: c");
+    py::ssize_t J = cbuf.shape[0];
+    if (Ybuf.ndim <= 1)
+        throw std::invalid_argument("Invalid number of dimensions: Y");
+    py::ssize_t nrhs = Ybuf.shape[1];
+    
+    // Check shapes
+    if (t1buf.ndim != 1 || t1buf.shape[0] != N) throw std::invalid_argument("Invalid shape: t1");
+    if (t2buf.ndim != 1 || t2buf.shape[0] != M) throw std::invalid_argument("Invalid shape: t2");
+    if (cbuf.ndim != 1 || cbuf.shape[0] != J) throw std::invalid_argument("Invalid shape: c");
+    if (Ubuf.ndim != 2 || Ubuf.shape[0] != N || Ubuf.shape[1] != J) throw std::invalid_argument("Invalid shape: U");
+    if (Vbuf.ndim != 2 || Vbuf.shape[0] != M || Vbuf.shape[1] != J) throw std::invalid_argument("Invalid shape: V");
+    if (Ybuf.ndim != 2 || Ybuf.shape[0] != M || Ybuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Y");
+    if (Zbuf.ndim != 2 || Zbuf.shape[0] != N || Zbuf.shape[1] != nrhs) throw std::invalid_argument("Invalid shape: Z");
+    if (Fbuf.ndim != 3 || Fbuf.shape[0] != M || Fbuf.shape[1] != J || Fbuf.shape[2] != nrhs) throw std::invalid_argument("Invalid shape: F");
+    
+#define FIXED_SIZE_MAP(SIZE) \
+    { \
+    Eigen::Map<const Eigen::VectorXd> t1_((const double *)t1buf.ptr, N, 1); \
+    Eigen::Map<const Eigen::VectorXd> t2_((const double *)t2buf.ptr, M, 1); \
+    Eigen::Map<const Eigen::Matrix<double, SIZE, 1>> c_((const double *)cbuf.ptr, J, 1); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> U_((const double *)Ubuf.ptr, N, J); \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> V_((const double *)Vbuf.ptr, M, J); \
+    if (nrhs == 1) { \
+        Eigen::Map<const Eigen::VectorXd> Y_((const double *)Ybuf.ptr, M, 1); \
+        Eigen::Map<Eigen::VectorXd> Z_((double *)Zbuf.ptr, N, 1); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> F_((double *)Fbuf.ptr, M, J); \
+        Z_.setZero(); \
+        celerite2::core::general_matmul_upper(t1_, t2_, c_, U_, V_, Y_, Z_, F_); \
+    } else { \
+        Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Y_((const double *)Ybuf.ptr, M, nrhs); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> Z_((double *)Zbuf.ptr, N, nrhs); \
+        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> F_((double *)Fbuf.ptr, M, J * nrhs); \
+        Z_.setZero(); \
+        celerite2::core::general_matmul_upper(t1_, t2_, c_, U_, V_, Y_, Z_, F_); \
+    } \
+    }
+    UNWRAP_CASES_MOST
+#undef FIXED_SIZE_MAP
+    
+    return std::make_tuple(Z, F);
 }
 
 } // namespace driver
 } // namespace celerite2
 
 PYBIND11_MODULE(backprop, m) {
-  py::register_exception<celerite2::driver::backprop_linalg_exception>(m, "LinAlgError");
-  m.def("factor_fwd", &celerite2::driver::factor_fwd);
-  m.def("factor_rev", &celerite2::driver::factor_rev);
-  m.def("solve_lower_fwd", &celerite2::driver::solve_lower_fwd);
-  m.def("solve_lower_rev", &celerite2::driver::solve_lower_rev);
-  m.def("solve_upper_fwd", &celerite2::driver::solve_upper_fwd);
-  m.def("solve_upper_rev", &celerite2::driver::solve_upper_rev);
-  m.def("matmul_lower_fwd", &celerite2::driver::matmul_lower_fwd);
-  m.def("matmul_lower_rev", &celerite2::driver::matmul_lower_rev);
-  m.def("matmul_upper_fwd", &celerite2::driver::matmul_upper_fwd);
-  m.def("matmul_upper_rev", &celerite2::driver::matmul_upper_rev);
-  m.def("general_matmul_lower_fwd", &celerite2::driver::general_matmul_lower_fwd);
-  m.def("general_matmul_upper_fwd", &celerite2::driver::general_matmul_upper_fwd);
+    py::register_exception<celerite2::driver::backprop_linalg_exception>(m, "LinAlgError");
+    m.def("factor_fwd", &celerite2::driver::factor_fwd);
+    m.def("factor_rev", &celerite2::driver::factor_rev);
+    m.def("solve_lower_fwd", &celerite2::driver::solve_lower_fwd);
+    m.def("solve_lower_rev", &celerite2::driver::solve_lower_rev);
+    m.def("solve_upper_fwd", &celerite2::driver::solve_upper_fwd);
+    m.def("solve_upper_rev", &celerite2::driver::solve_upper_rev);
+    m.def("matmul_lower_fwd", &celerite2::driver::matmul_lower_fwd);
+    m.def("matmul_lower_rev", &celerite2::driver::matmul_lower_rev);
+    m.def("matmul_upper_fwd", &celerite2::driver::matmul_upper_fwd);
+    m.def("matmul_upper_rev", &celerite2::driver::matmul_upper_rev);
+    m.def("general_matmul_lower_fwd", &celerite2::driver::general_matmul_lower_fwd);
+    m.def("general_matmul_upper_fwd", &celerite2::driver::general_matmul_upper_fwd);
 
 #ifdef VERSION_INFO
   m.attr("__version__") = VERSION_INFO;

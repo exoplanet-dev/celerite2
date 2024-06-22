@@ -1,7 +1,7 @@
 import nox
 
 ALL_PYTHON_VS = ["3.8", "3.9", "3.10"]
-TEST_CMD = ["coverage", "run", "-m", "pytest", "-v"]
+TEST_CMD = ["python", "-m", "pytest", "-v"]
 
 
 def _session_run(session, path):
