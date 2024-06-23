@@ -43,23 +43,12 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install -U pip
-          python -m pip install -U coveralls coverage[toml] nox
+          python -m pip install -U nox
 
       - name: Run tests
         run: |
           python -m nox --non-interactive --error-on-missing-interpreter \
             --session ${{ matrix.session }}-${{ matrix.python-version }}
-
-      - name: Combine and upload coverage
-        run: |
-          python -m coverage combine
-          python -m coverage xml -i
-          python -m coveralls --service=github
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COVERALLS_PARALLEL: true
-          COVERALLS_FLAG_NAME: ${{matrix.os}}-${{matrix.session}}-${{matrix.python-version}}
-
 
   tests-pymc:
     runs-on: ubuntu-latest
@@ -88,19 +77,3 @@ jobs:
         run: |
           python -m nox --non-interactive --error-on-missing-interpreter \
             --session pymc_mamba-3.10
-
-  coverage:
-    needs: tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.9"
-      - name: Finish coverage collection
-        run: |
-          python -m pip install -U pip
-          python -m pip install -U coveralls
-          python -m coveralls --finish
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -102,7 +102,7 @@ class GaussianProcess(BaseGaussianProcess):
             self._U,
             self._W,
             self._d,
-            **kwargs
+            **kwargs,
         )
 
     def conditional(
