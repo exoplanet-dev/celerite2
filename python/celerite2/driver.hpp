@@ -30,12 +30,6 @@ struct backprop_linalg_exception : public std::exception {
     case 2: FIXED_SIZE_MAP(2); break;                                                                                                                \
     case 3: FIXED_SIZE_MAP(3); break;                                                                                                                \
     case 4: FIXED_SIZE_MAP(4); break;                                                                                                                \
-    case 5: FIXED_SIZE_MAP(5); break;                                                                                                                \
-    case 6: FIXED_SIZE_MAP(6); break;                                                                                                                \
-    case 7: FIXED_SIZE_MAP(7); break;                                                                                                                \
-    case 8: FIXED_SIZE_MAP(8); break;                                                                                                                \
-    case 9: FIXED_SIZE_MAP(9); break;                                                                                                                \
-    case 10: FIXED_SIZE_MAP(10); break;                                                                                                              \
     default: FIXED_SIZE_MAP(Eigen::Dynamic);                                                                                                         \
   }
 
