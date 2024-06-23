@@ -267,9 +267,6 @@ def compare_jax_and_py(
 
     if len(fgraph.outputs) > 1:
         for j, p in zip(jax_res, py_res):
-            print(np.min(j), np.max(j), np.sum(np.isnan(j)))
-            print(np.min(p), np.max(p), np.sum(np.isnan(p)))
-
             assert_fn(j, p)
     else:
         assert_fn(jax_res, py_res)
