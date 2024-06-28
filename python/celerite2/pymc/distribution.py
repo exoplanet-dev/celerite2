@@ -31,8 +31,7 @@ def safe_celerite_normal(rng, mean, norm, t, c, U, W, d, size=None):
 
 class CeleriteNormalRV(RandomVariable):
     name = "celerite_normal"
-    ndim_supp = 1
-    ndims_params = [1, 0, 1, 1, 2, 2, 1]
+    signature = "(i_mean),(),(i_t),(i_c),(i_U1,i_U2),(i_W1,i_W2),(i_d)->(i)"
     dtype = "floatX"
     _print_name = ("CeleriteNormal", "\\operatorname{CeleriteNormal}")
 
@@ -46,12 +45,15 @@ class CeleriteNormalRV(RandomVariable):
 
     @classmethod
     def rng_fn(cls, rng, mean, norm, t, c, U, W, d, size):
+        # Hardcoded because no longer set as class attribute
+        # Ref: https://github.com/pymc-devs/pytensor/issues/866
+        ndims_params = [1, 0, 1, 1, 2, 2, 1]
         if any(
             x.ndim > n
-            for n, x in zip(cls.ndims_params, [mean, norm, t, c, U, W, d])
+            for n, x in zip(ndims_params, [mean, norm, t, c, U, W, d])
         ):
             mean, norm, t, c, U, W, d = broadcast_params(
-                [mean, norm, t, c, U, W, d], cls.ndims_params
+                [mean, norm, t, c, U, W, d], ndims_params
             )
             size = tuple(size or ())
 
