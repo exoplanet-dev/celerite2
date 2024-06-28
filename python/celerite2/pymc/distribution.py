@@ -113,12 +113,12 @@ class CeleriteNormal(Continuous):
         mean = pt.broadcast_arrays(mean, t)[0]
         return super().dist([mean, norm, t, c, U, W, d], **kwargs)
 
-    def moment(rv, size, mean, *args):
-        moment = mean
+    def support_point(rv, size, mean, *args):
+        support_point = mean
         if not rv_size_is_none(size):
-            moment_size = pt.concatenate([size, [mean.shape[-1]]])
-            moment = pt.full(moment_size, mean)
-        return moment
+            support_size = pt.concatenate([size, [mean.shape[-1]]])
+            support_point = pt.full(support_size, mean)
+        return support_point
 
     def logp(value, mean, norm, t, c, U, W, d):
         ok = pt.all(pt.gt(d, 0.0))
