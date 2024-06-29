@@ -13,6 +13,8 @@ except (ImportError, ModuleNotFoundError):
 
 
 def test_celerite_normal_rv():
+    # Test that ndims_params and ndim_supp have the expected value
+    # now that they are created from signature
     celerite_normal = CeleriteNormalRV()
     assert celerite_normal.ndim_supp == 1
     assert tuple(celerite_normal.ndims_params) == (1, 0, 1, 1, 2, 2, 1)
@@ -31,6 +33,7 @@ def test_celerite_normal_rv():
     ],
 )
 def test_celerite_normal_support_point(t, mean, size, expected):
+    # Test that support point has the expected shape and value
     pm = pytest.importorskip("pymc")
 
     with pm.Model() as model:
