@@ -63,7 +63,7 @@ jobs:
           submodules: true
 
       - name: Setup conda
-        uses: mamba-org/setup-micromamba@v1
+        uses: mamba-org/setup-micromamba@v2
         with:
           environment-name: test-env
           create-args: >-
