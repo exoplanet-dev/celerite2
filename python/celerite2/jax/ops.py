@@ -24,14 +24,25 @@ from functools import partial
 from itertools import chain
 
 import numpy as np
-from jax import core, ffi, lax
+from jax import ffi, lax
 from jax import numpy as jnp
 from jax.core import ShapedArray
 from jax.extend.core import Primitive
-from jax.interpreters import ad, mlir, xla
+from jax.interpreters import ad, mlir
 from jax.lib import xla_client
 
 xla_ops = importlib.import_module("celerite2.jax.xla_ops")
+
+try:
+    # jax<0.8 compatibility path
+    from jax.interpreters import xla as _xla_interpreter
+
+    _apply_primitive = _xla_interpreter.apply_primitive
+except (ImportError, AttributeError):
+    # jax>=0.8 moved apply_primitive out of jax.interpreters.xla
+    from jax._src import dispatch as _dispatch
+
+    _apply_primitive = _dispatch.apply_primitive
 
 
 def factor(t, c, a, U, V):
@@ -179,7 +190,7 @@ def _build_op(name, spec):
 
     prim = Primitive(f"celerite2_{spec['name']}")
     prim.multiple_results = True
-    prim.def_impl(partial(xla.apply_primitive, prim))
+    prim.def_impl(partial(_apply_primitive, prim))
     prim.def_abstract_eval(partial(_abstract_eval, spec))
     mlir.register_lowering(
         prim, partial(_lowering_rule, name, spec), platform="cpu"
@@ -206,7 +217,7 @@ def _build_op(name, spec):
     ad.primitive_transposes[jvp_prim] = partial(_jvp_transpose, rev_prim, spec)
 
     # Handle reverse pass using custom op
-    rev_prim.def_impl(partial(xla.apply_primitive, rev_prim))
+    rev_prim.def_impl(partial(_apply_primitive, rev_prim))
     rev_prim.def_abstract_eval(partial(_rev_abstract_eval, spec))
     mlir.register_lowering(
         rev_prim,
