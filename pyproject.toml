@@ -41,7 +41,7 @@ tutorials = ["matplotlib", "scipy", "emcee", "pymc>=5.26.1", "tqdm", "numpyro"]
 "Bug Tracker" = "https://github.com/exoplanet-dev/celerite2/issues"
 
 [build-system]
-requires = ["scikit-build-core", "numpy", "pybind11", "jaxlib>=0.8.0"]
+requires = ["scikit-build-core", "numpy", "pybind11", "jax>=0.8.0", "jaxlib>=0.8.0"]
 build-backend = "scikit_build_core.build"
 
 [tool.scikit-build]
