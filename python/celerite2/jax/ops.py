@@ -29,8 +29,6 @@ from jax import numpy as jnp
 from jax.core import ShapedArray
 from jax.extend.core import Primitive
 from jax.interpreters import ad, mlir
-from jax.lib import xla_client
-
 xla_ops = importlib.import_module("celerite2.jax.xla_ops")
 
 try:
