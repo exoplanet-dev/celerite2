@@ -29,6 +29,7 @@ from jax import numpy as jnp
 from jax.core import ShapedArray
 from jax.extend.core import Primitive
 from jax.interpreters import ad, mlir
+
 xla_ops = importlib.import_module("celerite2.jax.xla_ops")
 
 # celerite2 requires jax>=0.8.0 (see pyproject.toml), where apply_primitive lives in
