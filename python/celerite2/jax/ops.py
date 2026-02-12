@@ -31,16 +31,9 @@ from jax.extend.core import Primitive
 from jax.interpreters import ad, mlir
 xla_ops = importlib.import_module("celerite2.jax.xla_ops")
 
-try:
-    # jax<0.8 compatibility path
-    from jax.interpreters import xla as _xla_interpreter
-
-    _apply_primitive = _xla_interpreter.apply_primitive
-except (ImportError, AttributeError):
-    # jax>=0.8 moved apply_primitive out of jax.interpreters.xla
-    from jax._src import dispatch as _dispatch
-
-    _apply_primitive = _dispatch.apply_primitive
+# celerite2 requires jax>=0.8.0 (see pyproject.toml), where apply_primitive lives in
+# jax._src.dispatch.
+from jax._src.dispatch import apply_primitive as _apply_primitive
 
 
 def factor(t, c, a, U, V):
