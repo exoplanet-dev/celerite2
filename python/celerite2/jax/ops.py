@@ -17,22 +17,24 @@ __all__ = [
     "general_matmul_lower",
     "general_matmul_upper",
 ]
+import importlib
+import importlib.resources as resources
 import json
-from collections import OrderedDict
 from functools import partial
 from itertools import chain
 
 import numpy as np
-import pkg_resources
-from jax import core, lax
+from jax import ffi, lax
 from jax import numpy as jnp
 from jax.core import ShapedArray
-from jax.interpreters import ad, mlir, xla
-from jax.lib import xla_client
+from jax.extend.core import Primitive
+from jax.interpreters import ad, mlir
 
-from celerite2.jax import xla_ops
+xla_ops = importlib.import_module("celerite2.jax.xla_ops")
 
-xops = xla_client.ops
+# celerite2 requires jax>=0.8.0 (see pyproject.toml), where apply_primitive lives in
+# jax._src.dispatch.
+from jax._src.dispatch import apply_primitive as _apply_primitive
 
 
 def factor(t, c, a, U, V):
@@ -103,20 +105,7 @@ def _abstract_eval(spec, *args):
 def _lowering_rule(name, spec, ctx: mlir.LoweringRuleContext, *args):
     if any(a.dtype != np.float64 for a in chain(ctx.avals_in, ctx.avals_out)):
         raise ValueError(f"{spec['name']} requires float64 precision")
-    shapes = [a.shape for a in ctx.avals_in]
-    dims = OrderedDict(
-        (s["name"], shapes[s["coords"][0]][s["coords"][1]])
-        for s in spec["dimensions"]
-    )
-    return mlir.custom_call(
-        name,
-        operands=tuple(mlir.ir_constant(np.int32(v)) for v in dims.values())
-        + args,
-        operand_layouts=[()] * len(dims)
-        + _default_layouts(aval.shape for aval in ctx.avals_in),
-        result_types=[mlir.aval_to_ir_type(aval) for aval in ctx.avals_out],
-        result_layouts=_default_layouts(aval.shape for aval in ctx.avals_out),
-    ).results
+    return ffi.ffi_lowering(name)(ctx, *args)
 
 
 def _default_layouts(shapes):
@@ -184,13 +173,16 @@ def _rev_lowering_rule(name, spec, ctx, *args):
 
 
 def _build_op(name, spec):
-    xla_client.register_custom_call_target(
-        name, getattr(xla_ops, spec["name"])(), platform="cpu"
+    ffi.register_ffi_target(
+        name,
+        getattr(xla_ops, spec["name"])(),
+        platform="cpu",
+        api_version=1,
     )
 
-    prim = core.Primitive(f"celerite2_{spec['name']}")
+    prim = Primitive(f"celerite2_{spec['name']}")
     prim.multiple_results = True
-    prim.def_impl(partial(xla.apply_primitive, prim))
+    prim.def_impl(partial(_apply_primitive, prim))
     prim.def_abstract_eval(partial(_abstract_eval, spec))
     mlir.register_lowering(
         prim, partial(_lowering_rule, name, spec), platform="cpu"
@@ -199,15 +191,16 @@ def _build_op(name, spec):
     if not spec["has_rev"]:
         return prim, None
 
-    xla_client.register_custom_call_target(
+    ffi.register_ffi_target(
         name + "_rev",
         getattr(xla_ops, f"{spec['name']}_rev")(),
         platform="cpu",
+        api_version=1,
     )
 
-    jvp_prim = core.Primitive(f"celerite2_{spec['name']}_jvp")
+    jvp_prim = Primitive(f"celerite2_{spec['name']}_jvp")
     jvp_prim.multiple_results = True
-    rev_prim = core.Primitive(f"celerite2_{spec['name']}_rev")
+    rev_prim = Primitive(f"celerite2_{spec['name']}_rev")
     rev_prim.multiple_results = True
 
     # Setup a dummy JVP rule
@@ -216,7 +209,7 @@ def _build_op(name, spec):
     ad.primitive_transposes[jvp_prim] = partial(_jvp_transpose, rev_prim, spec)
 
     # Handle reverse pass using custom op
-    rev_prim.def_impl(partial(xla.apply_primitive, rev_prim))
+    rev_prim.def_impl(partial(_apply_primitive, rev_prim))
     rev_prim.def_abstract_eval(partial(_rev_abstract_eval, spec))
     mlir.register_lowering(
         rev_prim,
@@ -227,9 +220,7 @@ def _build_op(name, spec):
     return prim, rev_prim
 
 
-with open(
-    pkg_resources.resource_filename("celerite2", "definitions.json"), "r"
-) as f:
+with resources.files("celerite2").joinpath("definitions.json").open("r") as f:
     definitions = {spec["name"]: spec for spec in json.load(f)}
 
 

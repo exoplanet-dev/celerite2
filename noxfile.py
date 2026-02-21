@@ -1,6 +1,6 @@
 import nox
 
-ALL_PYTHON_VS = ["3.8", "3.9", "3.10"]
+ALL_PYTHON_VS = ["3.11"]
 TEST_CMD = ["python", "-m", "pytest", "-v"]
 
 
@@ -24,21 +24,15 @@ def jax(session):
 
 
 @nox.session(python=ALL_PYTHON_VS)
-def pymc3(session):
-    session.install(".[test,pymc3]")
-    _session_run(session, "python/test/pymc3")
-
-
-@nox.session(python=ALL_PYTHON_VS)
 def pymc(session):
-    session.install(".[test,pymc]")
+    session.install(".[test,pymc,jax]")
     _session_run(session, "python/test/pymc")
 
 
 @nox.session(python=ALL_PYTHON_VS, venv_backend="mamba")
 def pymc_mamba(session):
     session.conda_install("pymc", channel="conda-forge")
-    session.install(".[test,pymc]")
+    session.install(".[test,pymc,jax]")
     _session_run(session, "python/test/pymc")
 
 
@@ -46,19 +40,6 @@ def pymc_mamba(session):
 def pymc_jax(session):
     session.install(".[test,jax,pymc]")
     _session_run(session, "python/test/pymc/test_pymc_ops.py")
-
-
-@nox.session(python=ALL_PYTHON_VS)
-def full(session):
-    session.install(".[test,jax,pymc3,pymc]")
-    _session_run(session, "python/test")
-
-
-@nox.session(python=ALL_PYTHON_VS, venv_backend="mamba")
-def full_mamba(session):
-    session.conda_install("jax", "pymc3", "pymc", channel="conda-forge")
-    session.install(".[test]")
-    _session_run(session, "python/test")
 
 
 @nox.session

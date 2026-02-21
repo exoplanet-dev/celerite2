@@ -23,8 +23,3 @@ __set_compiler_flags()
 
 from celerite2.pymc import terms  # noqa
 from celerite2.pymc.celerite2 import GaussianProcess  # noqa
-
-try:
-    from celerite2.pymc import jax_support  # noqa
-except ImportError:
-    pass

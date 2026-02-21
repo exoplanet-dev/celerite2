@@ -3,7 +3,7 @@ name = "celerite2"
 description = "Fast and scalable Gaussian Processes in 1D"
 authors = [{ name = "Dan Foreman-Mackey", email = "foreman.mackey@gmail.com" }]
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = { text = "MIT License" }
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -18,10 +18,8 @@ dependencies = ["numpy"]
 
 [project.optional-dependencies]
 test = ["pytest", "scipy", "celerite"]
-pymc3 = ["pymc3>=3.9", "numpy<1.22", "xarray<2023.10.0"]
-theano = ["pymc3>=3.9", "numpy<1.22", "xarray<2023.10.0"]
-pymc = ["pymc>=5.9.2"]
-jax = ["jax"]
+pymc = ["pymc>=5.26.1"]
+jax = ["jax>=0.8.0"]
 docs = [
   "sphinx",
   "sphinx-material",
@@ -31,11 +29,11 @@ docs = [
   "matplotlib",
   "scipy",
   "emcee",
-  "pymc>=5",
+  "pymc>=5.26.1",
   "tqdm",
   "numpyro",
 ]
-tutorials = ["matplotlib", "scipy", "emcee", "pymc>=5", "tqdm", "numpyro"]
+tutorials = ["matplotlib", "scipy", "emcee", "pymc>=5.26.1", "tqdm", "numpyro"]
 
 [project.urls]
 "Homepage" = "https://celerite2.readthedocs.io"
@@ -43,7 +41,7 @@ tutorials = ["matplotlib", "scipy", "emcee", "pymc>=5", "tqdm", "numpyro"]
 "Bug Tracker" = "https://github.com/exoplanet-dev/celerite2/issues"
 
 [build-system]
-requires = ["scikit-build-core", "numpy", "pybind11"]
+requires = ["scikit-build-core", "numpy", "pybind11", "jax>=0.8.0; python_version >= '3.11'", "jaxlib>=0.8.0"]
 build-backend = "scikit_build_core.build"
 
 [tool.scikit-build]

@@ -297,7 +297,7 @@ void general_matmul_lower(const Eigen::MatrixBase<Input> &t1,               // (
 
   typedef typename LowRank::Scalar Scalar;
   typedef typename Eigen::internal::plain_col_type<Coeffs>::type CoeffVector;
-  typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
+  typedef typename Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Inner;
 
   Eigen::Index N = t1.rows(), M = t2.rows(), J = c.rows(), nrhs = Y.cols();
 
@@ -358,7 +358,7 @@ void general_matmul_upper(const Eigen::MatrixBase<Input> &t1,               // (
 
   typedef typename LowRank::Scalar Scalar;
   typedef typename Eigen::internal::plain_col_type<Coeffs>::type CoeffVector;
-  typedef typename Eigen::Matrix<Scalar, LowRank::ColsAtCompileTime, RightHandSide::ColsAtCompileTime> Inner;
+  typedef typename Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Inner;
 
   Eigen::Index N = t1.rows(), M = t2.rows(), J = c.rows(), nrhs = Y.cols();
 

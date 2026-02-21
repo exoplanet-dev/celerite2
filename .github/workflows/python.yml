@@ -19,13 +19,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10"]
+        python-version: ["3.11"]
         os: ["ubuntu-latest"]
         session:
           - "core"
           - "jax"
-          - "pymc3"
-          # - "pymc"
+          - "pymc"
           - "pymc_jax"
 
     steps:
@@ -47,7 +46,7 @@ jobs:
 
       - name: Run tests
         run: |
-          python -m nox --non-interactive --error-on-missing-interpreter \
+          python -m nox --non-interactive \
             --session ${{ matrix.session }}-${{ matrix.python-version }}
 
   tests-pymc:
@@ -68,12 +67,12 @@ jobs:
           environment-name: test-env
           create-args: >-
             mamba
-            python=3.10
+            python=3.11
 
       - name: Install nox
         run: python -m pip install -U nox
 
       - name: Run tests
         run: |
-          python -m nox --non-interactive --error-on-missing-interpreter \
-            --session pymc_mamba-3.10
+          python -m nox --non-interactive \
+            --session pymc_mamba-3.11

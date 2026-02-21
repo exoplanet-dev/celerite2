@@ -11,11 +11,11 @@ __all__ = [
     "general_matmul_upper",
 ]
 
+import importlib.resources as resources
 import json
 from itertools import chain
 
 import numpy as np
-import pkg_resources
 import theano
 import theano.tensor as tt
 from theano.graph import basic, op
@@ -140,9 +140,7 @@ class _CeleriteOp(op.Op):
         return self.rev_op(*chain(inputs, outputs, grads))
 
 
-with open(
-    pkg_resources.resource_filename("celerite2", "definitions.json"), "r"
-) as f:
+with resources.files("celerite2").joinpath("definitions.json").open("r") as f:
     definitions = {spec["name"]: spec for spec in json.load(f)}
 
 

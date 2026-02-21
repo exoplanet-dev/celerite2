@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 __all__ = ["GaussianProcess", "ConditionalDistribution"]
+from jax import lax
 from jax import numpy as np
 
 from celerite2.core import BaseConditionalDistribution, BaseGaussianProcess
@@ -35,7 +36,17 @@ class GaussianProcess(BaseGaussianProcess):
             self._t, self._c, self._a, self._U, self._V
         )
         self._log_det = np.sum(np.log(self._d))
-        self._norm = -0.5 * (self._log_det + self._size * np.log(2 * np.pi))
+
+        def _bad(_):
+            return -np.inf, np.inf
+
+        def _good(_):
+            return self._log_det, -0.5 * (
+                self._log_det + self._size * np.log(2 * np.pi)
+            )
+
+        bad = np.any(self._d <= 0) | (~np.isfinite(self._log_det))
+        self._log_det, self._norm = lax.cond(bad, _bad, _good, operand=None)
 
     def _check_sorted(self, t):
         return t

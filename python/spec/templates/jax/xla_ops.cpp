@@ -1,169 +1,209 @@
+// Generated JAX FFI bindings for celerite2.
+// Regenerate with: python python/spec/generate.py
+
 #include <pybind11/pybind11.h>
-#include <cstdint>
-#include <stdexcept>
+#include <Eigen/Core>
 #include <string>
-#include <type_traits>
+
+#include "xla/ffi/api/ffi.h"
+
 #include "../driver.hpp"
 
 namespace py = pybind11;
+namespace ffi = xla::ffi;
 using namespace celerite2::driver;
 
+// Helpers
+template <int Axis, typename Buffer>
+inline Eigen::Index dim(const Buffer& buf) {
+  return static_cast<Eigen::Index>(buf.dimensions()[Axis]);
+}
+template <typename Buffer>
+inline Eigen::Index flat_cols(const Buffer& buf) {
+  const auto& dims = buf.dimensions();
+  Eigen::Index cols = 1;
+  for (size_t i = 1; i < dims.size(); ++i)
+    cols *= static_cast<Eigen::Index>(dims[i]);
+  return cols;
+}
+
+// === AUTO-GENERATED KERNELS ===
 {% for mod in spec %}
-auto {{mod.name}} (void *out_tuple, const void **in) {
-    {% set input_index = mod.dimensions|length - 1 -%}
-    void **out = reinterpret_cast<void **>(out_tuple);
-    {%- for dim in mod.dimensions %}
-    const int {{dim.name}} = *reinterpret_cast<const int *>(in[{{loop.index - 1}}]);
+
+ffi::Error {{mod.name|capitalize}}Impl(
+{%- for arg in mod.inputs %}
+    ffi::Buffer<ffi::DataType::F64> {{arg.name}}{% if not loop.last or mod.outputs or mod.extra_outputs %},{% endif %}
+{%- endfor -%}
+{%- for arg in mod.outputs %}
+    ffi::ResultBuffer<ffi::DataType::F64> {{arg.name}}{% if not loop.last or mod.extra_outputs %},{% endif %}
+{%- endfor -%}
+{%- for arg in mod.extra_outputs %}
+    ffi::ResultBuffer<ffi::DataType::F64> {{arg.name}}{% if not loop.last %},{% endif %}
+{%- endfor %}
+) {
+  {# Dimension aliases for readability #}
+  {% for dim in mod.dimensions %}
+  const auto {{dim.name}} = dim<{{dim.coords[1]}}>({{mod.inputs[dim.coords[0]].name}});
+  {% endfor %}
+  {%- set nrhs_arg = None -%}
+  {%- for a in mod.inputs + mod.outputs + mod.extra_outputs -%}
+    {%- if a.shape|length >= 2 and a.shape[-1] == "nrhs" and nrhs_arg is none -%}
+      {%- set nrhs_arg = a -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- if nrhs_arg is not none %}
+  const auto nrhs = dim<{{ nrhs_arg.shape|length - 1 }}>({{ nrhs_arg.name }});
+  {%- endif %}
+  {# Minimal shape checks - rely on driver.hpp order helper #}
+  {% for arg in mod.inputs %}
+  {%- if arg.shape|length == 1 %}
+  if (dim<0>({{arg.name}}) != {{arg.shape[0]}}) return ffi::Error::InvalidArgument("{{mod.name}} shape mismatch");
+  {%- elif arg.shape|length == 2 %}
+  if (dim<0>({{arg.name}}) != {{arg.shape[0]}} || dim<1>({{arg.name}}) != {{arg.shape[1]}}) return ffi::Error::InvalidArgument("{{mod.name}} shape mismatch");
+  {%- endif %}
+  {% endfor %}
+
+#define FIXED_SIZE_MAP(SIZE) \
+  { \
+    {%- for arg in mod.inputs %}
+    {%- if arg.shape|length == 1 %}
+    Eigen::Map<const Eigen::VectorXd> {{arg.name}}_({{arg.name}}.typed_data(), {{arg.shape[0]}}, 1); \
+    {%- elif arg.shape|length == 2 and arg.shape[1] == "J" %}
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> {{arg.name}}_({{arg.name}}.typed_data(), {{arg.shape[0]}}, J); \
+    {%- elif arg.shape|length == 2 and arg.shape[1] == "nrhs" %}
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> {{arg.name}}_({{arg.name}}.typed_data(), {{arg.shape[0]}}, dim<1>({{arg.name}})); \
+    {%- else %}
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> {{arg.name}}_({{arg.name}}.typed_data(), {{arg.shape[0]}}, dim<1>({{arg.name}})); \
+    {%- endif %}
     {%- endfor %}
-    {% for arg in mod.inputs %}
-    const double *{{arg.name}} = reinterpret_cast<const double *>(in[{{ input_index + loop.index }}]);
+    {%- for arg in mod.outputs %}
+    {%- if arg.shape|length == 1 %}
+    Eigen::Map<Eigen::VectorXd> {{arg.name}}_({{arg.name}}->typed_data(), {{arg.shape[0]}}, 1); \
+    {%- elif arg.shape|length == 2 and arg.shape[1] == "J" %}
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> {{arg.name}}_({{arg.name}}->typed_data(), {{arg.shape[0]}}, J); \
+    {%- elif arg.shape|length == 2 and arg.shape[1] == "nrhs" %}
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> {{arg.name}}_({{arg.name}}->typed_data(), {{arg.shape[0]}}, {{arg.shape[1]}}); \
+    {%- else %}
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> {{arg.name}}_({{arg.name}}->typed_data(), {{arg.shape[0]}}, {{arg.shape[1]}}); \
+    {%- endif %}
+    {%- endfor %}
+    {%- for arg in mod.extra_outputs %}
+    {%- if arg.shape|length == 3 and arg.shape[1] == "J" and arg.shape[2] == "J" %}
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, (SIZE * SIZE), order<(SIZE * SIZE)>::value>> {{arg.name}}_({{arg.name}}->typed_data(), {{arg.shape[0]}}, J * J); \
+    {%- else %}
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> {{arg.name}}_({{arg.name}}->typed_data(), {{arg.shape[0]}}, {{ '*'.join(arg.shape[1:]) }}); \
+    {%- endif %}
     {%- endfor %}
     {%- for arg in mod.outputs + mod.extra_outputs %}
-    double *{{arg.name}} = reinterpret_cast<double *>(out[{{ loop.index - 1 }}]);
+    {{arg.name}}_.setZero(); \
     {%- endfor %}
+    try { \
+        celerite2::core::{{mod.name}}({%- for arg in mod.inputs %} {{arg.name}}_{% if not loop.last or mod.outputs or mod.extra_outputs %},{% endif %}{%- endfor %}{%- if mod.outputs or mod.extra_outputs %} {% endif %}{%- for arg in mod.outputs + mod.extra_outputs %}{{arg.name}}_{% if not loop.last %},{% endif %}{%- endfor %}); \
+    } catch (const std::exception& e) { \
+        return ffi::Error::Internal(e.what()); \
+    } \
+  }
+  UNWRAP_CASES_{{ "FEW" if mod.has_rev else "MOST" }}
+#undef FIXED_SIZE_MAP
+
+  return ffi::Error::Success();
+}
+
+XLA_FFI_DEFINE_HANDLER_SYMBOL(
+    {{mod.name}}, {{mod.name|capitalize}}Impl,
+    ffi::Ffi::Bind()
+{%- for arg in mod.inputs %}
+        .Arg<ffi::Buffer<ffi::DataType::F64>>()  // {{arg.name}}
+{%- endfor %}
+{%- for arg in mod.outputs + mod.extra_outputs %}
+        .Ret<ffi::Buffer<ffi::DataType::F64>>()  // {{arg.name}}
+{%- endfor %}
+);
+{% if mod.has_rev %}
+
+ffi::Error {{mod.name}}_revImpl(
+{%- for arg in mod.rev_inputs %}
+    ffi::Buffer<ffi::DataType::F64> {{arg.name}}{% if not loop.last or mod.rev_outputs %},{% endif %}
+{%- endfor -%}
+{%- for arg in mod.rev_outputs %}
+    ffi::ResultBuffer<ffi::DataType::F64> {{arg.name}}{% if not loop.last %},{% endif %}
+{%- endfor %}
+) {
+  {% for dim in mod.dimensions %}
+  const auto {{dim.name}} = dim<{{dim.coords[1]}}>({{mod.inputs[dim.coords[0]].name}});
+  {% endfor %}
+  {# Minimal shape checks #}
+  {% for arg in mod.rev_inputs %}
+  {%- if arg.shape|length == 1 %}
+  if (dim<0>({{arg.name}}) != {{arg.shape[0]}}) return ffi::Error::InvalidArgument("{{mod.name}}_rev shape mismatch");
+  {%- elif arg.shape|length == 2 %}
+  if (dim<0>({{arg.name}}) != {{arg.shape[0]}} || dim<1>({{arg.name}}) != {{arg.shape[1]}}) return ffi::Error::InvalidArgument("{{mod.name}}_rev shape mismatch");
+  {%- endif %}
+  {% endfor %}
 
 #define FIXED_SIZE_MAP(SIZE) \
-    { \
-    {%- for arg in mod.inputs + mod.outputs + mod.extra_outputs %}
-    {%- if arg.shape|length == 1 -%}
-    {%- if arg.shape[0] == "J" %}
-    Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::Matrix<double, SIZE, 1>> {{arg.name}}_({{arg.name}}, J, 1); \
+  { \
+    {%- for arg in mod.rev_inputs %}
+    {%- if arg.shape|length == 1 %}
+    Eigen::Map<const Eigen::VectorXd> {{arg.name}}_({{arg.name}}.typed_data(), {{arg.shape[0]}}, 1); \
+    {%- elif arg.shape|length == 2 and arg.shape[1] == "J" %}
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> {{arg.name}}_({{arg.name}}.typed_data(), {{arg.shape[0]}}, J); \
+    {%- elif arg.shape|length == 3 and arg.shape[1] == "J" and arg.shape[2] == "J" %}
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, (SIZE * SIZE), order<(SIZE * SIZE)>::value>> {{arg.name}}_({{arg.name}}.typed_data(), {{arg.shape[0]}}, J * J); \
+    {%- elif arg.shape|length == 3 %}
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> {{arg.name}}_({{arg.name}}.typed_data(), {{arg.shape[0]}}, {{ '*'.join(arg.shape[1:]) }}); \
     {%- else %}
-    Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::VectorXd> {{arg.name}}_({{arg.name}}, {{arg.shape[0]}}, 1); \
-    {%- endif -%}
-    {%- elif arg.shape|length == 2 -%}
-    {%- if arg.shape[1] == "J" %}
-    Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> {{arg.name}}_({{arg.name}}, {{arg.shape[0]}}, J); \
-    {%- endif -%}
-    {%- else -%}
-    {%- if arg.shape[2] == "J" %}
-    Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::Matrix<double, Eigen::Dynamic, (SIZE * SIZE), order<(SIZE * SIZE)>::value>> {{arg.name}}_({{arg.name}}, {{arg.shape[0]}}, J * J); \
-    {%- endif -%}
-    {%- endif -%}
-    {% endfor %}
-    {%- if mod.name == "factor" %}
-    Eigen::Index flag = celerite2::core::{{mod.name}}({% for val in mod.inputs + mod.outputs + mod.extra_outputs %}{{val.name}}_{%- if not loop.last %}, {% endif %}{% endfor %}); \
-    if (flag) d_.setZero(); \
-    {%- else %}
-    if (nrhs == 1) { \
-        {% for arg in mod.inputs + mod.outputs + mod.extra_outputs %}
-        {%- if arg.shape|length == 2 and arg.shape[1] == "nrhs" -%}
-        Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::VectorXd> {{arg.name}}_({{arg.name}}, {{arg.shape[0]}}, 1); \
-        {% elif arg.shape|length == 3 and arg.shape[2] == "nrhs" -%}
-        Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> {{arg.name}}_({{arg.name}}, {{arg.shape[0]}}, J); \
-        {% endif -%}
-        {% endfor -%}
-        {% for arg in mod.outputs -%}
-        {{arg.name}}_.setZero(); \
-        {% endfor -%}
-        celerite2::core::{{mod.name}}({% for val in mod.inputs + mod.outputs + mod.extra_outputs %}{{val.name}}_{%- if not loop.last %}, {% endif %}{% endfor %}); \
-    } else { \
-        {% for arg in mod.inputs + mod.outputs + mod.extra_outputs %}
-        {%- if (arg.shape|length == 2 and arg.shape[1] == "nrhs") or (arg.shape|length == 3 and arg.shape[2] == "nrhs") -%}
-        Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> {{arg.name}}_({{arg.name}}, {{arg.shape[0]}}, {{arg.shape[1:]|join(" * ")}}); \
-        {% endif -%}
-        {% endfor -%}
-        {% for arg in mod.outputs -%}
-        {{arg.name}}_.setZero(); \
-        {% endfor -%}
-        celerite2::core::{{mod.name}}({% for val in mod.inputs + mod.outputs + mod.extra_outputs %}{{val.name}}_{%- if not loop.last %}, {% endif %}{% endfor %}); \
-    } \
+    Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> {{arg.name}}_({{arg.name}}.typed_data(), {{arg.shape[0]}}, {{arg.shape[1]}}); \
     {%- endif %}
-    }
-    UNWRAP_CASES_MOST
-#undef FIXED_SIZE_MAP
-}
-{%- if mod.has_rev %}
-auto {{mod.name}}_rev (void *out_tuple, const void **in) {
-    void **out = reinterpret_cast<void **>(out_tuple);
-    const int N = *reinterpret_cast<const int *>(in[0]);
-    const int J = *reinterpret_cast<const int *>(in[1]);
-    {%- if mod.name == "factor" -%}
-    {%- set input_index = 1 -%}
-    {%- else %}
-    const int nrhs = *reinterpret_cast<const int *>(in[2]);
-    {%- set input_index = 2 -%}
-    {%- endif %}
-    {% for arg in mod.rev_inputs %}
-    const double *{{arg.name}} = reinterpret_cast<const double *>(in[{{ input_index + loop.index }}]);
     {%- endfor %}
     {%- for arg in mod.rev_outputs %}
-    double *{{arg.name}} = reinterpret_cast<double *>(out[{{ loop.index - 1 }}]);
-    {%- endfor %}
-
-#define FIXED_SIZE_MAP(SIZE) \
-    { \
-    {%- for arg in mod.rev_inputs + mod.rev_outputs %}
-    {%- if arg.shape|length == 1 -%}
-    {%- if arg.shape[0] == "J" %}
-    Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::Matrix<double, SIZE, 1>> {{arg.name}}_({{arg.name}}, J, 1); \
+    {%- if arg.shape|length == 1 %}
+    Eigen::Map<Eigen::VectorXd> {{arg.name}}_({{arg.name}}->typed_data(), {{arg.shape[0]}}, 1); \
+    {%- elif arg.shape|length == 2 and arg.shape[1] == "J" %}
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> {{arg.name}}_({{arg.name}}->typed_data(), {{arg.shape[0]}}, J); \
     {%- else %}
-    Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::VectorXd> {{arg.name}}_({{arg.name}}, {{arg.shape[0]}}, 1); \
-    {%- endif -%}
-    {%- elif arg.shape|length == 2 -%}
-    {%- if arg.shape[1] == "J" %}
-    Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> {{arg.name}}_({{arg.name}}, {{arg.shape[0]}}, J); \
-    {%- endif -%}
-    {%- else -%}
-    {%- if arg.shape[2] == "J" %}
-    Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::Matrix<double, Eigen::Dynamic, (SIZE * SIZE), order<(SIZE * SIZE)>::value>> {{arg.name}}_({{arg.name}}, {{arg.shape[0]}}, J * J); \
-    {%- endif -%}
-    {%- endif -%}
-    {% endfor %}
-    {%- if mod.name == "factor" %}
-    celerite2::core::{{mod.name}}_rev({% for val in mod.rev_inputs + mod.rev_outputs %}{{val.name}}_{%- if not loop.last %}, {% endif %}{% endfor %}); \
-    {%- else %}
-    if (nrhs == 1) { \
-        {% for arg in mod.rev_inputs + mod.rev_outputs %}
-        {%- if arg.shape|length == 2 and arg.shape[1] == "nrhs" -%}
-        Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::VectorXd> {{arg.name}}_({{arg.name}}, {{arg.shape[0]}}, 1); \
-        {% elif arg.shape|length == 3 and arg.shape[2] == "nrhs" -%}
-        Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::Matrix<double, Eigen::Dynamic, SIZE, order<SIZE>::value>> {{arg.name}}_({{arg.name}}, {{arg.shape[0]}}, J); \
-        {% endif -%}
-        {% endfor -%}
-        celerite2::core::{{mod.name}}_rev({% for val in mod.rev_inputs + mod.rev_outputs %}{{val.name}}_{%- if not loop.last %}, {% endif %}{% endfor %}); \
-    } else { \
-        {% for arg in mod.rev_inputs + mod.rev_outputs %}
-        {%- if (arg.shape|length == 2 and arg.shape[1] == "nrhs") or (arg.shape|length == 3 and arg.shape[2] == "nrhs") -%}
-        Eigen::Map<{% if not arg.is_output %}const {% endif %}Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> {{arg.name}}_({{arg.name}}, {{arg.shape[0]}}, {{arg.shape[1:]|join(" * ")}}); \
-        {% endif -%}
-        {% endfor -%}
-        celerite2::core::{{mod.name}}_rev({% for val in mod.rev_inputs + mod.rev_outputs %}{{val.name}}_{%- if not loop.last %}, {% endif %}{% endfor %}); \
-    } \
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> {{arg.name}}_({{arg.name}}->typed_data(), {{arg.shape[0]}}, {{arg.shape[1]}}); \
     {%- endif %}
-    }
-    UNWRAP_CASES_FEW
+    {%- endfor %}
+    {%- for arg in mod.rev_outputs %}
+    {{arg.name}}_.setZero(); \
+    {%- endfor %}
+    try { \
+        celerite2::core::{{mod.name}}_rev({%- for arg in mod.rev_inputs %} {{arg.name}}_{% if not loop.last or mod.rev_outputs %},{% endif %}{%- endfor %}{%- if mod.rev_outputs %} {% endif %}{%- for arg in mod.rev_outputs %}{{arg.name}}_{% if not loop.last %},{% endif %}{%- endfor %}); \
+    } catch (const std::exception& e) { \
+        return ffi::Error::Internal(e.what()); \
+    } \
+  }
+  UNWRAP_CASES_FEW
 #undef FIXED_SIZE_MAP
+
+  return ffi::Error::Success();
 }
+
+XLA_FFI_DEFINE_HANDLER_SYMBOL(
+    {{mod.name}}_rev, {{mod.name}}_revImpl,
+    ffi::Ffi::Bind()
+{%- for arg in mod.rev_inputs %}
+        .Arg<ffi::Buffer<ffi::DataType::F64>>()  // {{arg.name}}
+{%- endfor %}
+{%- for arg in mod.rev_outputs %}
+        .Ret<ffi::Buffer<ffi::DataType::F64>>()  // {{arg.name}}
+{%- endfor %}
+);
 {% endif %}
 {% endfor %}
 
-// https://en.cppreference.com/w/cpp/numeric/bit_cast
-template <class To, class From>
-typename std::enable_if<sizeof(To) == sizeof(From) && std::is_trivially_copyable<From>::value && std::is_trivially_copyable<To>::value, To>::type
-bit_cast(const From &src) noexcept {
-  static_assert(std::is_trivially_constructible<To>::value,
-                "This implementation additionally requires destination type to be trivially constructible");
-
-  To dst;
-  memcpy(&dst, &src, sizeof(To));
-  return dst;
-}
-
-template <typename T>
-py::capsule encapsulate_function(T* fn) {
-  return py::capsule(bit_cast<void*>(fn), "xla._CUSTOM_CALL_TARGET");
+// Pybind --------------------------------------------------------------------
+template <auto* Fn>
+py::capsule Encapsulate() {
+  return py::capsule(reinterpret_cast<void*>(Fn), "xla._CUSTOM_CALL_TARGET");
 }
 
 PYBIND11_MODULE(xla_ops, m) {
-    {%- for mod in spec %}
-    m.def("{{mod.name}}", []() {
-        return encapsulate_function({{mod.name}});
-    });
-    {%- if mod.has_rev %}
-    m.def("{{mod.name}}_rev", []() {
-        return encapsulate_function({{mod.name}}_rev);
-    });
-    {%- endif %}
-    {%- endfor %}
+  {% for mod in spec %}
+  m.def("{{mod.name}}", &Encapsulate<{{mod.name}}>);
+  {%- if mod.has_rev %}
+  m.def("{{mod.name}}_rev", &Encapsulate<{{mod.name}}_rev>);
+  {%- endif %}
+  {% endfor %}
 }
