@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import subprocess
+from importlib.metadata import PackageNotFoundError, version
 
 import sphinx_material
-from pkg_resources import DistributionNotFound, get_distribution
 
 try:
-    __version__ = get_distribution("celerite2").version
-except DistributionNotFound:
+    __version__ = version("celerite2")
+except PackageNotFoundError:
     __version__ = "dev"
 
 
