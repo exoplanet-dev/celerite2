@@ -114,7 +114,7 @@ def _default_layouts(shapes):
 
 def _jvp(prim, jvp_prim, spec, arg_values, arg_tangents):
     def make_zero(x, t):
-        return lax.zeros_like_array(x) if type(t) is ad.Zero else t
+        return jnp.zeros_like(x) if type(t) is ad.Zero else t
 
     out_values = tuple(prim.bind(*arg_values))
     arg_tangents = tuple(
@@ -139,7 +139,7 @@ def _jvp_abstract_eval(spec, *args):
 
 def _jvp_transpose(rev_prim, spec, c_out, *args):
     def make_zero(x, t):
-        return lax.zeros_like_array(x) if type(t) is ad.Zero else t
+        return jnp.zeros_like(x) if type(t) is ad.Zero else t
 
     nin = len(spec["inputs"])
     nout = len(spec["outputs"])
