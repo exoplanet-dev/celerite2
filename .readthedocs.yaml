@@ -6,6 +6,8 @@ submodules:
 build:
   os: ubuntu-24.04
   apt_packages:
+    - cmake
+    - doxygen
     - fonts-liberation
   tools:
     python: "3.11"
