@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import subprocess
+from importlib.metadata import PackageNotFoundError, version
 
 import sphinx_material
-from importlib.metadata import PackageNotFoundError, version
 
 try:
     __version__ = version("celerite2")
