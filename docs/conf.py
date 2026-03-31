@@ -3,11 +3,11 @@
 import subprocess
 
 import sphinx_material
-from pkg_resources import DistributionNotFound, get_distribution
+from importlib.metadata import PackageNotFoundError, version
 
 try:
-    __version__ = get_distribution("celerite2").version
-except DistributionNotFound:
+    __version__ = version("celerite2")
+except PackageNotFoundError:
     __version__ = "dev"
 
 
