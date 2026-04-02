@@ -4,8 +4,10 @@ submodules:
   include: all
 
 build:
-  os: ubuntu-20.04
+  os: ubuntu-24.04
   apt_packages:
+    - cmake
+    - doxygen
     - fonts-liberation
   tools:
     python: "3.11"
