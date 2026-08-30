@@ -19,10 +19,17 @@ import numpy as np
 import pytensor
 import pytensor.tensor as pt
 from pytensor.graph import basic, op
-from pytensor.link.jax.dispatch import jax_funcify
 
 import celerite2.backprop as backprop
 import celerite2.driver as driver
+
+try:
+    from pytensor.link.jax.dispatch import jax_funcify
+except ImportError:  # pragma: no cover - jax is an optional dependency
+    # pytensor.link.jax.dispatch imports jax, which is not a required
+    # dependency of the PyMC backend. The conversion defined below is then
+    # simply not registered.
+    jax_funcify = None
 
 
 def _resize_or_set(outputs, n, shape):
@@ -160,7 +167,6 @@ general_matmul_upper = _CeleriteOp(
 
 
 # JAX conversion for PyTensor JAX linker -------------------------------------
-@jax_funcify.register(_CeleriteOp)
 def _jax_funcify_celerite(op, node, **kwargs):
     """Map celerite2 PyTensor ops to their JAX counterparts."""
 
@@ -224,3 +230,7 @@ def _jax_funcify_celerite(op, node, **kwargs):
         raise NotImplementedError(
             f"No JAX conversion registered for {op.name}"
         )
+
+
+if jax_funcify is not None:
+    jax_funcify.register(_CeleriteOp)(_jax_funcify_celerite)
