@@ -9,6 +9,7 @@ recursive-exclude * .gitignore
 
 graft c++/include
 graft c++/vendor/eigen/Eigen
+graft c++/vendor/xla
 
 prune c++/test
 prune .github
