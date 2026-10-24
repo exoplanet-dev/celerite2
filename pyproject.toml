@@ -41,7 +41,17 @@ tutorials = ["matplotlib", "scipy", "emcee", "pymc>=5.26.1", "tqdm", "numpyro"]
 "Bug Tracker" = "https://github.com/exoplanet-dev/celerite2/issues"
 
 [build-system]
-requires = ["scikit-build-core", "numpy", "pybind11", "jax==0.8.0"]
+requires = [
+  "scikit-build-core",
+  "numpy",
+  "pybind11",
+  # jax supplies the FFI headers for the optional JAX extension. It is
+  # skipped where jaxlib publishes no wheel -- macOS x86_64 stops at jaxlib
+  # 0.4.38 and jaxlib has no sdist -- so that the source build remains
+  # possible there. CMakeLists already handles a missing jax by printing
+  # "Skipping JAX extension" and building the rest.
+  "jax==0.8.0; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+]
 build-backend = "scikit_build_core.build"
 
 [tool.scikit-build]
