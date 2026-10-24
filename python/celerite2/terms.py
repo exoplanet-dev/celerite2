@@ -22,6 +22,20 @@ import numpy as np
 import celerite2.driver as driver
 
 
+def _cosh_minus_one(x):
+    """Evaluate cosh(x) - 1 without cancellation near zero."""
+    return np.where(
+        np.abs(x) < 0.01, 2 * np.sinh(0.5 * x) ** 2, np.cosh(x) - 1
+    )
+
+
+def _sinh_minus_x(x):
+    """Use the series through x**9 where subtraction loses precision."""
+    x2 = x * x
+    series = x * x2 * (1 / 6 + x2 * (1 / 120 + x2 * (1 / 5040 + x2 / 362880)))
+    return np.where(np.abs(x) < 0.01, series, np.sinh(x) - x)
+
+
 class Term:
     """The abstract base "term" that is the superclass of all other terms
 
@@ -355,7 +369,7 @@ class TermConvolution(Term):
 
         # Real part
         cd = cr * dt
-        delta_diag = 2 * np.sum(ar * (cd - np.sinh(cd)) / cd**2)
+        delta_diag = -2 * np.sum(ar * _sinh_minus_x(cd) / cd**2)
 
         # Complex part
         cd = cc * dt
@@ -386,7 +400,7 @@ class TermConvolution(Term):
 
         # Real componenets
         crd = cr * self.delta
-        coeffs = [2 * ar * (np.cosh(crd) - 1) / crd**2, cr]
+        coeffs = [2 * ar * _cosh_minus_one(crd) / crd**2, cr]
 
         # Imaginary coefficients
         cd = c * self.delta
@@ -433,13 +447,14 @@ class TermConvolution(Term):
         # Real parts:
         # tau > Delta
         crd = cr * dt
-        cosh = np.cosh(crd)
         norm = 2 * ar / crd**2
-        K_large = np.sum(norm * (cosh - 1) * np.exp(-cr * tau), axis=-1)
+        K_large = np.sum(
+            norm * _cosh_minus_one(crd) * np.exp(-cr * tau), axis=-1
+        )
 
         # tau < Delta
         crdmt = cr * dmt
-        K_small = K_large + np.sum(norm * (crdmt - np.sinh(crdmt)), axis=-1)
+        K_small = K_large - np.sum(norm * _sinh_minus_x(crdmt), axis=-1)
 
         # Complex part
         cd = c * dt
