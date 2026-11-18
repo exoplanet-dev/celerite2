@@ -235,3 +235,24 @@ def test_errors():
 
     with pytest.raises(ValueError):
         gp.predict(y, t=np.tile(t[:, None], (1, 5)))
+
+
+@pytest.mark.parametrize("computed", [False, True])
+def test_quiet_log_likelihood(computed):
+    x = np.linspace(0.0, 10.0, 8)
+    gp = celerite2.GaussianProcess(terms.SHOTerm(sigma=1.0, rho=2.0, Q=1.5))
+    if computed:
+        gp.compute(x, diag=0.1)
+    gp.compute(np.zeros_like(x), quiet=True)
+    assert gp.log_likelihood(np.zeros_like(x)) == -np.inf
+    assert gp.log_likelihood(np.ones_like(x)) == -np.inf
+
+    gp.compute(x, diag=0.1)
+    K = gp.kernel.to_dense(x, np.full_like(x, 0.1))
+    y = np.sin(x)
+    expected = -0.5 * (
+        np.linalg.slogdet(K)[1]
+        + len(x) * np.log(2 * np.pi)
+        + y @ np.linalg.solve(K, y)
+    )
+    np.testing.assert_allclose(gp.log_likelihood(y), expected)

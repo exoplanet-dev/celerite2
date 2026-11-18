@@ -90,3 +90,26 @@ def test_errors():
 
     with pytest.raises(ValueError):
         gp.predict(y, t=np.tile(t[:, None], (1, 5)))
+
+
+@pytest.mark.parametrize("computed", [False, True])
+def test_quiet_log_likelihood(computed):
+    from jax import jit
+
+    x = np.linspace(0.0, 10.0, 8)
+    kernel = terms.SHOTerm(sigma=1.0, rho=2.0, Q=1.5)
+    gp = GaussianProcess(kernel)
+    if computed:
+        gp.compute(x, diag=0.1)
+    gp.compute(np.zeros_like(x), quiet=True)
+    assert jit(gp.log_likelihood)(np.zeros_like(x)) == -np.inf
+    assert jit(gp.log_likelihood)(np.ones_like(x)) == -np.inf
+
+    gp.compute(x, diag=0.1)
+    reference = celerite2.GaussianProcess(
+        pyterms.SHOTerm(sigma=1.0, rho=2.0, Q=1.5), t=x, diag=0.1
+    )
+    np.testing.assert_allclose(
+        jit(gp.log_likelihood)(np.sin(x)),
+        reference.log_likelihood(np.sin(x)),
+    )
