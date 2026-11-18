@@ -38,7 +38,7 @@ class GaussianProcess(BaseGaussianProcess):
         self._log_det = np.sum(np.log(self._d))
 
         def _bad(_):
-            return -np.inf, np.inf
+            return -np.inf, -np.inf
 
         def _good(_):
             return self._log_det, -0.5 * (
@@ -66,7 +66,9 @@ class GaussianProcess(BaseGaussianProcess):
         alpha = ops.solve_lower(
             self._t, self._c, self._U, self._W, y[:, None]
         )[:, 0]
-        return np.sum(alpha**2 / self._d)
+        return np.where(
+            self._log_det == -np.inf, np.inf, np.sum(alpha**2 / self._d)
+        )
 
     def numpyro_dist(self):
         from celerite2.jax.distribution import CeleriteNormal

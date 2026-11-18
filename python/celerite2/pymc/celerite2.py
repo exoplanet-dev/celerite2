@@ -49,7 +49,11 @@ class GaussianProcess(BaseGaussianProcess):
             )
             self._log_det = pt.sum(pt.log(self._d))
 
-        self._norm = -0.5 * (self._log_det + self._size * np.log(2 * np.pi))
+        self._norm = pt.switch(
+            pt.eq(self._log_det, -np.inf),
+            -np.inf,
+            -0.5 * (self._log_det + self._size * np.log(2 * np.pi)),
+        )
 
     def _check_sorted(self, t):
         return Assert()(t, pt.all(t[1:] - t[:-1] >= 0))
@@ -69,7 +73,9 @@ class GaussianProcess(BaseGaussianProcess):
         alpha = ops.solve_lower(
             self._t, self._c, self._U, self._W, y[:, None]
         )[0][:, 0]
-        return pt.sum(alpha**2 / self._d)
+        return pt.switch(
+            pt.eq(self._log_det, -np.inf), np.inf, pt.sum(alpha**2 / self._d)
+        )
 
     def _add_citations_to_pymc_model(self, **kwargs):
         import pymc as pm

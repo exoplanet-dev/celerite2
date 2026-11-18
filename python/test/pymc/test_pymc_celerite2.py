@@ -130,3 +130,23 @@ def test_citations(data):
         gp = GaussianProcess(term, t=x, diag=diag)
         gp.marginal("obs", observed=y)
         assert model.__citations__["celerite2"] == CITATIONS
+
+
+def test_quiet_log_likelihood():
+    x = np.linspace(0.0, 10.0, 8)
+    gp = GaussianProcess(
+        terms.SHOTerm(sigma=1.0, rho=2.0, Q=1.5),
+        t=np.zeros_like(x),
+        quiet=True,
+    )
+    assert gp.log_likelihood(np.zeros_like(x)).eval() == -np.inf
+    assert gp.log_likelihood(np.ones_like(x)).eval() == -np.inf
+
+    gp.compute(x, diag=0.1)
+    reference = celerite2.GaussianProcess(
+        pyterms.SHOTerm(sigma=1.0, rho=2.0, Q=1.5), t=x, diag=0.1
+    )
+    np.testing.assert_allclose(
+        gp.log_likelihood(np.sin(x)).eval(),
+        reference.log_likelihood(np.sin(x)),
+    )

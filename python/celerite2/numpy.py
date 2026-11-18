@@ -79,7 +79,7 @@ class GaussianProcess(BaseGaussianProcess):
             if not quiet:
                 raise
             self._log_det = -np.inf
-            self._norm = np.inf
+            self._norm = -np.inf
         else:
             self._log_det = np.sum(np.log(self._d))
             self._norm = -0.5 * (
@@ -102,6 +102,8 @@ class GaussianProcess(BaseGaussianProcess):
         return driver.matmul_lower(self._t, self._c, self._U, self._W, z, z)
 
     def _do_norm(self, y):
+        if self._log_det == -np.inf:
+            return np.inf
         alpha = y[:, None]
         alpha = driver.solve_lower(
             self._t, self._c, self._U, self._W, alpha, alpha
