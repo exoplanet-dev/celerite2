@@ -151,19 +151,19 @@ class Term:
         Jc = len(ac)
         J = Jr + 2 * Jc
 
-        if c is None:
+        if c is None or (c.size != J and not c.flags.owndata):
             c = np.empty(J)
         else:
             c.resize(J, refcheck=False)
-        if a is None:
+        if a is None or (a.size != N and not a.flags.owndata):
             a = np.empty(N)
         else:
             a.resize(N, refcheck=False)
-        if U is None:
+        if U is None or (U.size != N * J and not U.flags.owndata):
             U = np.empty((N, J))
         else:
             U.resize((N, J), refcheck=False)
-        if V is None:
+        if V is None or (V.size != N * J and not V.flags.owndata):
             V = np.empty((N, J))
         else:
             V.resize((N, J), refcheck=False)

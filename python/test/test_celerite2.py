@@ -235,3 +235,30 @@ def test_errors():
 
     with pytest.raises(ValueError):
         gp.predict(y, t=np.tile(t[:, None], (1, 5)))
+
+
+@pytest.mark.parametrize("protocol", [4, 5])
+@pytest.mark.parametrize("computed", [False, True])
+def test_compute_after_pickle(protocol, computed):
+    import pickle
+
+    x = np.linspace(0.0, 10.0, 16)
+    gp = celerite2.GaussianProcess(terms.SHOTerm(sigma=1.0, rho=2.0, Q=1.5))
+    if computed:
+        gp.compute(x, diag=0.1)
+    restored = pickle.loads(pickle.dumps(gp, protocol=protocol))
+
+    for t in [x, x[:-1]]:
+        restored.compute(t, diag=0.1)
+        gp.compute(t, diag=0.1)
+        np.testing.assert_allclose(
+            restored.log_likelihood(np.sin(t)), gp.log_likelihood(np.sin(t))
+        )
+
+    restored.kernel += terms.SHOTerm(sigma=0.5, rho=3.0, Q=0.25)
+    gp.kernel += terms.SHOTerm(sigma=0.5, rho=3.0, Q=0.25)
+    restored.recompute()
+    gp.recompute()
+    np.testing.assert_allclose(
+        restored.log_likelihood(np.sin(t)), gp.log_likelihood(np.sin(t))
+    )

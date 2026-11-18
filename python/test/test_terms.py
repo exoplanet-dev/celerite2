@@ -117,3 +117,26 @@ def test_consistency(oterm):
     y = np.vstack([x]).T
     value = term.dot(x, diag, y)
     np.testing.assert_allclose(value, np.dot(K, y))
+
+
+def test_reuse_preallocated_views():
+    term = terms.SHOTerm(sigma=1.0, rho=2.0, Q=1.5)
+    x = np.linspace(0.0, 10.0, 8)
+    diag = np.full_like(x, 0.1)
+    expected = term.get_celerite_matrices(x, diag)
+    buffers = [np.empty(value.size + 2) for value in expected]
+    views = [
+        buffer[1:-1].reshape(value.shape)
+        for buffer, value in zip(buffers, expected)
+    ]
+    for buffer in buffers:
+        buffer[:] = np.nan
+    actual = term.get_celerite_matrices(
+        x, diag, c=views[0], a=views[1], U=views[2], V=views[3]
+    )
+    for result, reference, view, buffer in zip(
+        actual, expected, views, buffers
+    ):
+        assert np.shares_memory(result, view)
+        np.testing.assert_array_equal(result, reference)
+        assert np.isnan(buffer[0]) and np.isnan(buffer[-1])
