@@ -24,4 +24,4 @@ class CeleriteNormal(dist.Distribution):
 
     def sample(self, key, sample_shape=()):
         eps = random.normal(key, shape=self.event_shape + sample_shape)
-        return jnp.moveaxis(self.gp.dot_tril(eps), 0, -1)
+        return jnp.moveaxis(self.gp.dot_tril(eps), 0, -1) + self.gp._mean_value

@@ -42,3 +42,23 @@ def test_celerite_normal_support_point(t, mean, size, expected):
         # NOTE: Name must be "x" for assert function to work
         gp.marginal("x", size=size)
     assert_support_point_is_expected(model, expected)
+
+
+@pytest.mark.parametrize("mean", [0.0, 10.5, lambda t: 0.2 * (t - 5)])
+def test_samples_include_mean(mean):
+    pm = pytest.importorskip("pymc")
+    t = np.linspace(0.0, 10.0, 8)
+    kernel = terms.SHOTerm(sigma=1.0, rho=2.0, Q=1.5)
+
+    with pm.Model():
+        gp = GaussianProcess(kernel, t=t, diag=0.1, mean=mean)
+        sample = pm.draw(gp.marginal("obs"), random_seed=40582)
+
+    with pm.Model():
+        zero_gp = GaussianProcess(kernel, t=t, diag=0.1)
+        zero_sample = pm.draw(zero_gp.marginal("obs"), random_seed=40582)
+
+    expected_mean = mean(t) if callable(mean) else mean
+    np.testing.assert_allclose(
+        sample, zero_sample + expected_mean, rtol=1e-12, atol=1e-12
+    )
