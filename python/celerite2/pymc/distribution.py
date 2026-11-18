@@ -18,7 +18,7 @@ from celerite2.pymc import ops
 
 
 def safe_celerite_normal(rng, mean, norm, t, c, U, W, d, size=None):
-    if size is None:
+    if size is None or len(size) == 0:
         shape = (mean.shape[0], 1)
         out_shape = mean.shape[0]
     else:
@@ -58,20 +58,13 @@ class CeleriteNormalRV(RandomVariable):
             size = tuple(size or ())
 
             if size:
-                if (
-                    0 < mean.ndim - 1 <= len(size)
-                    and size[-mean.ndim + 1 :] != mean.shape[:-1]
-                ):
-                    raise ValueError(
-                        "shape mismatch: objects cannot be broadcast to a single shape"
-                    )
                 mean = np.broadcast_to(mean, size + mean.shape[-1:])
                 norm = np.broadcast_to(norm, size)
                 t = np.broadcast_to(t, size + t.shape[-1:])
                 c = np.broadcast_to(c, size + c.shape[-1:])
                 U = np.broadcast_to(U, size + U.shape[-2:])
                 W = np.broadcast_to(W, size + W.shape[-2:])
-                d = np.broadcast_to(d, size + d.shape[-2:])
+                d = np.broadcast_to(d, size + d.shape[-1:])
 
             res = np.empty(mean.shape)
             for idx in np.ndindex(mean.shape[:-1]):
