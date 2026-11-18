@@ -26,7 +26,7 @@ def safe_celerite_normal(rng, mean, norm, t, c, U, W, d, size=None):
         out_shape = tuple(size) + (mean.shape[0],)
     n = rng.standard_normal(size=shape) * np.sqrt(d)[:, None]
     result = driver.matmul_lower(t, c, U, W, n, n)
-    return np.reshape(np.transpose(result), out_shape)
+    return np.reshape(np.transpose(result), out_shape) + mean
 
 
 class CeleriteNormalRV(RandomVariable):
