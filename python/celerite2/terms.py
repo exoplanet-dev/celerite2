@@ -61,7 +61,10 @@ class Term:
         Args:
             tau (shape[...]): The lags where the kernel should be evaluated.
         """
-        tau = np.abs(np.atleast_1d(tau))
+        tau = np.atleast_1d(tau)
+        tau = np.abs(
+            tau.astype(np.result_type(tau.dtype, np.float64), copy=False)
+        )
         ar, cr, ac, bc, cc, dc = self.get_coefficients()
         k = np.zeros_like(tau)
         tau = tau[..., None]
@@ -85,7 +88,11 @@ class Term:
             omega (shape[...]): The (angular) frequencies where the power
                 should be evaluated.
         """
-        w2 = np.atleast_1d(omega) ** 2
+        omega = np.atleast_1d(omega)
+        w2 = (
+            omega.astype(np.result_type(omega.dtype, np.float64), copy=False)
+            ** 2
+        )
         ar, cr, ac, bc, cc, dc = self.get_coefficients()
         psd = np.zeros_like(w2)
         w2 = w2[..., None]
@@ -411,6 +418,9 @@ class TermConvolution(Term):
 
     def get_psd(self, omega):
         omega = np.atleast_1d(omega)
+        omega = omega.astype(
+            np.result_type(omega.dtype, np.float64), copy=False
+        )
         psd0 = self.term.get_psd(omega)
         arg = 0.5 * self.delta * omega
         sinc = np.ones_like(arg)
@@ -423,7 +433,10 @@ class TermConvolution(Term):
         ar, cr, a, b, c, d = self.term.get_coefficients()
 
         # Format the lags correctly
-        tau0 = np.abs(np.atleast_1d(tau0))
+        tau0 = np.atleast_1d(tau0)
+        tau0 = np.abs(
+            tau0.astype(np.result_type(tau0.dtype, np.float64), copy=False)
+        )
         tau = tau0[..., None]
 
         # Precompute some factors
